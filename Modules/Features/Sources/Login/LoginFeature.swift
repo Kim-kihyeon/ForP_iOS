@@ -23,6 +23,7 @@ public struct LoginFeature {
     }
 
     @Dependency(\.authRepository) var authRepository
+    @Dependency(\.userRepository) var userRepository
 
     public init() {}
 
@@ -47,7 +48,10 @@ public struct LoginFeature {
 
             case .loginResponse(.success(let user)):
                 state.isLoading = false
-                return .send(.delegate(.loginSucceeded(user)))
+                return .run { send in
+                    let fullUser = (try? await userRepository.fetchCurrentUser()) ?? user
+                    await send(.delegate(.loginSucceeded(fullUser)))
+                }
 
             case .loginResponse(.failure(let error)):
                 state.isLoading = false
