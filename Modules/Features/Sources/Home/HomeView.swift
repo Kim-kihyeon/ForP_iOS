@@ -18,6 +18,10 @@ public struct HomeView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Spacing.lg) {
                         headerSection
+                        if let anniversary = store.upcomingAnniversary {
+                            anniversaryCard(anniversary)
+                                .padding(.horizontal, Spacing.md)
+                        }
                         contentSection
                     }
                     .padding(.bottom, 88)
@@ -36,6 +40,8 @@ public struct HomeView: View {
                 SettingsView(store: store)
             case .partner(let store):
                 PartnerView(store: store)
+            case .anniversary(let store):
+                AnniversaryView(store: store)
             }
         }
         .onAppear { store.send(.onAppear) }
@@ -142,6 +148,34 @@ public struct HomeView: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+    }
+
+    private func anniversaryCard(_ anniversary: Anniversary) -> some View {
+        HStack(spacing: Spacing.md) {
+            Image(systemName: "heart.fill")
+                .font(.title2)
+                .foregroundStyle(Brand.pink)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(anniversary.name)
+                    .font(Typography.body.weight(.semibold))
+                let days = anniversary.daysUntilThisYear
+                Text(days == 0 ? "오늘이에요!" : "D-\(days)")
+                    .font(Typography.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if anniversary.yearsElapsed > 0 {
+                Text("\(anniversary.yearsElapsed + 1)주년")
+                    .font(Typography.caption.weight(.semibold))
+                    .foregroundStyle(Brand.pink)
+            }
+        }
+        .padding(Spacing.md)
+        .background(Brand.softPink)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     private var generateButton: some View {

@@ -42,6 +42,7 @@ struct ForPApp: App {
         let authRepo = AuthRepository(supabase: supabase, anonKey: Secrets.supabaseAnonKey)
         let userRepo = UserRepository(supabase: supabase)
         let partnerRepo = PartnerRepository(supabase: supabase)
+        let anniversaryRepo = AnniversaryRepository(supabase: supabase)
         let courseRepo = CourseRepository(supabase: supabase, modelContext: modelContext)
         let placeRepo = PlaceRepository(provider: kakaoProvider)
         let aiService = GPTAIService(provider: gptProvider)
@@ -56,6 +57,8 @@ struct ForPApp: App {
             $0.authRepository = authRepo
             $0.userRepository = userRepo
             $0.partnerRepository = partnerRepo
+            $0.anniversaryRepository = anniversaryRepo
+            $0.notificationService = NotificationService()
             $0.courseRepository = courseRepo
             $0.placeRepository = placeRepo
             $0.generateCourseUseCase = generateUseCase
@@ -68,7 +71,10 @@ struct ForPApp: App {
         WindowGroup {
             AppView(store: store)
                 .modelContainer(modelContainer)
-                .onAppear { store.send(.onAppear) }
+                .onAppear {
+                    store.send(.onAppear)
+                    _Concurrency.Task { await NotificationService().requestPermission() }
+                }
                 .onOpenURL { url in
                     if AuthApi.isKakaoTalkLoginUrl(url) {
                         _ = AuthController.handleOpenUrl(url: url)

@@ -16,6 +16,14 @@ public struct SettingsView: View {
             ScrollView {
                 VStack(spacing: Spacing.md) {
                     settingRow(
+                        icon: "heart.fill",
+                        iconColor: Brand.pink,
+                        title: "기념일 관리"
+                    ) {
+                        store.send(.anniversaryTapped)
+                    }
+
+                    settingRow(
                         icon: "person.2.fill",
                         iconColor: Brand.pink,
                         title: store.hasPartner ? "파트너 수정" : "파트너 등록"

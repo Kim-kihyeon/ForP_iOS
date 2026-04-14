@@ -9,6 +9,7 @@ public struct HomeFeature {
         case courseResult(CourseResultFeature)
         case settings(SettingsFeature)
         case partner(PartnerFeature)
+        case anniversary(AnniversaryFeature)
     }
 
     @ObservableState
@@ -16,6 +17,7 @@ public struct HomeFeature {
         public var user: User
         public var path = StackState<Path.State>()
         public var recentCourses: [Course] = []
+        public var upcomingAnniversary: Anniversary? = nil
         public var isLoading = false
         @Presents public var alert: AlertState<Action.Alert>?
 
@@ -28,6 +30,7 @@ public struct HomeFeature {
         case path(StackActionOf<Path>)
         case onAppear
         case loadCoursesResponse(Result<[Course], Error>)
+        case loadAnniversariesResponse(Result<[Anniversary], Error>)
         case generateCourseTapped
         case courseSelected(Course)
         case settingsTapped
@@ -42,6 +45,7 @@ public struct HomeFeature {
 
     @Dependency(\.fetchRecentCoursesUseCase) var fetchRecentCoursesUseCase
     @Dependency(\.currentPartner) var currentPartner
+    @Dependency(\.anniversaryRepository) var anniversaryRepository
 
     public init() {}
 
@@ -54,11 +58,21 @@ public struct HomeFeature {
                     await send(.loadCoursesResponse(
                         Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
                     ))
+                    await send(.loadAnniversariesResponse(
+                        Result { try await anniversaryRepository.fetchAnniversaries(userId: userId) }
+                    ))
                 }
 
             case .loadCoursesResponse(.success(let courses)):
                 state.isLoading = false
                 state.recentCourses = courses
+                return .none
+
+            case .loadAnniversariesResponse(.success(let anniversaries)):
+                state.upcomingAnniversary = anniversaries.sorted { $0.daysUntilThisYear < $1.daysUntilThisYear }.first
+                return .none
+
+            case .loadAnniversariesResponse(.failure):
                 return .none
 
             case .loadCoursesResponse(.failure(let error)):
@@ -100,6 +114,10 @@ public struct HomeFeature {
                         Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
                     ))
                 }
+
+            case .path(.element(_, action: .settings(.delegate(.openAnniversary)))):
+                state.path.append(.anniversary(AnniversaryFeature.State()))
+                return .none
 
             case .path(.element(_, action: .settings(.delegate(.openPartner)))):
                 let existing = currentPartner()

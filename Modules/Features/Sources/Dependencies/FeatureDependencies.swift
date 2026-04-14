@@ -26,6 +26,20 @@ private enum PartnerRepositoryKey: DependencyKey {
     }
 }
 
+// MARK: - Anniversary
+
+private enum AnniversaryRepositoryKey: DependencyKey {
+    static var liveValue: any AnniversaryRepositoryProtocol {
+        fatalError("anniversaryRepository: configure via withDependencies in ForPApp")
+    }
+}
+
+private enum NotificationServiceKey: DependencyKey {
+    static var liveValue: any NotificationServiceProtocol {
+        fatalError("notificationService: configure via withDependencies in ForPApp")
+    }
+}
+
 // MARK: - Course
 
 private enum CourseRepositoryKey: DependencyKey {
@@ -79,6 +93,16 @@ private enum CurrentUserIdKey: DependencyKey {
 // MARK: - DependencyValues
 
 extension DependencyValues {
+    public var anniversaryRepository: any AnniversaryRepositoryProtocol {
+        get { self[AnniversaryRepositoryKey.self] }
+        set { self[AnniversaryRepositoryKey.self] = newValue }
+    }
+
+    public var notificationService: any NotificationServiceProtocol {
+        get { self[NotificationServiceKey.self] }
+        set { self[NotificationServiceKey.self] = newValue }
+    }
+
     public var authRepository: any AuthRepositoryProtocol {
         get { self[AuthRepositoryKey.self] }
         set { self[AuthRepositoryKey.self] = newValue }
