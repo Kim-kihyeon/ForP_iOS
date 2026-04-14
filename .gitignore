@@ -12,3 +12,6 @@ Derived/
 
 # Swift
 .swiftpm/
+
+# Secrets
+App/Secrets.xcconfig

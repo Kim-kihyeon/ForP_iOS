@@ -2,6 +2,10 @@ import ProjectDescription
 
 let project = Project(
     name: "ForP",
+    settings: .settings(configurations: [
+        .debug(name: "Debug", xcconfig: "Secrets.xcconfig"),
+        .release(name: "Release", xcconfig: "Secrets.xcconfig"),
+    ]),
     targets: [
         .target(
             name: "ForP",
@@ -21,7 +25,7 @@ let project = Project(
                 "NSFaceIDUsageDescription": "Apple 로그인에 사용됩니다.",
                 "KAKAO_APP_KEY": "$(KAKAO_APP_KEY)",
                 "KAKAO_REST_KEY": "$(KAKAO_REST_KEY)",
-                "SUPABASE_URL": "$(SUPABASE_URL)",
+                "SUPABASE_HOST": "$(SUPABASE_HOST)",
                 "SUPABASE_ANON_KEY": "$(SUPABASE_ANON_KEY)",
                 "OPENAI_API_KEY": "$(OPENAI_API_KEY)",
             ]),
