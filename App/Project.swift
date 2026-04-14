@@ -21,7 +21,7 @@ let project = Project(
                         "CFBundleURLName": "kakao",
                     ]
                 ],
-                "LSApplicationQueriesSchemes": ["kakaokompassauth", "kakaoauth", "kakaolink"],
+                "LSApplicationQueriesSchemes": ["kakaokompassauth", "kakaoauth", "kakaolink", "kakaomap"],
                 "NSFaceIDUsageDescription": "Apple 로그인에 사용됩니다.",
                 "KAKAO_APP_KEY": "$(KAKAO_APP_KEY)",
                 "KAKAO_REST_KEY": "$(KAKAO_REST_KEY)",

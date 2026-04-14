@@ -118,10 +118,38 @@ public struct CourseResultView: View {
             }
 
             Spacer()
+
+            Button {
+                openKakaoMap(place: place)
+            } label: {
+                Image(systemName: "map.fill")
+                    .font(Typography.body)
+                    .foregroundStyle(Brand.pink)
+            }
         }
         .padding(Spacing.md)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+    }
+
+    private func openKakaoMap(place: CoursePlace) {
+        let placeName = place.placeName ?? place.keyword
+        guard let encoded = placeName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
+
+        let appURLString: String
+        if let lat = place.latitude, let lon = place.longitude {
+            appURLString = "kakaomap://search?q=\(encoded)&p=\(lat),\(lon)"
+        } else {
+            appURLString = "kakaomap://search?q=\(encoded)"
+        }
+
+        guard let appURL = URL(string: appURLString) else { return }
+        UIApplication.shared.open(appURL) { success in
+            guard !success else { return }
+            guard let encoded2 = placeName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+                  let webURL = URL(string: "https://map.kakao.com/link/search/\(encoded2)") else { return }
+            UIApplication.shared.open(webURL)
+        }
     }
 }
