@@ -1,5 +1,5 @@
 import Foundation
-import Moya
+@preconcurrency import Moya
 import Domain
 
 public struct GPTAIService: AIServiceProtocol {
@@ -16,8 +16,8 @@ public struct GPTAIService: AIServiceProtocol {
                 switch result {
                 case .success(let response):
                     do {
-                        let dto = try JSONDecoder().decode(GPTResponseDTO.self, from: response.data)
-                        continuation.resume(returning: dto.toDomain())
+                        let apiResponse = try JSONDecoder().decode(GPTAPIResponse.self, from: response.data)
+                        continuation.resume(returning: try apiResponse.toCoursePlaces())
                     } catch {
                         continuation.resume(throwing: error)
                     }

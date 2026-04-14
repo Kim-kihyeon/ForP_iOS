@@ -1,5 +1,5 @@
 import Foundation
-import Moya
+@preconcurrency import Moya
 import Domain
 
 public struct PlaceRepository: PlaceRepositoryProtocol {

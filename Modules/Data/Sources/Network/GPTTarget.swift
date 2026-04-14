@@ -22,7 +22,8 @@ extension GPTTarget: TargetType {
             let body: [String: Any] = [
                 "model": "gpt-4o",
                 "messages": [
-                    ["role": "user", "content": prompt]
+                    ["role": "system", "content": "당신은 데이트 코스 플래너입니다. 반드시 유효한 JSON 형식으로만 응답하세요."],
+                    ["role": "user", "content": prompt],
                 ],
                 "response_format": ["type": "json_object"],
             ]
