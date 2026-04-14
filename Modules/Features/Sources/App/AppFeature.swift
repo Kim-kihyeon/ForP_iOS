@@ -7,8 +7,8 @@ public struct AppFeature {
     public struct State: Equatable {
         public var route: Route = .login
         public var login = LoginFeature.State()
-        public var onboarding = OnboardingFeature.State()
-        public var home = HomeFeature.State()
+        public var onboarding = OnboardingFeature.State(user: .placeholder)
+        public var home = HomeFeature.State(user: .placeholder)
 
         public enum Route: Equatable {
             case login
@@ -35,15 +35,17 @@ public struct AppFeature {
         Reduce { state, action in
             switch action {
             case .login(.delegate(.loginSucceeded(let user))):
-                // 취향 미설정 신규 유저 → 온보딩, 기존 유저 → 메인
                 if user.preferredCategories.isEmpty {
+                    state.onboarding = OnboardingFeature.State(user: user)
                     state.route = .onboarding
                 } else {
+                    state.home = HomeFeature.State(user: user)
                     state.route = .main
                 }
                 return .none
 
-            case .onboarding(.delegate(.onboardingCompleted)):
+            case .onboarding(.delegate(.onboardingCompleted(let user))):
+                state.home = HomeFeature.State(user: user)
                 state.route = .main
                 return .none
 

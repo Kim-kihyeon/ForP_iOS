@@ -5,13 +5,16 @@ import Domain
 public struct OnboardingFeature {
     @ObservableState
     public struct State: Equatable {
+        public var user: User
         public var location = ""
         public var preferredCategories: [String] = []
         public var dislikedCategories: [String] = []
         public var preferredThemes: [String] = []
         public var isLoading = false
 
-        public init() {}
+        public init(user: User) {
+            self.user = user
+        }
     }
 
     public enum Action: BindableAction {
@@ -23,11 +26,10 @@ public struct OnboardingFeature {
         case saveResponse(Result<Void, Error>)
         case delegate(Delegate)
 
-        public enum Delegate: Equatable { case onboardingCompleted }
+        public enum Delegate: Equatable { case onboardingCompleted(User) }
     }
 
     @Dependency(\.userRepository) var userRepository
-    @Dependency(\.currentUser) var currentUser
 
     public init() {}
 
@@ -53,10 +55,7 @@ public struct OnboardingFeature {
 
             case .saveTapped:
                 state.isLoading = true
-                guard var user = currentUser() else {
-                    state.isLoading = false
-                    return .none
-                }
+                var user = state.user
                 user.preferredCategories = state.preferredCategories
                 user.dislikedCategories = state.dislikedCategories
                 user.preferredThemes = state.preferredThemes
@@ -69,7 +68,12 @@ public struct OnboardingFeature {
 
             case .saveResponse(.success):
                 state.isLoading = false
-                return .send(.delegate(.onboardingCompleted))
+                var user = state.user
+                user.preferredCategories = state.preferredCategories
+                user.dislikedCategories = state.dislikedCategories
+                user.preferredThemes = state.preferredThemes
+                user.location = state.location
+                return .send(.delegate(.onboardingCompleted(user)))
 
             case .saveResponse(.failure):
                 state.isLoading = false

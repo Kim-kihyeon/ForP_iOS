@@ -5,13 +5,17 @@ import Domain
 public struct CourseGenerateFeature {
     @ObservableState
     public struct State: Equatable {
+        public var user: User
         public var location = ""
         public var selectedThemes: [String] = []
         public var placeCount = 3
         public var mode: CourseMode = .ordered
         public var isGenerating = false
+        public var errorMessage: String? = nil
 
-        public init() {}
+        public init(user: User) {
+            self.user = user
+        }
     }
 
     public enum Action: BindableAction {
@@ -26,7 +30,6 @@ public struct CourseGenerateFeature {
     }
 
     @Dependency(\.generateCourseUseCase) var generateCourseUseCase
-    @Dependency(\.currentUser) var currentUser
     @Dependency(\.currentPartner) var currentPartner
 
     public init() {}
@@ -45,8 +48,7 @@ public struct CourseGenerateFeature {
                     placeCount: state.placeCount,
                     mode: state.mode
                 )
-                return .run { [options] send in
-                    guard let user = currentUser() else { return }
+                return .run { [options, user = state.user] send in
                     let partner = currentPartner()
                     await send(.generateResponse(
                         Result { try await generateCourseUseCase.execute(user: user, partner: partner, options: options) }
@@ -61,8 +63,9 @@ public struct CourseGenerateFeature {
                     mode: state.mode
                 )
                 return .send(.delegate(.courseGenerated(places, options)))
-            case .generateResponse(.failure):
+            case .generateResponse(.failure(let error)):
                 state.isGenerating = false
+                state.errorMessage = error.localizedDescription
                 return .none
             case .delegate:
                 return .none
