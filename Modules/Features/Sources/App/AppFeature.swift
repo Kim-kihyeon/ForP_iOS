@@ -5,12 +5,13 @@ import Domain
 public struct AppFeature {
     @ObservableState
     public struct State: Equatable {
-        public var route: Route = .login
+        public var route: Route = .splash
         public var login = LoginFeature.State()
         public var onboarding = OnboardingFeature.State(user: .placeholder)
         public var home = HomeFeature.State(user: .placeholder)
 
         public enum Route: Equatable {
+            case splash
             case login
             case onboarding
             case main
@@ -20,10 +21,15 @@ public struct AppFeature {
     }
 
     public enum Action {
+        case onAppear
+        case sessionChecked(Result<User?, Error>)
         case login(LoginFeature.Action)
         case onboarding(OnboardingFeature.Action)
         case home(HomeFeature.Action)
     }
+
+    @Dependency(\.authRepository) var authRepository
+    @Dependency(\.userRepository) var userRepository
 
     public init() {}
 
@@ -34,6 +40,34 @@ public struct AppFeature {
 
         Reduce { state, action in
             switch action {
+            case .onAppear:
+                return .run { send in
+                    await send(.sessionChecked(
+                        Result {
+                            guard try await authRepository.fetchCurrentUser() != nil else { return nil }
+                            return try? await userRepository.fetchCurrentUser()
+                        }
+                    ))
+                }
+
+            case .sessionChecked(.success(let user)):
+                if let user {
+                    if user.preferredCategories.isEmpty {
+                        state.onboarding = OnboardingFeature.State(user: user)
+                        state.route = .onboarding
+                    } else {
+                        state.home = HomeFeature.State(user: user)
+                        state.route = .main
+                    }
+                } else {
+                    state.route = .login
+                }
+                return .none
+
+            case .sessionChecked(.failure):
+                state.route = .login
+                return .none
+
             case .login(.delegate(.loginSucceeded(let user))):
                 if user.preferredCategories.isEmpty {
                     state.onboarding = OnboardingFeature.State(user: user)

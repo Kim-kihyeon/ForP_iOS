@@ -67,6 +67,7 @@ struct ForPApp: App {
         WindowGroup {
             AppView(store: store)
                 .modelContainer(modelContainer)
+                .onAppear { store.send(.onAppear) }
                 .onOpenURL { url in
                     if AuthApi.isKakaoTalkLoginUrl(url) {
                         _ = AuthController.handleOpenUrl(url: url)

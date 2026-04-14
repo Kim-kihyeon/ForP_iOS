@@ -10,6 +10,9 @@ public struct AppView: View {
 
     public var body: some View {
         switch store.route {
+        case .splash:
+            Color(.systemBackground).ignoresSafeArea()
+
         case .login:
             LoginView(store: store.scope(state: \.login, action: \.login))
 
