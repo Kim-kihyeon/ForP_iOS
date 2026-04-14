@@ -2,7 +2,7 @@ import Foundation
 import Moya
 
 public enum GPTTarget {
-    case generateCourse(prompt: String)
+    case generateCourse(systemMessage: String, prompt: String)
 }
 
 extension GPTTarget: TargetType {
@@ -18,11 +18,11 @@ extension GPTTarget: TargetType {
 
     public var task: Task {
         switch self {
-        case .generateCourse(let prompt):
+        case .generateCourse(let systemMessage, let prompt):
             let body: [String: Any] = [
                 "model": "gpt-4o",
                 "messages": [
-                    ["role": "system", "content": "당신은 데이트 코스 플래너입니다. 반드시 유효한 JSON 형식으로만 응답하세요."],
+                    ["role": "system", "content": systemMessage],
                     ["role": "user", "content": prompt],
                 ],
                 "response_format": ["type": "json_object"],

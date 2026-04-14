@@ -10,9 +10,10 @@ public struct GPTAIService: AIServiceProtocol {
     }
 
     public func generateCoursePlan(user: User, partner: Partner?, options: CourseOptions) async throws -> [CoursePlace] {
+        let systemMessage = buildSystemMessage(location: options.location)
         let prompt = buildPrompt(user: user, partner: partner, options: options)
         return try await withCheckedThrowingContinuation { continuation in
-            provider.request(.generateCourse(prompt: prompt)) { result in
+            provider.request(.generateCourse(systemMessage: systemMessage, prompt: prompt)) { result in
                 switch result {
                 case .success(let response):
                     do {
@@ -28,27 +29,52 @@ public struct GPTAIService: AIServiceProtocol {
         }
     }
 
+    private func buildSystemMessage(location: String) -> String {
+        return """
+        당신은 한국 커플 데이트 코스 큐레이터입니다.
+        반드시 유효한 JSON만 출력하세요. 설명, 마크다운, 추가 텍스트 없이 JSON만.
+
+        절대 규칙 (위반 시 응답 무효):
+        1. 모든 장소는 '\(location)'에 실제로 존재해야 합니다.
+        2. '\(location)'이 아닌 다른 시/구/동의 장소는 단 하나도 포함할 수 없습니다.
+        3. keyword 값은 반드시 '\(location)'으로 시작하는 카카오맵 검색어여야 합니다.
+           올바른 예: "\(location) 카페", "\(location) 이탈리안 레스토랑"
+           잘못된 예: "홍대 카페", "부산 맛집", 지역명 없는 키워드
+        4. 실제 카카오맵에서 검색 가능한 장소만 추천하세요.
+        """
+    }
+
     private func buildPrompt(user: User, partner: Partner?, options: CourseOptions) -> String {
         var prompt = """
-        데이트 코스를 JSON으로 추천해줘.
-        위치: \(options.location)
-        테마: \(options.themes.joined(separator: ", "))
-        장소 수: \(options.placeCount)
-        내 선호: \(user.preferredCategories.joined(separator: ", "))
-        내 비선호: \(user.dislikedCategories.joined(separator: ", "))
+        지역: \(options.location) (이 지역 장소만 추천)
+        장소 수: \(options.placeCount)개
+        테마: \(options.themes.isEmpty ? "자유" : options.themes.joined(separator: ", "))
+        내 선호: \(user.preferredCategories.isEmpty ? "없음" : user.preferredCategories.joined(separator: ", "))
+        내 비선호: \(user.dislikedCategories.isEmpty ? "없음" : user.dislikedCategories.joined(separator: ", "))
         """
-        if let partner {
+        if let partner, !partner.nickname.isEmpty {
             prompt += """
 
-            파트너 선호: \(partner.preferredCategories.joined(separator: ", "))
-            파트너 비선호: \(partner.dislikedCategories.joined(separator: ", "))
-            파트너 메모: \(partner.notes)
+            파트너(\(partner.nickname)) 선호: \(partner.preferredCategories.isEmpty ? "없음" : partner.preferredCategories.joined(separator: ", "))
+            파트너 비선호: \(partner.dislikedCategories.isEmpty ? "없음" : partner.dislikedCategories.joined(separator: ", "))
             """
+            if !partner.notes.isEmpty {
+                prompt += "\n파트너 특이사항: \(partner.notes)"
+            }
         }
         prompt += """
 
-        응답 형식:
-        {"courses": [{"order": 1, "category": "카페", "keyword": "감성 카페 홍대", "reason": "이유"}]}
+        응답 형식 (JSON만, 예시):
+        {
+          "courses": [
+            {
+              "order": 1,
+              "category": "카페",
+              "keyword": "\(options.location) 감성 카페",
+              "reason": "조용한 분위기에서 대화하기 좋은 곳"
+            }
+          ]
+        }
         """
         return prompt
     }
