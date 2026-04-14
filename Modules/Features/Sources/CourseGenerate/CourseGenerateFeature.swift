@@ -1,0 +1,72 @@
+import ComposableArchitecture
+import Domain
+
+@Reducer
+public struct CourseGenerateFeature {
+    @ObservableState
+    public struct State: Equatable {
+        public var location = ""
+        public var selectedThemes: [String] = []
+        public var placeCount = 3
+        public var mode: CourseMode = .ordered
+        public var isGenerating = false
+
+        public init() {}
+    }
+
+    public enum Action: BindableAction {
+        case binding(BindingAction<State>)
+        case generateTapped
+        case generateResponse(Result<[CoursePlace], Error>)
+        case delegate(Delegate)
+
+        public enum Delegate: Equatable {
+            case courseGenerated([CoursePlace], CourseOptions)
+        }
+    }
+
+    @Dependency(\.generateCourseUseCase) var generateCourseUseCase
+    @Dependency(\.currentUser) var currentUser
+    @Dependency(\.currentPartner) var currentPartner
+
+    public init() {}
+
+    public var body: some ReducerOf<Self> {
+        BindingReducer()
+        Reduce { state, action in
+            switch action {
+            case .binding:
+                return .none
+            case .generateTapped:
+                state.isGenerating = true
+                let options = CourseOptions(
+                    location: state.location,
+                    themes: state.selectedThemes,
+                    placeCount: state.placeCount,
+                    mode: state.mode
+                )
+                return .run { [options] send in
+                    let user = currentUser()
+                    let partner = currentPartner()
+                    await send(.generateResponse(
+                        Result { try await generateCourseUseCase.execute(user: user, partner: partner, options: options) }
+                    ))
+                }
+            case .generateResponse(.success(let places)):
+                state.isGenerating = false
+                let options = CourseOptions(
+                    location: state.location,
+                    themes: state.selectedThemes,
+                    placeCount: state.placeCount,
+                    mode: state.mode
+                )
+                return .send(.delegate(.courseGenerated(places, options)))
+            case .generateResponse(.failure):
+                state.isGenerating = false
+                return .none
+            case .delegate:
+                return .none
+            }
+        }
+    }
+}

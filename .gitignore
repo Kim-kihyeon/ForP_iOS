@@ -1,0 +1,14 @@
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+
+# Tuist
+.build/
+Derived/
+
+# macOS
+.DS_Store
+
+# Swift
+.swiftpm/
