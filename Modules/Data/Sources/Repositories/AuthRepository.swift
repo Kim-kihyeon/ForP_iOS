@@ -6,9 +6,11 @@ import Domain
 
 public final class AuthRepository: AuthRepositoryProtocol {
     private let supabase: SupabaseClient
+    private let anonKey: String
 
-    public init(supabase: SupabaseClient) {
+    public init(supabase: SupabaseClient, anonKey: String) {
         self.supabase = supabase
+        self.anonKey = anonKey
     }
 
     public func loginWithKakao() async throws -> Domain.User {
@@ -18,24 +20,29 @@ public final class AuthRepository: AuthRepositoryProtocol {
         let email = kakaoUser?.kakaoAccount?.email ?? ""
 
         // Edge Function으로 카카오 토큰 → Supabase 세션 교환
-        let response: KakaoAuthResponse = try await supabase.functions
-            .invoke("kakao-auth", options: .init(body: ["accessToken": kakaoToken.accessToken]))
+        do {
+            let response: KakaoAuthResponse = try await supabase.functions
+                .invoke("kakao-auth", options: .init(
+                    headers: ["Authorization": "Bearer \(anonKey)"],
+                    body: ["accessToken": kakaoToken.accessToken]
+                ))
+            try await supabase.auth.setSession(
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken
+            )
+            let userId = UUID(uuidString: response.userId) ?? UUID()
+            let user = Domain.User(
+                id: userId,
+                email: email.isEmpty ? response.email : email,
+                nickname: nickname
+            )
+            try? await supabase.from("users").upsert(UserRow(from: user)).execute()
+            return user
+        } catch {
+            print("[Kakao] Edge Function error:", error)
+            throw error
+        }
 
-        try await supabase.auth.setSession(
-            accessToken: response.accessToken,
-            refreshToken: response.refreshToken
-        )
-
-        let userId = UUID(uuidString: response.userId) ?? UUID()
-        let user = Domain.User(
-            id: userId,
-            email: email.isEmpty ? response.email : email,
-            nickname: nickname
-        )
-
-        try? await supabase.from("users").upsert(UserRow(from: user)).execute()
-
-        return user
     }
 
     public func loginWithApple(idToken: String, nonce: String) async throws -> Domain.User {

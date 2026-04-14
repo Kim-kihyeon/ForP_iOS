@@ -13,7 +13,11 @@ Deno.serve(async (req) => {
     const kakaoRes = await fetch("https://kapi.kakao.com/v2/user/me", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    if (!kakaoRes.ok) return respond({ error: "Invalid kakao token" }, 401);
+    if (!kakaoRes.ok) {
+      const errText = await kakaoRes.text();
+      console.log("Kakao error:", kakaoRes.status, errText);
+      return respond({ error: "Invalid kakao token", detail: errText }, 401);
+    }
 
     const kakaoUser = await kakaoRes.json();
     const kakaoId = String(kakaoUser.id);

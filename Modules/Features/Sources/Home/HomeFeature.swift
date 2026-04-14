@@ -73,7 +73,11 @@ public struct HomeFeature {
 
             case .path(.element(_, action: .courseResult(.delegate(.dismiss)))):
                 state.path.removeAll()
-                return .none
+                return .run { [userId = state.user.id] send in
+                    await send(.loadCoursesResponse(
+                        Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
+                    ))
+                }
 
             case .path:
                 return .none

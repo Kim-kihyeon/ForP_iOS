@@ -39,7 +39,7 @@ struct ForPApp: App {
         )
 
         let modelContext = ModelContext(container)
-        let authRepo = AuthRepository(supabase: supabase)
+        let authRepo = AuthRepository(supabase: supabase, anonKey: Secrets.supabaseAnonKey)
         let userRepo = UserRepository(supabase: supabase)
         let partnerRepo = PartnerRepository(supabase: supabase)
         let courseRepo = CourseRepository(supabase: supabase, modelContext: modelContext)
