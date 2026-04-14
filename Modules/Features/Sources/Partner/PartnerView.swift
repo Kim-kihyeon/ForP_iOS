@@ -19,13 +19,13 @@ public struct PartnerView: View {
                     TextField("닉네임", text: $store.nickname)
                 }
                 Section("파트너 선호") {
-                    FlowLayout(items: categories, selected: store.preferredCategories) {
+                    ChipGrid(items: categories, selected: store.preferredCategories) {
                         store.send(.binding(.set(\.preferredCategories,
                             toggle(store.preferredCategories, item: $0))))
                     }
                 }
                 Section("파트너 비선호") {
-                    FlowLayout(items: categories, selected: store.dislikedCategories) {
+                    ChipGrid(items: categories, selected: store.dislikedCategories) {
                         store.send(.binding(.set(\.dislikedCategories,
                             toggle(store.dislikedCategories, item: $0))))
                     }

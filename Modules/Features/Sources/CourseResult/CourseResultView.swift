@@ -6,19 +6,23 @@ import Domain
 public struct CourseResultView: View {
     @Bindable var store: StoreOf<CourseResultFeature>
 
+    private let badgeColors: [Color] = [.pink, .orange, .purple, .blue, .green, .red]
+
     public init(store: StoreOf<CourseResultFeature>) {
         self.store = store
     }
 
     public var body: some View {
         ZStack {
-            Group {
-                switch store.course.mode {
-                case .ordered:
-                    orderedList
-                case .list:
-                    cardList
+            Color(.systemGroupedBackground).ignoresSafeArea()
+
+            ScrollView {
+                LazyVStack(spacing: Spacing.md) {
+                    ForEach(store.course.places, id: \.order) { place in
+                        placeCard(place)
+                    }
                 }
+                .padding(Spacing.md)
             }
 
             if store.isSaving {
@@ -26,42 +30,53 @@ public struct CourseResultView: View {
             }
         }
         .navigationTitle(store.course.title)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(store.isSaved ? "저장됨" : "저장") {
                     store.send(.saveTapped)
                 }
+                .font(Typography.body.weight(.semibold))
+                .foregroundStyle(store.isSaved ? Color.secondary : Brand.pink)
                 .disabled(store.isSaved)
             }
         }
     }
 
-    private var orderedList: some View {
-        List(store.course.places, id: \.order) { place in
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("\(place.order). \(place.placeName ?? place.keyword)")
-                    .font(Typography.body)
-                Text(place.category).font(.caption).foregroundStyle(.secondary)
-                Text(place.reason).font(.caption2)
+    private func placeCard(_ place: CoursePlace) -> some View {
+        HStack(alignment: .top, spacing: Spacing.md) {
+            ZStack {
+                Circle()
+                    .fill(badgeColors[(place.order - 1) % badgeColors.count].opacity(0.15))
+                    .frame(width: 44, height: 44)
+                Text("\(place.order)")
+                    .font(.system(.headline, design: .rounded, weight: .bold))
+                    .foregroundStyle(badgeColors[(place.order - 1) % badgeColors.count])
             }
-        }
-    }
 
-    private var cardList: some View {
-        ScrollView {
-            LazyVStack(spacing: Spacing.md) {
-                ForEach(store.course.places, id: \.order) { place in
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text(place.placeName ?? place.keyword).font(Typography.body)
-                        Text(place.category).font(.caption).foregroundStyle(.secondary)
-                        Text(place.reason).font(.caption2)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(Spacing.md)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                }
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(place.placeName ?? place.keyword)
+                    .font(Typography.headline)
+
+                Text(place.category)
+                    .font(Typography.caption2)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, 3)
+                    .background(Color(.tertiarySystemBackground))
+                    .foregroundStyle(.secondary)
+                    .clipShape(Capsule())
+
+                Text(place.reason)
+                    .font(Typography.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
             }
-            .padding(Spacing.md)
+
+            Spacer()
         }
+        .padding(Spacing.md)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
     }
 }
