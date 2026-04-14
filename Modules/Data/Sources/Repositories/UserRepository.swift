@@ -9,12 +9,12 @@ public final class UserRepository: UserRepositoryProtocol {
         self.supabase = supabase
     }
 
-    public func fetchCurrentUser() async throws -> User {
+    public func fetchCurrentUser() async throws -> Domain.User {
         // TODO: Supabase Auth + DB에서 유저 정보 조회
         throw URLError(.notConnectedToInternet)
     }
 
-    public func updateUser(_ user: User) async throws {
+    public func updateUser(_ user: Domain.User) async throws {
         // TODO: Supabase DB 업데이트
     }
 }

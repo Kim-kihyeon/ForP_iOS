@@ -1,11 +1,14 @@
 import SwiftUI
 import ComposableArchitecture
-import Features
 
-struct AppView: View {
-    @Bindable var store: StoreOf<AppFeature>
+public struct AppView: View {
+    @Bindable public var store: StoreOf<AppFeature>
 
-    var body: some View {
+    public init(store: StoreOf<AppFeature>) {
+        self.store = store
+    }
+
+    public var body: some View {
         switch store.route {
         case .login:
             LoginView(store: store.scope(state: \.login, action: \.login))

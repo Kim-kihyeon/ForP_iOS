@@ -46,7 +46,7 @@ public struct CourseGenerateFeature {
                     mode: state.mode
                 )
                 return .run { [options] send in
-                    let user = currentUser()
+                    guard let user = currentUser() else { return }
                     let partner = currentPartner()
                     await send(.generateResponse(
                         Result { try await generateCourseUseCase.execute(user: user, partner: partner, options: options) }

@@ -1,5 +1,4 @@
 import ComposableArchitecture
-import Features
 import Domain
 
 @Reducer
@@ -22,7 +21,6 @@ public struct AppFeature {
     public enum Action {
         case login(LoginFeature.Action)
         case home(HomeFeature.Action)
-        case authStateChanged(isLoggedIn: Bool)
     }
 
     public init() {}
@@ -33,11 +31,8 @@ public struct AppFeature {
 
         Reduce { state, action in
             switch action {
-            case .login(.delegate(.loginSucceeded)):
+            case .login(.delegate(.loginSucceeded(let user))):
                 state.route = .main
-                return .none
-            case .authStateChanged(let isLoggedIn):
-                state.route = isLoggedIn ? .main : .login
                 return .none
             case .login, .home:
                 return .none

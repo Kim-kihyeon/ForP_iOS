@@ -15,6 +15,8 @@ let project = Project(
                 .project(target: "CoreNetwork", path: "../Core/Network"),
                 .external(name: "Moya"),
                 .external(name: "Supabase"),
+                .external(name: "KakaoSDKUser"),
+                .external(name: "KakaoSDKAuth"),
             ]
         ),
     ]

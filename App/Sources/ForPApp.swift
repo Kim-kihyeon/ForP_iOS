@@ -3,9 +3,12 @@ import ComposableArchitecture
 import Features
 import Data
 import Domain
+import CoreNetwork
 import Moya
 import Supabase
 import SwiftData
+import KakaoSDKCommon
+import KakaoSDKAuth
 
 @main
 struct ForPApp: App {
@@ -13,21 +16,27 @@ struct ForPApp: App {
     let modelContainer: ModelContainer
 
     init() {
+        KakaoSDK.initSDK(appKey: Secrets.kakaoAppKey)
+
         let container = try! LocalStoreContainer.make()
         self.modelContainer = container
 
         let supabase = SupabaseClient(
-            supabaseURL: URL(string: "https://your-project.supabase.co")!,
-            supabaseKey: "your-anon-key"
+            supabaseURL: URL(string: Secrets.supabaseURL)!,
+            supabaseKey: Secrets.supabaseAnonKey
         )
 
-        let authPlugin = AuthPlugin { nil } // TODO: 토큰 제공 로직 연결
-        let gptProvider = MoyaProviderFactory.make(GPTTarget.self, plugins: [authPlugin])
-        let kakaoProvider = MoyaProviderFactory.make(KakaoTarget.self, plugins: [
-            AuthPlugin { "your-kakao-rest-key" }
-        ])
+        let gptProvider = MoyaProviderFactory.make(
+            GPTTarget.self,
+            plugins: [AuthPlugin { Secrets.openAIKey }]
+        )
+        let kakaoProvider = MoyaProviderFactory.make(
+            KakaoTarget.self,
+            plugins: [AuthPlugin { Secrets.kakaoRestKey }]
+        )
 
         let modelContext = ModelContext(container)
+        let authRepo = AuthRepository(supabase: supabase)
         let userRepo = UserRepository(supabase: supabase)
         let partnerRepo = PartnerRepository(supabase: supabase)
         let courseRepo = CourseRepository(supabase: supabase, modelContext: modelContext)
@@ -40,6 +49,7 @@ struct ForPApp: App {
         self.store = Store(initialState: AppFeature.State()) {
             AppFeature()
         } withDependencies: {
+            $0.authRepository = authRepo
             $0.userRepository = userRepo
             $0.partnerRepository = partnerRepo
             $0.courseRepository = courseRepo
@@ -47,7 +57,6 @@ struct ForPApp: App {
             $0.generateCourseUseCase = generateUseCase
             $0.saveCourseUseCase = saveUseCase
             $0.fetchRecentCoursesUseCase = fetchCoursesUseCase
-            // currentUser / currentPartner / currentUserId 는 로그인 후 설정
         }
     }
 
@@ -55,6 +64,11 @@ struct ForPApp: App {
         WindowGroup {
             AppView(store: store)
                 .modelContainer(modelContainer)
+                .onOpenURL { url in
+                    if AuthApi.isKakaoTalkLoginUrl(url) {
+                        _ = AuthController.handleOpenUrl(url: url)
+                    }
+                }
         }
     }
 }

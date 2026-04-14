@@ -10,15 +10,33 @@ let project = Project(
             bundleId: "com.forp.app",
             deploymentTargets: .iOS("17.0"),
             infoPlist: .extendingDefault(with: [
-                "UILaunchStoryboardName": "LaunchScreen",
+                "UILaunchScreen": ["UIColorName": ""],
+                "CFBundleURLTypes": [
+                    [
+                        "CFBundleURLSchemes": ["kakao$(KAKAO_APP_KEY)"],
+                        "CFBundleURLName": "kakao",
+                    ]
+                ],
+                "LSApplicationQueriesSchemes": ["kakaokompassauth", "kakaoauth", "kakaolink"],
+                "NSFaceIDUsageDescription": "Apple 로그인에 사용됩니다.",
+                "KAKAO_APP_KEY": "$(KAKAO_APP_KEY)",
+                "KAKAO_REST_KEY": "$(KAKAO_REST_KEY)",
+                "SUPABASE_URL": "$(SUPABASE_URL)",
+                "SUPABASE_ANON_KEY": "$(SUPABASE_ANON_KEY)",
+                "OPENAI_API_KEY": "$(OPENAI_API_KEY)",
             ]),
             sources: ["Sources/**"],
             resources: ["Resources/**"],
+            entitlements: "ForP.entitlements",
             dependencies: [
                 .project(target: "Features", path: "../Modules/Features"),
                 .project(target: "Data", path: "../Modules/Data"),
                 .project(target: "Domain", path: "../Modules/Domain"),
+                .project(target: "CoreNetwork", path: "../Modules/Core/Network"),
                 .external(name: "ComposableArchitecture"),
+                .external(name: "KakaoSDKCommon"),
+                .external(name: "KakaoSDKAuth"),
+                .external(name: "KakaoSDKUser"),
             ]
         ),
     ]

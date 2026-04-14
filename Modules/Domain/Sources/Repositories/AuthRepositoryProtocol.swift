@@ -1,0 +1,8 @@
+import Foundation
+
+public protocol AuthRepositoryProtocol: Sendable {
+    func loginWithKakao() async throws -> User
+    func loginWithApple(idToken: String, nonce: String) async throws -> User
+    func logout() async throws
+    func fetchCurrentUser() async throws -> User?
+}

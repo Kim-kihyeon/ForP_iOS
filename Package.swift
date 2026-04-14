@@ -6,7 +6,6 @@ import ProjectDescription
 
 let packageSettings = PackageSettings(
     productTypes: [
-        "ComposableArchitecture": .staticFramework,
         "Moya": .staticFramework,
         "Supabase": .staticFramework,
     ]
@@ -27,6 +26,10 @@ let package = Package(
         .package(
             url: "https://github.com/supabase-community/supabase-swift",
             from: "2.0.0"
+        ),
+        .package(
+            url: "https://github.com/kakao/kakao-ios-sdk",
+            from: "2.20.0"
         ),
     ]
 )

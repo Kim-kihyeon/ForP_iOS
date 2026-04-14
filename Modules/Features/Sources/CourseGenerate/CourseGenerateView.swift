@@ -1,6 +1,7 @@
 import SwiftUI
 import ComposableArchitecture
 import CoreSharedUI
+import Domain
 
 public struct CourseGenerateView: View {
     @Bindable var store: StoreOf<CourseGenerateFeature>

@@ -13,7 +13,7 @@ public struct LoginFeature {
 
     public enum Action {
         case kakaoLoginTapped
-        case appleLoginTapped
+        case appleLoginCompleted(idToken: String, nonce: String)
         case loginResponse(Result<User, Error>)
         case alert(PresentationAction<Alert>)
         case delegate(Delegate)
@@ -22,6 +22,8 @@ public struct LoginFeature {
         public enum Delegate: Equatable { case loginSucceeded(User) }
     }
 
+    @Dependency(\.authRepository) var authRepository
+
     public init() {}
 
     public var body: some ReducerOf<Self> {
@@ -29,20 +31,39 @@ public struct LoginFeature {
             switch action {
             case .kakaoLoginTapped:
                 state.isLoading = true
-                return .none // TODO: 카카오 OAuth 연동
-            case .appleLoginTapped:
+                return .run { send in
+                    await send(.loginResponse(
+                        Result { try await authRepository.loginWithKakao() }
+                    ))
+                }
+
+            case .appleLoginCompleted(let idToken, let nonce):
                 state.isLoading = true
-                return .none // TODO: 애플 로그인 연동
+                return .run { send in
+                    await send(.loginResponse(
+                        Result { try await authRepository.loginWithApple(idToken: idToken, nonce: nonce) }
+                    ))
+                }
+
             case .loginResponse(.success(let user)):
                 state.isLoading = false
                 return .send(.delegate(.loginSucceeded(user)))
+
             case .loginResponse(.failure(let error)):
                 state.isLoading = false
-                state.alert = AlertState { TextState(error.localizedDescription) }
+                state.alert = AlertState {
+                    TextState("로그인 실패")
+                } actions: {
+                    ButtonState(action: .dismiss) { TextState("확인") }
+                } message: {
+                    TextState(error.localizedDescription)
+                }
                 return .none
-            case .alert(.dismiss), .alert(.presented(.dismiss)):
+
+            case .alert(.presented(.dismiss)), .alert(.dismiss):
                 state.alert = nil
                 return .none
+
             case .delegate:
                 return .none
             }
