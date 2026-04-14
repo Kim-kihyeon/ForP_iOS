@@ -7,23 +7,34 @@ public struct CourseResultFeature {
     public struct State: Equatable {
         public var course: Course
         public var isSaving = false
-        public var isSaved = false
+        public var isSaved: Bool
+        public var isDeleting = false
+        @Presents public var alert: AlertState<Action.Alert>?
 
-        public init(course: Course) {
+        public init(course: Course, isSaved: Bool = false) {
             self.course = course
+            self.isSaved = isSaved
         }
     }
 
     public enum Action {
         case saveTapped
         case saveResponse(Result<Void, Error>)
+        case deleteTapped
+        case deleteResponse(Result<Void, Error>)
         case dismissTapped
+        case alert(PresentationAction<Alert>)
         case delegate(Delegate)
 
-        public enum Delegate: Equatable { case dismiss }
+        public enum Alert: Equatable { case confirmDelete }
+        public enum Delegate: Equatable {
+            case dismiss
+            case deleted
+        }
     }
 
     @Dependency(\.saveCourseUseCase) var saveCourseUseCase
+    @Dependency(\.courseRepository) var courseRepository
 
     public init() {}
 
@@ -38,18 +49,58 @@ public struct CourseResultFeature {
                         Result { try await saveCourseUseCase.execute(course) }
                     ))
                 }
+
             case .saveResponse(.success):
                 state.isSaving = false
                 state.isSaved = true
                 return .none
+
             case .saveResponse(.failure):
                 state.isSaving = false
                 return .none
+
+            case .deleteTapped:
+                state.alert = AlertState {
+                    TextState("코스 삭제")
+                } actions: {
+                    ButtonState(role: .destructive, action: .confirmDelete) {
+                        TextState("삭제")
+                    }
+                    ButtonState(role: .cancel) {
+                        TextState("취소")
+                    }
+                } message: {
+                    TextState("이 코스를 삭제할까요?")
+                }
+                return .none
+
+            case .alert(.presented(.confirmDelete)):
+                state.isDeleting = true
+                let id = state.course.id
+                return .run { send in
+                    await send(.deleteResponse(
+                        Result { try await courseRepository.deleteCourse(id: id) }
+                    ))
+                }
+
+            case .alert:
+                return .none
+
+            case .deleteResponse(.success):
+                state.isDeleting = false
+                return .send(.delegate(.deleted))
+
+            case .deleteResponse(.failure):
+                state.isDeleting = false
+                return .none
+
             case .dismissTapped:
                 return .send(.delegate(.dismiss))
+
             case .delegate:
                 return .none
             }
         }
+        .ifLet(\.$alert, action: \.alert)
     }
 }

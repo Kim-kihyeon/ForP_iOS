@@ -67,7 +67,7 @@ public struct HomeFeature {
                 return .none
 
             case .courseSelected(let course):
-                state.path.append(.courseResult(CourseResultFeature.State(course: course)))
+                state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true)))
                 return .none
 
             case .settingsTapped:
@@ -84,7 +84,8 @@ public struct HomeFeature {
                 state.path.append(.courseResult(CourseResultFeature.State(course: course)))
                 return .none
 
-            case .path(.element(_, action: .courseResult(.delegate(.dismiss)))):
+            case .path(.element(_, action: .courseResult(.delegate(.dismiss)))),
+                 .path(.element(_, action: .courseResult(.delegate(.deleted)))):
                 state.path.removeAll()
                 return .run { [userId = state.user.id] send in
                     await send(.loadCoursesResponse(

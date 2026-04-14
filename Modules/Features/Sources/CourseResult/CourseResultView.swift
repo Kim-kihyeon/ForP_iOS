@@ -25,7 +25,7 @@ public struct CourseResultView: View {
                 .padding(Spacing.md)
             }
 
-            if store.isSaving {
+            if store.isSaving || store.isDeleting {
                 LoadingView()
             }
         }
@@ -33,14 +33,23 @@ public struct CourseResultView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button(store.isSaved ? "저장됨" : "저장") {
-                    store.send(.saveTapped)
+                if store.isSaved {
+                    Button(role: .destructive) {
+                        store.send(.deleteTapped)
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(Typography.body.weight(.semibold))
+                    }
+                } else {
+                    Button("저장") {
+                        store.send(.saveTapped)
+                    }
+                    .font(Typography.body.weight(.semibold))
+                    .foregroundStyle(Brand.pink)
                 }
-                .font(Typography.body.weight(.semibold))
-                .foregroundStyle(store.isSaved ? Color.secondary : Brand.pink)
-                .disabled(store.isSaved)
             }
         }
+        .alert($store.scope(state: \.alert, action: \.alert))
     }
 
     private func placeCard(_ place: CoursePlace) -> some View {
