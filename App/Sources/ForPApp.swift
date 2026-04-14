@@ -21,8 +21,10 @@ struct ForPApp: App {
         let container = try! LocalStoreContainer.make()
         self.modelContainer = container
 
+        let supabaseURL = URL(string: Secrets.supabaseURL)
+            ?? URL(string: "https://placeholder.supabase.co")!
         let supabase = SupabaseClient(
-            supabaseURL: URL(string: Secrets.supabaseURL)!,
+            supabaseURL: supabaseURL,
             supabaseKey: Secrets.supabaseAnonKey
         )
 

@@ -5,6 +5,7 @@ import Domain
 public struct OnboardingFeature {
     @ObservableState
     public struct State: Equatable {
+        public var location = ""
         public var preferredCategories: [String] = []
         public var dislikedCategories: [String] = []
         public var preferredThemes: [String] = []
@@ -13,61 +14,77 @@ public struct OnboardingFeature {
         public init() {}
     }
 
-    public enum Action {
+    public enum Action: BindableAction {
+        case binding(BindingAction<State>)
         case preferredCategoryToggled(String)
         case dislikedCategoryToggled(String)
         case themeToggled(String)
         case saveTapped
-        case saveResponse(Result<User, Error>)
+        case saveResponse(Result<Void, Error>)
         case delegate(Delegate)
 
-        public enum Delegate: Equatable { case onboardingCompleted(User) }
+        public enum Delegate: Equatable { case onboardingCompleted }
     }
 
     @Dependency(\.userRepository) var userRepository
+    @Dependency(\.currentUser) var currentUser
 
     public init() {}
 
     public var body: some ReducerOf<Self> {
+        BindingReducer()
+
         Reduce { state, action in
             switch action {
-            case .preferredCategoryToggled(let category):
-                if state.preferredCategories.contains(category) {
-                    state.preferredCategories.removeAll { $0 == category }
-                } else {
-                    state.preferredCategories.append(category)
-                }
+            case .binding:
                 return .none
-            case .dislikedCategoryToggled(let category):
-                if state.dislikedCategories.contains(category) {
-                    state.dislikedCategories.removeAll { $0 == category }
-                } else {
-                    state.dislikedCategories.append(category)
-                }
+
+            case .preferredCategoryToggled(let item):
+                state.preferredCategories.toggle(item)
                 return .none
-            case .themeToggled(let theme):
-                if state.preferredThemes.contains(theme) {
-                    state.preferredThemes.removeAll { $0 == theme }
-                } else {
-                    state.preferredThemes.append(theme)
-                }
+
+            case .dislikedCategoryToggled(let item):
+                state.dislikedCategories.toggle(item)
                 return .none
+
+            case .themeToggled(let item):
+                state.preferredThemes.toggle(item)
+                return .none
+
             case .saveTapped:
                 state.isLoading = true
-                return .run { send in
+                guard var user = currentUser() else {
+                    state.isLoading = false
+                    return .none
+                }
+                user.preferredCategories = state.preferredCategories
+                user.dislikedCategories = state.dislikedCategories
+                user.preferredThemes = state.preferredThemes
+                user.location = state.location
+                return .run { [user] send in
                     await send(.saveResponse(
-                        Result { try await userRepository.fetchCurrentUser() }
+                        Result { try await userRepository.updateUser(user) }
                     ))
                 }
-            case .saveResponse(.success(let user)):
+
+            case .saveResponse(.success):
                 state.isLoading = false
-                return .send(.delegate(.onboardingCompleted(user)))
+                return .send(.delegate(.onboardingCompleted))
+
             case .saveResponse(.failure):
                 state.isLoading = false
                 return .none
+
             case .delegate:
                 return .none
             }
         }
+    }
+}
+
+private extension Array where Element == String {
+    mutating func toggle(_ item: String) {
+        if contains(item) { removeAll { $0 == item } }
+        else { append(item) }
     }
 }

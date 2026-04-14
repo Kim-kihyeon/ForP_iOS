@@ -12,12 +12,12 @@ public struct AppView: View {
         switch store.route {
         case .login:
             LoginView(store: store.scope(state: \.login, action: \.login))
+
         case .onboarding:
             NavigationStack {
-                OnboardingView(store: Store(initialState: OnboardingFeature.State()) {
-                    OnboardingFeature()
-                })
+                OnboardingView(store: store.scope(state: \.onboarding, action: \.onboarding))
             }
+
         case .main:
             HomeView(store: store.scope(state: \.home, action: \.home))
         }
