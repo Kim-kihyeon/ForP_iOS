@@ -46,18 +46,19 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
                 case .success(let response):
                     do {
                         let dto = try JSONDecoder().decode(KakaoSearchResponse.self, from: response.data)
-                        let selectedRegion = dto.meta.sameName?.selectedRegion ?? ""
-
-                        if !selectedRegion.isEmpty {
-                            continuation.resume(returning: true)
+                        // 결과가 없으면 무효
+                        guard !dto.documents.isEmpty else {
+                            continuation.resume(returning: false)
                             return
                         }
 
-                        // 폴백: selected_region이 없어도 한국 지역 접미사가 붙으면 허용
-                        let koreanSuffixes = ["역", "동", "구", "시", "군", "로", "거리", "마을", "읍", "면"]
-                        let hasKoreanSuffix = koreanSuffixes.contains { keyword.hasSuffix($0) }
-                        let hasResults = !dto.documents.isEmpty
-                        continuation.resume(returning: hasKoreanSuffix && hasResults)
+                        // 첫 번째 결과 주소에 한글이 있으면 한국 장소로 판단
+                        let address = dto.documents[0].addressName
+                        let hasHangul = address.unicodeScalars.contains {
+                            ($0.value >= 0xAC00 && $0.value <= 0xD7A3) ||
+                            ($0.value >= 0x3130 && $0.value <= 0x318F)
+                        }
+                        continuation.resume(returning: hasHangul)
                     } catch {
                         continuation.resume(returning: false)
                     }
