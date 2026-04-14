@@ -10,7 +10,7 @@ public struct GenerateCourseUseCase {
     }
 
     public func execute(user: User, partner: Partner?, options: CourseOptions) async throws -> [CoursePlace] {
-        var places = try await aiService.generateCoursePlan(user: user, partner: partner, options: options)
+        let places = try await aiService.generateCoursePlan(user: user, partner: partner, options: options)
         var enriched: [CoursePlace] = []
         for place in places {
             let results = try await placeRepository.searchPlaces(keyword: place.keyword)

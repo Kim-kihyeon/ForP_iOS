@@ -9,6 +9,8 @@ public struct User: Identifiable, Codable, Equatable {
     public var preferredThemes: [String]
     public var location: String
 
+    public static let placeholder = User(email: "", nickname: "")
+
     public init(
         id: UUID = UUID(),
         email: String,

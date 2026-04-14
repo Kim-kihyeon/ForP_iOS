@@ -25,7 +25,8 @@ struct ForPApp: App {
             ?? URL(string: "https://placeholder.supabase.co")!
         let supabase = SupabaseClient(
             supabaseURL: supabaseURL,
-            supabaseKey: Secrets.supabaseAnonKey
+            supabaseKey: Secrets.supabaseAnonKey,
+            options: .init(auth: .init(emitLocalSessionAsInitialSession: true))
         )
 
         let gptProvider = MoyaProviderFactory.make(
@@ -34,7 +35,7 @@ struct ForPApp: App {
         )
         let kakaoProvider = MoyaProviderFactory.make(
             KakaoTarget.self,
-            plugins: [AuthPlugin { Secrets.kakaoRestKey }]
+            plugins: [AuthPlugin(prefix: "KakaoAK") { Secrets.kakaoRestKey }]
         )
 
         let modelContext = ModelContext(container)
