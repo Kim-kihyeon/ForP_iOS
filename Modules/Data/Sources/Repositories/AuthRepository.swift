@@ -12,18 +12,30 @@ public final class AuthRepository: AuthRepositoryProtocol {
     }
 
     public func loginWithKakao() async throws -> Domain.User {
-        _ = try await kakaoLogin()
+        let kakaoToken = try await kakaoLogin()
         let kakaoUser = try await fetchKakaoUser()
+        let nickname = kakaoUser?.kakaoAccount?.profile?.nickname ?? "사용자"
+        let email = kakaoUser?.kakaoAccount?.email ?? ""
 
-        return Domain.User(
-            id: UUID(),
-            email: kakaoUser?.kakaoAccount?.email ?? "",
-            nickname: kakaoUser?.kakaoAccount?.profile?.nickname ?? "사용자",
-            preferredCategories: [],
-            dislikedCategories: [],
-            preferredThemes: [],
-            location: ""
+        // Edge Function으로 카카오 토큰 → Supabase 세션 교환
+        let response: KakaoAuthResponse = try await supabase.functions
+            .invoke("kakao-auth", options: .init(body: ["accessToken": kakaoToken.accessToken]))
+
+        try await supabase.auth.setSession(
+            accessToken: response.accessToken,
+            refreshToken: response.refreshToken
         )
+
+        let userId = UUID(uuidString: response.userId) ?? UUID()
+        let user = Domain.User(
+            id: userId,
+            email: email.isEmpty ? response.email : email,
+            nickname: nickname
+        )
+
+        try? await supabase.from("users").upsert(UserRow(from: user)).execute()
+
+        return user
     }
 
     public func loginWithApple(idToken: String, nonce: String) async throws -> Domain.User {
@@ -61,6 +73,21 @@ public final class AuthRepository: AuthRepositoryProtocol {
     }
 
     // MARK: - Private
+
+    private struct KakaoAuthResponse: Decodable {
+        let accessToken: String
+        let refreshToken: String
+        let userId: String
+        let email: String
+        let nickname: String
+
+        enum CodingKeys: String, CodingKey {
+            case accessToken = "access_token"
+            case refreshToken = "refresh_token"
+            case userId = "user_id"
+            case email, nickname
+        }
+    }
 
     private func kakaoLogin() async throws -> OAuthToken {
         try await withCheckedThrowingContinuation { continuation in
