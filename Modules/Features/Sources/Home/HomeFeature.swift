@@ -7,6 +7,8 @@ public struct HomeFeature {
     public enum Path {
         case courseGenerate(CourseGenerateFeature)
         case courseResult(CourseResultFeature)
+        case settings(SettingsFeature)
+        case partner(PartnerFeature)
     }
 
     @ObservableState
@@ -27,9 +29,16 @@ public struct HomeFeature {
         case loadCoursesResponse(Result<[Course], Error>)
         case generateCourseTapped
         case courseSelected(Course)
+        case settingsTapped
+        case delegate(Delegate)
+
+        public enum Delegate: Equatable {
+            case loggedOut
+        }
     }
 
     @Dependency(\.fetchRecentCoursesUseCase) var fetchRecentCoursesUseCase
+    @Dependency(\.currentPartner) var currentPartner
 
     public init() {}
 
@@ -61,6 +70,10 @@ public struct HomeFeature {
                 state.path.append(.courseResult(CourseResultFeature.State(course: course)))
                 return .none
 
+            case .settingsTapped:
+                state.path.append(.settings(SettingsFeature.State()))
+                return .none
+
             case .path(.element(_, action: .courseGenerate(.delegate(.courseGenerated(let places, let options))))):
                 let course = Course(
                     userId: state.user.id,
@@ -79,7 +92,23 @@ public struct HomeFeature {
                     ))
                 }
 
+            case .path(.element(_, action: .settings(.delegate(.openPartner)))):
+                let existing = currentPartner()
+                let mode: PartnerFeature.Mode = existing != nil ? .edit : .create
+                state.path.append(.partner(PartnerFeature.State(mode: mode, existing: existing)))
+                return .none
+
+            case .path(.element(_, action: .settings(.delegate(.loggedOut)))):
+                return .send(.delegate(.loggedOut))
+
+            case .path(.element(_, action: .partner(.delegate(.partnerSaved)))):
+                state.path.removeLast()
+                return .none
+
             case .path:
+                return .none
+
+            case .delegate:
                 return .none
             }
         }

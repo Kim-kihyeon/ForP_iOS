@@ -49,6 +49,11 @@ public struct AppFeature {
                 state.route = .main
                 return .none
 
+            case .home(.delegate(.loggedOut)):
+                state.route = .login
+                state.login = LoginFeature.State()
+                return .none
+
             case .login, .onboarding, .home:
                 return .none
             }

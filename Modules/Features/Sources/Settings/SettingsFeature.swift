@@ -15,9 +15,11 @@ public struct SettingsFeature {
 
     public enum Action {
         case onAppear
+        case partnerTapped
         case resetPartnerTapped
         case resetPartnerResponse(Result<Void, Error>)
         case logoutTapped
+        case logoutResponse(Result<Void, Error>)
         case alert(PresentationAction<Alert>)
         case delegate(Delegate)
 
@@ -26,11 +28,14 @@ public struct SettingsFeature {
         }
 
         public enum Delegate: Equatable {
+            case openPartner
             case loggedOut
         }
     }
 
+    @Dependency(\.authRepository) var authRepository
     @Dependency(\.partnerRepository) var partnerRepository
+    @Dependency(\.currentPartner) var currentPartner
     @Dependency(\.currentUserId) var currentUserId
 
     public init() {}
@@ -39,7 +44,12 @@ public struct SettingsFeature {
         Reduce { state, action in
             switch action {
             case .onAppear:
+                state.hasPartner = currentPartner() != nil
                 return .none
+
+            case .partnerTapped:
+                return .send(.delegate(.openPartner))
+
             case .resetPartnerTapped:
                 state.alert = AlertState {
                     TextState("파트너 초기화")
@@ -54,6 +64,7 @@ public struct SettingsFeature {
                     TextState("파트너 정보가 삭제됩니다.")
                 }
                 return .none
+
             case .alert(.presented(.confirmResetPartner)):
                 state.isLoading = true
                 return .run { send in
@@ -62,18 +73,35 @@ public struct SettingsFeature {
                         Result { try await partnerRepository.deletePartner(id: userId) }
                     ))
                 }
+
             case .alert:
-                state.alert = nil
                 return .none
+
             case .resetPartnerResponse(.success):
                 state.isLoading = false
                 state.hasPartner = false
                 return .none
+
             case .resetPartnerResponse(.failure):
                 state.isLoading = false
                 return .none
+
             case .logoutTapped:
+                state.isLoading = true
+                return .run { send in
+                    await send(.logoutResponse(
+                        Result { try await authRepository.logout() }
+                    ))
+                }
+
+            case .logoutResponse(.success):
+                state.isLoading = false
                 return .send(.delegate(.loggedOut))
+
+            case .logoutResponse(.failure):
+                state.isLoading = false
+                return .none
+
             case .delegate:
                 return .none
             }

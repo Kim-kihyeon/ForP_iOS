@@ -12,71 +12,154 @@ public struct HomeView: View {
 
     public var body: some View {
         NavigationStack(path: $store.scope(state: \.path, action: \.path)) {
-            ZStack {
-                Group {
-                    if store.recentCourses.isEmpty && !store.isLoading {
-                        emptyView
-                    } else {
-                        courseList
+            ZStack(alignment: .bottomTrailing) {
+                Color(.systemGroupedBackground).ignoresSafeArea()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Spacing.lg) {
+                        headerSection
+                        contentSection
                     }
+                    .padding(.bottom, 88)
                 }
 
-                if store.isLoading {
-                    LoadingView()
-                }
+                generateButton
             }
-            .navigationTitle("ForP")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        store.send(.generateCourseTapped)
-                    } label: {
-                        Label("코스 만들기", systemImage: "plus")
-                    }
-                }
-            }
+            .navigationBarHidden(true)
         } destination: { store in
             switch store.case {
             case .courseGenerate(let store):
                 CourseGenerateView(store: store)
             case .courseResult(let store):
                 CourseResultView(store: store)
+            case .settings(let store):
+                SettingsView(store: store)
+            case .partner(let store):
+                PartnerView(store: store)
             }
         }
         .onAppear { store.send(.onAppear) }
     }
 
-    private var emptyView: some View {
-        VStack(spacing: Spacing.md) {
-            Image(systemName: "map")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-            Text("아직 만든 코스가 없어요")
-                .font(Typography.body)
-                .foregroundStyle(.secondary)
-            ForPButton("첫 코스 만들기") {
-                store.send(.generateCourseTapped)
+    private var headerSection: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text("안녕하세요")
+                    .font(Typography.caption)
+                    .foregroundStyle(.secondary)
+                Text("\(store.user.nickname)님의 코스")
+                    .font(Typography.largeTitle)
             }
-            .padding(.horizontal, Spacing.xl)
+
+            Spacer()
+
+            Button {
+                store.send(.settingsTapped)
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.secondary)
+                    .padding(Spacing.sm)
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.top, Spacing.lg + Spacing.sm)
+    }
+
+    @ViewBuilder
+    private var contentSection: some View {
+        if store.isLoading {
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .padding(.top, Spacing.xxl)
+        } else if store.recentCourses.isEmpty {
+            emptyView
+        } else {
+            courseList
         }
     }
 
+    private var emptyView: some View {
+        VStack(spacing: Spacing.md) {
+            ZStack {
+                Circle()
+                    .fill(Brand.softPink)
+                    .frame(width: 88, height: 88)
+                Image(systemName: "map.fill")
+                    .font(.system(size: 36))
+                    .foregroundStyle(Brand.pink)
+            }
+            Text("아직 만든 코스가 없어요")
+                .font(Typography.headline)
+            Text("하단 버튼을 눌러 첫 코스를 만들어보세요")
+                .font(Typography.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 72)
+        .padding(.horizontal, Spacing.md)
+    }
+
     private var courseList: some View {
-        List(store.recentCourses) { course in
-            Button {
-                store.send(.courseSelected(course))
-            } label: {
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text(course.title)
-                        .font(Typography.body)
-                        .foregroundStyle(.primary)
-                    Text(course.places.map { $0.placeName ?? $0.keyword }.joined(separator: " → "))
-                        .font(Typography.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+        LazyVStack(spacing: Spacing.sm) {
+            ForEach(store.recentCourses) { course in
+                Button {
+                    store.send(.courseSelected(course))
+                } label: {
+                    courseCard(course)
                 }
-                .padding(.vertical, Spacing.xs)
+                .buttonStyle(.plain)
             }
         }
+        .padding(.horizontal, Spacing.md)
+    }
+
+    private func courseCard(_ course: Course) -> some View {
+        HStack(spacing: Spacing.md) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Brand.pink)
+                .frame(width: 3, height: 44)
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(course.title)
+                    .font(Typography.headline)
+                    .foregroundStyle(.primary)
+                Text(course.places.map { $0.placeName ?? $0.keyword }.joined(separator: " → "))
+                    .font(Typography.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(Spacing.md)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+    }
+
+    private var generateButton: some View {
+        Button {
+            store.send(.generateCourseTapped)
+        } label: {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: "sparkles")
+                Text("코스 만들기")
+                    .font(Typography.body.weight(.semibold))
+            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.sm + 4)
+            .background(Brand.pink)
+            .foregroundStyle(.white)
+            .clipShape(Capsule())
+            .shadow(color: Brand.pink.opacity(0.4), radius: 10, x: 0, y: 4)
+        }
+        .padding(.trailing, Spacing.md)
+        .padding(.bottom, Spacing.lg + Spacing.sm)
     }
 }
