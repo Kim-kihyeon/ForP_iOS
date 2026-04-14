@@ -68,10 +68,12 @@ private struct CourseInsertRow: Encodable {
     let title: String
     let mode: String
     let places: [CoursePlace]
+    let outfitSuggestion: String?
 
     enum CodingKeys: String, CodingKey {
         case id, title, mode, places
         case userId = "user_id"
+        case outfitSuggestion = "outfit_suggestion"
     }
 
     init(from course: Course) {
@@ -80,6 +82,7 @@ private struct CourseInsertRow: Encodable {
         title = course.title
         mode = course.mode.rawValue
         places = course.places
+        outfitSuggestion = course.outfitSuggestion
     }
 }
 
@@ -90,11 +93,13 @@ private struct CourseFetchRow: Decodable {
     let mode: String
     let places: [CoursePlace]
     let createdAt: String
+    let outfitSuggestion: String?
 
     enum CodingKeys: String, CodingKey {
         case id, title, mode, places
         case userId = "user_id"
         case createdAt = "created_at"
+        case outfitSuggestion = "outfit_suggestion"
     }
 
     func toDomain() -> Course {
@@ -104,7 +109,8 @@ private struct CourseFetchRow: Decodable {
             title: title,
             date: ISO8601DateFormatter().date(from: createdAt) ?? Date(),
             mode: CourseMode(rawValue: mode) ?? .ordered,
-            places: places
+            places: places,
+            outfitSuggestion: outfitSuggestion
         )
     }
 }

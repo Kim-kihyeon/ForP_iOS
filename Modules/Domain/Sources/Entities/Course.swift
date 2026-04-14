@@ -10,6 +10,7 @@ public struct CoursePlace: Codable, Equatable {
     public var category: String
     public var keyword: String
     public var reason: String
+    public var menu: String?
     public var placeName: String?
     public var address: String?
     public var latitude: Double?
@@ -20,6 +21,7 @@ public struct CoursePlace: Codable, Equatable {
         category: String,
         keyword: String,
         reason: String,
+        menu: String? = nil,
         placeName: String? = nil,
         address: String? = nil,
         latitude: Double? = nil,
@@ -29,6 +31,7 @@ public struct CoursePlace: Codable, Equatable {
         self.category = category
         self.keyword = keyword
         self.reason = reason
+        self.menu = menu
         self.placeName = placeName
         self.address = address
         self.latitude = latitude
@@ -44,6 +47,7 @@ public struct Course: Identifiable, Codable, Equatable {
     public var mode: CourseMode
     public var places: [CoursePlace]
     public var promptSummary: String
+    public var outfitSuggestion: String?
 
     public init(
         id: UUID = UUID(),
@@ -52,7 +56,8 @@ public struct Course: Identifiable, Codable, Equatable {
         date: Date = Date(),
         mode: CourseMode,
         places: [CoursePlace],
-        promptSummary: String = ""
+        promptSummary: String = "",
+        outfitSuggestion: String? = nil
     ) {
         self.id = id
         self.userId = userId
@@ -61,6 +66,17 @@ public struct Course: Identifiable, Codable, Equatable {
         self.mode = mode
         self.places = places
         self.promptSummary = promptSummary
+        self.outfitSuggestion = outfitSuggestion
+    }
+}
+
+public struct CoursePlan: Equatable {
+    public var places: [CoursePlace]
+    public var outfitSuggestion: String
+
+    public init(places: [CoursePlace], outfitSuggestion: String) {
+        self.places = places
+        self.outfitSuggestion = outfitSuggestion
     }
 }
 

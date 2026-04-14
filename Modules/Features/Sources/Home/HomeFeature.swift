@@ -81,12 +81,13 @@ public struct HomeFeature {
                 state.path.append(.settings(SettingsFeature.State()))
                 return .none
 
-            case .path(.element(_, action: .courseGenerate(.delegate(.courseGenerated(let places, let options))))):
+            case .path(.element(_, action: .courseGenerate(.delegate(.courseGenerated(let plan, let options))))):
                 let course = Course(
                     userId: state.user.id,
                     title: "\(options.location) 데이트",
                     mode: options.mode,
-                    places: places
+                    places: plan.places,
+                    outfitSuggestion: plan.outfitSuggestion
                 )
                 state.path.append(.courseResult(CourseResultFeature.State(course: course)))
                 return .none

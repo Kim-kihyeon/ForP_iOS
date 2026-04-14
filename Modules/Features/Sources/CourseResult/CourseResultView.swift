@@ -18,6 +18,9 @@ public struct CourseResultView: View {
 
             ScrollView {
                 LazyVStack(spacing: Spacing.md) {
+                    if let outfit = store.course.outfitSuggestion, !outfit.isEmpty {
+                        outfitCard(outfit)
+                    }
                     ForEach(store.course.places, id: \.order) { place in
                         placeCard(place)
                     }
@@ -52,6 +55,25 @@ public struct CourseResultView: View {
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 
+    private func outfitCard(_ outfit: String) -> some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: "tshirt.fill")
+                .font(.title3)
+                .foregroundStyle(Brand.pink)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("오늘의 옷차림")
+                    .font(Typography.caption2)
+                    .foregroundStyle(.secondary)
+                Text(outfit)
+                    .font(Typography.caption)
+            }
+            Spacer()
+        }
+        .padding(Spacing.md)
+        .background(Brand.softPink)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
     private func placeCard(_ place: CoursePlace) -> some View {
         HStack(alignment: .top, spacing: Spacing.md) {
             ZStack {
@@ -79,6 +101,13 @@ public struct CourseResultView: View {
                     .font(Typography.caption)
                     .foregroundStyle(.secondary)
                     .padding(.top, 2)
+
+                if let menu = place.menu, !menu.isEmpty {
+                    Label(menu, systemImage: "fork.knife")
+                        .font(Typography.caption2)
+                        .foregroundStyle(Brand.pink)
+                        .padding(.top, 2)
+                }
             }
 
             Spacer()

@@ -9,7 +9,7 @@ public struct GPTAIService: AIServiceProtocol {
         self.provider = provider
     }
 
-    public func generateCoursePlan(user: User, partner: Partner?, options: CourseOptions) async throws -> [CoursePlace] {
+    public func generateCoursePlan(user: User, partner: Partner?, options: CourseOptions) async throws -> CoursePlan {
         let systemMessage = buildSystemMessage(location: options.location)
         let prompt = buildPrompt(user: user, partner: partner, options: options)
         return try await withCheckedThrowingContinuation { continuation in
@@ -18,7 +18,7 @@ public struct GPTAIService: AIServiceProtocol {
                 case .success(let response):
                     do {
                         let apiResponse = try JSONDecoder().decode(GPTAPIResponse.self, from: response.data)
-                        continuation.resume(returning: try apiResponse.toCoursePlaces())
+                        continuation.resume(returning: try apiResponse.toCoursePlan())
                     } catch {
                         continuation.resume(throwing: error)
                     }
@@ -71,10 +71,23 @@ public struct GPTAIService: AIServiceProtocol {
               "order": 1,
               "category": "카페",
               "keyword": "\(options.location) 감성 카페",
-              "reason": "조용한 분위기에서 대화하기 좋은 곳"
+              "reason": "조용한 분위기에서 대화하기 좋은 곳",
+              "menu": "아인슈페너, 크루아상"
+            },
+            {
+              "order": 2,
+              "category": "음식점",
+              "keyword": "\(options.location) 파스타",
+              "reason": "분위기 좋은 이탈리안 레스토랑",
+              "menu": "트러플 파스타, 티라미수"
             }
-          ]
+          ],
+          "outfit": "가벼운 재킷에 청바지 조합이 어울려요. 저녁엔 쌀쌀할 수 있으니 얇은 겉옷을 챙기세요."
         }
+
+        규칙:
+        - menu: 해당 장소에서 추천하는 메뉴 또는 즐길 거리 (카페/음식점은 반드시 포함, 그 외는 null 가능)
+        - outfit: 오늘 코스와 날씨/분위기에 어울리는 옷차림 제안 (1-2문장)
         """
         return prompt
     }

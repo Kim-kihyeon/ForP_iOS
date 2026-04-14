@@ -21,11 +21,11 @@ public struct CourseGenerateFeature {
     public enum Action: BindableAction {
         case binding(BindingAction<State>)
         case generateTapped
-        case generateResponse(Result<[CoursePlace], Error>)
+        case generateResponse(Result<CoursePlan, Error>)
         case delegate(Delegate)
 
         public enum Delegate: Equatable {
-            case courseGenerated([CoursePlace], CourseOptions)
+            case courseGenerated(CoursePlan, CourseOptions)
         }
     }
 
@@ -54,7 +54,7 @@ public struct CourseGenerateFeature {
                         Result { try await generateCourseUseCase.execute(user: user, partner: partner, options: options) }
                     ))
                 }
-            case .generateResponse(.success(let places)):
+            case .generateResponse(.success(let plan)):
                 state.isGenerating = false
                 let options = CourseOptions(
                     location: state.location,
@@ -62,7 +62,7 @@ public struct CourseGenerateFeature {
                     placeCount: state.placeCount,
                     mode: state.mode
                 )
-                return .send(.delegate(.courseGenerated(places, options)))
+                return .send(.delegate(.courseGenerated(plan, options)))
             case .generateResponse(.failure(let error)):
                 state.isGenerating = false
                 state.errorMessage = error.localizedDescription

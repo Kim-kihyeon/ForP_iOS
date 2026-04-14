@@ -11,6 +11,7 @@ final class CourseCache {
     var modeRaw: String
     var placesData: Data
     var promptSummary: String
+    var outfitSuggestion: String?
 
     init(from course: Course) throws {
         self.id = course.id
@@ -20,6 +21,7 @@ final class CourseCache {
         self.modeRaw = course.mode.rawValue
         self.placesData = try JSONEncoder().encode(course.places)
         self.promptSummary = course.promptSummary
+        self.outfitSuggestion = course.outfitSuggestion
     }
 
     func toDomain() throws -> Course {
@@ -31,7 +33,8 @@ final class CourseCache {
             date: date,
             mode: CourseMode(rawValue: modeRaw) ?? .ordered,
             places: places,
-            promptSummary: promptSummary
+            promptSummary: promptSummary,
+            outfitSuggestion: outfitSuggestion
         )
     }
 }

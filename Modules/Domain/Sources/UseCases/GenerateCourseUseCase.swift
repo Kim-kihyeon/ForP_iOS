@@ -20,15 +20,15 @@ public struct GenerateCourseUseCase {
         self.placeRepository = placeRepository
     }
 
-    public func execute(user: User, partner: Partner?, options: CourseOptions) async throws -> [CoursePlace] {
+    public func execute(user: User, partner: Partner?, options: CourseOptions) async throws -> CoursePlan {
         let isValid = try await placeRepository.isValidKoreanRegion(keyword: options.location)
         guard isValid else {
             throw CourseGenerationError.invalidLocation(options.location)
         }
 
-        let places = try await aiService.generateCoursePlan(user: user, partner: partner, options: options)
+        let plan = try await aiService.generateCoursePlan(user: user, partner: partner, options: options)
         var enriched: [CoursePlace] = []
-        for place in places {
+        for place in plan.places {
             let results = try await placeRepository.searchPlaces(keyword: place.keyword)
             if let first = results.first {
                 var updated = place
@@ -41,6 +41,6 @@ public struct GenerateCourseUseCase {
                 enriched.append(place)
             }
         }
-        return enriched
+        return CoursePlan(places: enriched, outfitSuggestion: plan.outfitSuggestion)
     }
 }
