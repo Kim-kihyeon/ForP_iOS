@@ -10,11 +10,22 @@ public final class UserRepository: UserRepositoryProtocol {
     }
 
     public func fetchCurrentUser() async throws -> Domain.User {
-        // TODO: Supabase Auth + DB에서 유저 정보 조회
-        throw URLError(.notConnectedToInternet)
+        let row: UserRow = try await supabase
+            .from("users")
+            .select()
+            .eq("id", value: try await supabase.auth.user().id)
+            .single()
+            .execute()
+            .value
+        return row.toDomain()
     }
 
     public func updateUser(_ user: Domain.User) async throws {
-        // TODO: Supabase DB 업데이트
+        let row = UserRow(from: user)
+        try await supabase
+            .from("users")
+            .upsert(row)
+            .execute()
     }
 }
+

@@ -3,7 +3,7 @@ import SwiftData
 import Supabase
 import Domain
 
-public final class CourseRepository: CourseRepositoryProtocol {
+public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendable {
     private let supabase: SupabaseClient
     private let modelContext: ModelContext
 
@@ -14,10 +14,16 @@ public final class CourseRepository: CourseRepositoryProtocol {
 
     public func fetchRecentCourses(userId: UUID, limit: Int) async throws -> [Course] {
         do {
-            // TODO: Supabase에서 코스 목록 조회
-            return []
+            let rows: [CourseFetchRow] = try await supabase
+                .from("courses")
+                .select()
+                .eq("user_id", value: userId)
+                .order("created_at", ascending: false)
+                .limit(limit)
+                .execute()
+                .value
+            return rows.map { $0.toDomain() }
         } catch {
-            // 실패 시 로컬 캐시 반환
             let descriptor = FetchDescriptor<CourseCache>(
                 predicate: #Predicate { $0.userId == userId },
                 sortBy: [SortDescriptor(\.date, order: .reverse)]
@@ -28,14 +34,24 @@ public final class CourseRepository: CourseRepositoryProtocol {
     }
 
     public func saveCourse(_ course: Course) async throws {
-        // TODO: Supabase에 저장
+        let row = CourseInsertRow(from: course)
+        try await supabase
+            .from("courses")
+            .upsert(row)
+            .execute()
+
         let cache = try CourseCache(from: course)
         modelContext.insert(cache)
         try modelContext.save()
     }
 
     public func deleteCourse(id: UUID) async throws {
-        // TODO: Supabase에서 삭제
+        try await supabase
+            .from("courses")
+            .delete()
+            .eq("id", value: id)
+            .execute()
+
         let descriptor = FetchDescriptor<CourseCache>(
             predicate: #Predicate { $0.id == id }
         )
@@ -43,5 +59,52 @@ public final class CourseRepository: CourseRepositoryProtocol {
             modelContext.delete(cache)
             try modelContext.save()
         }
+    }
+}
+
+private struct CourseInsertRow: Encodable {
+    let id: UUID
+    let userId: UUID
+    let title: String
+    let mode: String
+    let places: [CoursePlace]
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, mode, places
+        case userId = "user_id"
+    }
+
+    init(from course: Course) {
+        id = course.id
+        userId = course.userId
+        title = course.title
+        mode = course.mode.rawValue
+        places = course.places
+    }
+}
+
+private struct CourseFetchRow: Decodable {
+    let id: UUID
+    let userId: UUID
+    let title: String
+    let mode: String
+    let places: [CoursePlace]
+    let createdAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, mode, places
+        case userId = "user_id"
+        case createdAt = "created_at"
+    }
+
+    func toDomain() -> Course {
+        Course(
+            id: id,
+            userId: userId,
+            title: title,
+            date: ISO8601DateFormatter().date(from: createdAt) ?? Date(),
+            mode: CourseMode(rawValue: mode) ?? .ordered,
+            places: places
+        )
     }
 }
