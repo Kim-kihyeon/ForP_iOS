@@ -17,7 +17,8 @@ public struct CourseResultFeature {
         }
     }
 
-    public enum Action {
+    public enum Action: BindableAction {
+        case binding(BindingAction<State>)
         case saveTapped
         case saveResponse(Result<Void, Error>)
         case deleteTapped
@@ -39,8 +40,18 @@ public struct CourseResultFeature {
     public init() {}
 
     public var body: some ReducerOf<Self> {
+        BindingReducer()
         Reduce { state, action in
             switch action {
+            case .binding(\.course.title):
+                if state.course.title.count > 10 {
+                    state.course.title = String(state.course.title.prefix(10))
+                }
+                return .none
+
+            case .binding:
+                return .none
+
             case .saveTapped:
                 state.isSaving = true
                 let course = state.course

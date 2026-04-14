@@ -32,8 +32,19 @@ public struct CourseResultView: View {
                 LoadingView()
             }
         }
-        .navigationTitle(store.course.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 4) {
+                    TextField("코스 제목", text: $store.course.title)
+                        .font(Typography.headline)
+                        .multilineTextAlignment(.center)
+                    Image(systemName: "pencil")
+                        .font(Typography.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if store.isSaved {
@@ -91,11 +102,7 @@ public struct CourseResultView: View {
 
                 Text(place.category)
                     .font(Typography.caption2)
-                    .padding(.horizontal, Spacing.sm)
-                    .padding(.vertical, 3)
-                    .background(Color(.tertiarySystemBackground))
                     .foregroundStyle(.secondary)
-                    .clipShape(Capsule())
 
                 Text(place.reason)
                     .font(Typography.caption)
