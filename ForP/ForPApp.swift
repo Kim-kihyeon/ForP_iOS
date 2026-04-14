@@ -9,9 +9,17 @@ import SwiftUI
 
 @main
 struct ForPApp: App {
+    @State private var appState = AppState()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if appState.isLoggedIn {
+                HomeView()
+                    .environment(appState)
+            } else {
+                LoginView()
+                    .environment(appState)
+            }
         }
     }
 }
