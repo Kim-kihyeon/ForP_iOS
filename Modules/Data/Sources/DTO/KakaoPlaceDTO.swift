@@ -1,7 +1,24 @@
 import Foundation
 
 struct KakaoSearchResponse: Decodable {
+    let meta: KakaoMeta
     let documents: [KakaoPlaceDTO]
+}
+
+struct KakaoMeta: Decodable {
+    let sameName: KakaoSameName?
+
+    enum CodingKeys: String, CodingKey {
+        case sameName = "same_name"
+    }
+}
+
+struct KakaoSameName: Decodable {
+    let selectedRegion: String
+
+    enum CodingKeys: String, CodingKey {
+        case selectedRegion = "selected_region"
+    }
 }
 
 struct KakaoPlaceDTO: Decodable {

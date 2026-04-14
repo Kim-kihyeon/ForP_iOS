@@ -1,5 +1,16 @@
 import Foundation
 
+public enum CourseGenerationError: LocalizedError {
+    case invalidLocation(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidLocation(let location):
+            return "'\(location)'을 찾을 수 없어요. 올바른 지역명을 입력해주세요. (예: 강남, 홍대, 성수동)"
+        }
+    }
+}
+
 public struct GenerateCourseUseCase {
     private let aiService: any AIServiceProtocol
     private let placeRepository: any PlaceRepositoryProtocol
@@ -10,6 +21,11 @@ public struct GenerateCourseUseCase {
     }
 
     public func execute(user: User, partner: Partner?, options: CourseOptions) async throws -> [CoursePlace] {
+        let isValid = try await placeRepository.isValidKoreanRegion(keyword: options.location)
+        guard isValid else {
+            throw CourseGenerationError.invalidLocation(options.location)
+        }
+
         let places = try await aiService.generateCoursePlan(user: user, partner: partner, options: options)
         var enriched: [CoursePlace] = []
         for place in places {
