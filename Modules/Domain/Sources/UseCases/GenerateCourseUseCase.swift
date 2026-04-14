@@ -14,10 +14,12 @@ public enum CourseGenerationError: LocalizedError {
 public struct GenerateCourseUseCase {
     private let aiService: any AIServiceProtocol
     private let placeRepository: any PlaceRepositoryProtocol
+    private let weatherService: any WeatherServiceProtocol
 
-    public init(aiService: any AIServiceProtocol, placeRepository: any PlaceRepositoryProtocol) {
+    public init(aiService: any AIServiceProtocol, placeRepository: any PlaceRepositoryProtocol, weatherService: any WeatherServiceProtocol) {
         self.aiService = aiService
         self.placeRepository = placeRepository
+        self.weatherService = weatherService
     }
 
     public func execute(user: User, partner: Partner?, options: CourseOptions) async throws -> CoursePlan {
@@ -26,7 +28,15 @@ public struct GenerateCourseUseCase {
             throw CourseGenerationError.invalidLocation(options.location)
         }
 
-        let plan = try await aiService.generateCoursePlan(user: user, partner: partner, options: options)
+        // 위치 좌표 조회 → 날씨 조회
+        var optionsWithWeather = options
+        if let coord = try? await placeRepository.searchPlaces(keyword: options.location).first,
+           let lat = coord.latitude, let lon = coord.longitude,
+           let weather = try? await weatherService.fetchWeather(latitude: lat, longitude: lon, date: options.date) {
+            optionsWithWeather.weatherDescription = weather.description
+        }
+
+        let plan = try await aiService.generateCoursePlan(user: user, partner: partner, options: optionsWithWeather)
         var enriched: [CoursePlace] = []
         for place in plan.places {
             let results = try await placeRepository.searchPlaces(keyword: place.keyword)

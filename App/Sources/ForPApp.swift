@@ -45,7 +45,8 @@ struct ForPApp: App {
         let courseRepo = CourseRepository(supabase: supabase, modelContext: modelContext)
         let placeRepo = PlaceRepository(provider: kakaoProvider)
         let aiService = GPTAIService(provider: gptProvider)
-        let generateUseCase = GenerateCourseUseCase(aiService: aiService, placeRepository: placeRepo)
+        let weatherService = OpenWeatherService(apiKey: Secrets.openWeatherKey)
+        let generateUseCase = GenerateCourseUseCase(aiService: aiService, placeRepository: placeRepo, weatherService: weatherService)
         let saveUseCase = SaveCourseUseCase(courseRepository: courseRepo)
         let fetchCoursesUseCase = FetchRecentCoursesUseCase(courseRepository: courseRepo)
 

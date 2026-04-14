@@ -1,3 +1,4 @@
+import Foundation
 import ComposableArchitecture
 import Domain
 
@@ -10,6 +11,8 @@ public struct CourseGenerateFeature {
         public var selectedThemes: [String] = []
         public var placeCount = 3
         public var mode: CourseMode = .ordered
+        public var memo = ""
+        public var date: Date = Date()
         public var isGenerating = false
         public var errorMessage: String? = nil
 
@@ -46,7 +49,9 @@ public struct CourseGenerateFeature {
                     location: state.location,
                     themes: state.selectedThemes,
                     placeCount: state.placeCount,
-                    mode: state.mode
+                    mode: state.mode,
+                    memo: state.memo,
+                    date: state.date
                 )
                 return .run { [options, user = state.user] send in
                     let partner = currentPartner()
@@ -60,7 +65,9 @@ public struct CourseGenerateFeature {
                     location: state.location,
                     themes: state.selectedThemes,
                     placeCount: state.placeCount,
-                    mode: state.mode
+                    mode: state.mode,
+                    memo: state.memo,
+                    date: state.date
                 )
                 return .send(.delegate(.courseGenerated(plan, options)))
             case .generateResponse(.failure(let error)):

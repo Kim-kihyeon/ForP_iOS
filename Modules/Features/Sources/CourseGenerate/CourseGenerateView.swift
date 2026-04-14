@@ -18,8 +18,10 @@ public struct CourseGenerateView: View {
                 ScrollView {
                     VStack(spacing: Spacing.md) {
                         locationSection
+                        dateSection
                         placeCountSection
                         modeSection
+                        memoSection
                     }
                     .padding(Spacing.md)
                     .padding(.bottom, Spacing.sm)
@@ -100,6 +102,38 @@ public struct CourseGenerateView: View {
                 }
             }
             .padding(.horizontal, Spacing.xl)
+        }
+        .sectionCard()
+    }
+
+    private var dateSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Label("언제?", systemImage: "calendar")
+                .font(Typography.caption.weight(.semibold))
+                .foregroundStyle(Brand.pink)
+
+            DatePicker("", selection: $store.date, displayedComponents: .date)
+                .datePickerStyle(.compact)
+                .labelsHidden()
+                .environment(\.locale, Locale(identifier: "ko_KR"))
+
+            let daysFromNow = Calendar.current.dateComponents([.day], from: Date(), to: store.date).day ?? 0
+            Text(daysFromNow <= 4 ? "실제 날씨 예보가 코스에 반영돼요" : "5일 이후는 계절 기반으로 반영돼요")
+                .font(Typography.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .sectionCard()
+    }
+
+    private var memoSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Label("오늘의 요청사항", systemImage: "sparkles")
+                .font(Typography.caption.weight(.semibold))
+                .foregroundStyle(Brand.pink)
+
+            TextField("예: 실내 위주로, 예산 10만원, 프로포즈 예정", text: $store.memo, axis: .vertical)
+                .font(Typography.body)
+                .lineLimit(2...4)
         }
         .sectionCard()
     }

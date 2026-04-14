@@ -28,6 +28,7 @@ let project = Project(
                 "SUPABASE_HOST": "$(SUPABASE_HOST)",
                 "SUPABASE_ANON_KEY": "$(SUPABASE_ANON_KEY)",
                 "OPENAI_API_KEY": "$(OPENAI_API_KEY)",
+                "OPENWEATHER_API_KEY": "$(OPENWEATHER_API_KEY)",
             ]),
             sources: ["Sources/**"],
             resources: ["Resources/**"],

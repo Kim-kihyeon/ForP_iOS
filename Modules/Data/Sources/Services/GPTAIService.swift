@@ -45,13 +45,23 @@ public struct GPTAIService: AIServiceProtocol {
     }
 
     private func buildPrompt(user: User, partner: Partner?, options: CourseOptions) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "ko_KR")
+        dateFormatter.dateFormat = "M월 d일 (E)"
+        let dateString = dateFormatter.string(from: options.date)
+
         var prompt = """
         지역: \(options.location) (이 지역 장소만 추천)
+        날짜: \(dateString)
+        날씨: \(options.weatherDescription ?? "정보 없음")
         장소 수: \(options.placeCount)개
         테마: \(options.themes.isEmpty ? "자유" : options.themes.joined(separator: ", "))
         내 선호: \(user.preferredCategories.isEmpty ? "없음" : user.preferredCategories.joined(separator: ", "))
         내 비선호: \(user.dislikedCategories.isEmpty ? "없음" : user.dislikedCategories.joined(separator: ", "))
         """
+        if !options.memo.isEmpty {
+            prompt += "\n요청사항 (최우선 반영): \(options.memo)"
+        }
         if let partner, !partner.nickname.isEmpty {
             prompt += """
 
