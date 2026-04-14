@@ -39,7 +39,6 @@ public final class AuthRepository: AuthRepositoryProtocol {
             try? await supabase.from("users").upsert(UserRow(from: user), ignoreDuplicates: true).execute()
             return user
         } catch {
-            print("[Kakao] Edge Function error:", error)
             throw error
         }
 
