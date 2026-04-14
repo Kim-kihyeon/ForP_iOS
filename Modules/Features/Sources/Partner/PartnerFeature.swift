@@ -14,6 +14,7 @@ public struct PartnerFeature {
         public var notes = ""
         public var isLoading = false
         public var mode: Mode = .create
+        @Presents public var alert: AlertState<Action.Alert>?
 
         public init(mode: Mode = .create, existing: Partner? = nil) {
             self.mode = mode
@@ -31,8 +32,10 @@ public struct PartnerFeature {
         case binding(BindingAction<State>)
         case saveTapped
         case saveResponse(Result<Partner, Error>)
+        case alert(PresentationAction<Alert>)
         case delegate(Delegate)
 
+        public enum Alert: Equatable {}
         public enum Delegate: Equatable { case partnerSaved(Partner) }
     }
 
@@ -66,12 +69,16 @@ public struct PartnerFeature {
             case .saveResponse(.success(let partner)):
                 state.isLoading = false
                 return .send(.delegate(.partnerSaved(partner)))
-            case .saveResponse(.failure):
+            case .saveResponse(.failure(let error)):
                 state.isLoading = false
+                state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
+                return .none
+            case .alert:
                 return .none
             case .delegate:
                 return .none
             }
         }
+        .ifLet(\.$alert, action: \.alert)
     }
 }

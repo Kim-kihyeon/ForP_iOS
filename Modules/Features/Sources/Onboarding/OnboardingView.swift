@@ -65,6 +65,7 @@ public struct OnboardingView: View {
             }
         }
         .navigationBarBackButtonHidden()
+        .alert($store.scope(state: \.alert, action: \.alert))
     }
 
     @ViewBuilder

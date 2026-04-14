@@ -55,8 +55,9 @@ public struct CourseResultFeature {
                 state.isSaved = true
                 return .none
 
-            case .saveResponse(.failure):
+            case .saveResponse(.failure(let error)):
                 state.isSaving = false
+                state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
                 return .none
 
             case .deleteTapped:
@@ -90,8 +91,9 @@ public struct CourseResultFeature {
                 state.isDeleting = false
                 return .send(.delegate(.deleted))
 
-            case .deleteResponse(.failure):
+            case .deleteResponse(.failure(let error)):
                 state.isDeleting = false
+                state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
                 return .none
 
             case .dismissTapped:

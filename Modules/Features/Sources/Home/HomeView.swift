@@ -39,6 +39,7 @@ public struct HomeView: View {
             }
         }
         .onAppear { store.send(.onAppear) }
+        .alert($store.scope(state: \.alert, action: \.alert))
     }
 
     private var headerSection: some View {

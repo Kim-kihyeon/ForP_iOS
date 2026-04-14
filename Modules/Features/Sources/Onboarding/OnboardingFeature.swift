@@ -11,6 +11,7 @@ public struct OnboardingFeature {
         public var dislikedCategories: [String] = []
         public var preferredThemes: [String] = []
         public var isLoading = false
+        @Presents public var alert: AlertState<Action.Alert>?
 
         public init(user: User) {
             self.user = user
@@ -24,7 +25,10 @@ public struct OnboardingFeature {
         case themeToggled(String)
         case saveTapped
         case saveResponse(Result<Void, Error>)
+        case alert(PresentationAction<Alert>)
         case delegate(Delegate)
+
+        public enum Alert: Equatable {}
 
         public enum Delegate: Equatable { case onboardingCompleted(User) }
     }
@@ -75,14 +79,19 @@ public struct OnboardingFeature {
                 user.location = state.location
                 return .send(.delegate(.onboardingCompleted(user)))
 
-            case .saveResponse(.failure):
+            case .saveResponse(.failure(let error)):
                 state.isLoading = false
+                state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
+                return .none
+
+            case .alert:
                 return .none
 
             case .delegate:
                 return .none
             }
         }
+        .ifLet(\.$alert, action: \.alert)
     }
 }
 

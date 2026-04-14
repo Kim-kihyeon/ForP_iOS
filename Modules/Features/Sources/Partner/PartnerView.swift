@@ -41,6 +41,7 @@ public struct PartnerView: View {
             if store.isLoading { LoadingView() }
         }
         .navigationTitle(store.mode == .create ? "파트너 등록" : "파트너 수정")
+        .alert($store.scope(state: \.alert, action: \.alert))
     }
 
     private func toggle(_ list: [String], item: String) -> [String] {

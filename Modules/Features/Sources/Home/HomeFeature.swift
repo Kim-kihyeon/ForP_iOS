@@ -17,6 +17,7 @@ public struct HomeFeature {
         public var path = StackState<Path.State>()
         public var recentCourses: [Course] = []
         public var isLoading = false
+        @Presents public var alert: AlertState<Action.Alert>?
 
         public init(user: User) {
             self.user = user
@@ -30,8 +31,10 @@ public struct HomeFeature {
         case generateCourseTapped
         case courseSelected(Course)
         case settingsTapped
+        case alert(PresentationAction<Alert>)
         case delegate(Delegate)
 
+        public enum Alert: Equatable {}
         public enum Delegate: Equatable {
             case loggedOut
         }
@@ -58,8 +61,12 @@ public struct HomeFeature {
                 state.recentCourses = courses
                 return .none
 
-            case .loadCoursesResponse(.failure):
+            case .loadCoursesResponse(.failure(let error)):
                 state.isLoading = false
+                state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
+                return .none
+
+            case .alert:
                 return .none
 
             case .generateCourseTapped:
@@ -114,6 +121,7 @@ public struct HomeFeature {
             }
         }
         .forEach(\.path, action: \.path)
+        .ifLet(\.$alert, action: \.alert)
     }
 }
 
