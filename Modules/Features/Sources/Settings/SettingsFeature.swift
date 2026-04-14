@@ -25,6 +25,7 @@ public struct SettingsFeature {
 
         public enum Alert: Equatable {
             case confirmResetPartner
+            case confirmLogout
         }
 
         public enum Delegate: Equatable {
@@ -74,6 +75,14 @@ public struct SettingsFeature {
                     ))
                 }
 
+            case .alert(.presented(.confirmLogout)):
+                state.isLoading = true
+                return .run { send in
+                    await send(.logoutResponse(
+                        Result { try await authRepository.logout() }
+                    ))
+                }
+
             case .alert:
                 return .none
 
@@ -87,12 +96,19 @@ public struct SettingsFeature {
                 return .none
 
             case .logoutTapped:
-                state.isLoading = true
-                return .run { send in
-                    await send(.logoutResponse(
-                        Result { try await authRepository.logout() }
-                    ))
+                state.alert = AlertState {
+                    TextState("로그아웃")
+                } actions: {
+                    ButtonState(role: .destructive, action: .confirmLogout) {
+                        TextState("로그아웃")
+                    }
+                    ButtonState(role: .cancel) {
+                        TextState("취소")
+                    }
+                } message: {
+                    TextState("정말 로그아웃할까요?")
                 }
+                return .none
 
             case .logoutResponse(.success):
                 state.isLoading = false
