@@ -48,6 +48,7 @@ public struct Course: Identifiable, Codable, Equatable {
     public var places: [CoursePlace]
     public var promptSummary: String
     public var outfitSuggestion: String?
+    public var isLiked: Bool
 
     public init(
         id: UUID = UUID(),
@@ -57,7 +58,8 @@ public struct Course: Identifiable, Codable, Equatable {
         mode: CourseMode,
         places: [CoursePlace],
         promptSummary: String = "",
-        outfitSuggestion: String? = nil
+        outfitSuggestion: String? = nil,
+        isLiked: Bool = false
     ) {
         self.id = id
         self.userId = userId
@@ -67,6 +69,7 @@ public struct Course: Identifiable, Codable, Equatable {
         self.places = places
         self.promptSummary = promptSummary
         self.outfitSuggestion = outfitSuggestion
+        self.isLiked = isLiked
     }
 }
 

@@ -45,6 +45,20 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
         try modelContext.save()
     }
 
+    public func toggleLike(id: UUID, isLiked: Bool) async throws {
+        try await supabase
+            .from("courses")
+            .update(["is_liked": isLiked])
+            .eq("id", value: id)
+            .execute()
+
+        let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+        if let cache = try modelContext.fetch(descriptor).first {
+            cache.isLiked = isLiked
+            try modelContext.save()
+        }
+    }
+
     public func deleteCourse(id: UUID) async throws {
         try await supabase
             .from("courses")
@@ -69,11 +83,13 @@ private struct CourseInsertRow: Encodable {
     let mode: String
     let places: [CoursePlace]
     let outfitSuggestion: String?
+    let isLiked: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, title, mode, places
         case userId = "user_id"
         case outfitSuggestion = "outfit_suggestion"
+        case isLiked = "is_liked"
     }
 
     init(from course: Course) {
@@ -83,6 +99,7 @@ private struct CourseInsertRow: Encodable {
         mode = course.mode.rawValue
         places = course.places
         outfitSuggestion = course.outfitSuggestion
+        isLiked = course.isLiked
     }
 }
 
@@ -94,12 +111,14 @@ private struct CourseFetchRow: Decodable {
     let places: [CoursePlace]
     let createdAt: String
     let outfitSuggestion: String?
+    let isLiked: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id, title, mode, places
         case userId = "user_id"
         case createdAt = "created_at"
         case outfitSuggestion = "outfit_suggestion"
+        case isLiked = "is_liked"
     }
 
     func toDomain() -> Course {
@@ -110,7 +129,8 @@ private struct CourseFetchRow: Decodable {
             date: ISO8601DateFormatter().date(from: createdAt) ?? Date(),
             mode: CourseMode(rawValue: mode) ?? .ordered,
             places: places,
-            outfitSuggestion: outfitSuggestion
+            outfitSuggestion: outfitSuggestion,
+            isLiked: isLiked ?? false
         )
     }
 }

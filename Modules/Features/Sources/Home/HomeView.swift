@@ -6,161 +6,127 @@ import Domain
 public struct HomeView: View {
     @Bindable var store: StoreOf<HomeFeature>
 
+    private let courseGradients: [[Color]] = [
+        [Color(red: 1.0, green: 0.45, blue: 0.6), Color(red: 1.0, green: 0.7, blue: 0.5)],
+        [Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.85, blue: 1.0)],
+        [Color(red: 0.6, green: 0.4, blue: 1.0), Color(red: 0.9, green: 0.6, blue: 1.0)],
+        [Color(red: 0.2, green: 0.78, blue: 0.65), Color(red: 0.4, green: 0.95, blue: 0.8)],
+    ]
+
     public init(store: StoreOf<HomeFeature>) {
         self.store = store
     }
 
     public var body: some View {
         NavigationStack(path: $store.scope(state: \.path, action: \.path)) {
-            ZStack(alignment: .bottomTrailing) {
-                Color(.systemGroupedBackground).ignoresSafeArea()
-
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.lg) {
-                        headerSection
-                        if let anniversary = store.upcomingAnniversary {
-                            anniversaryCard(anniversary)
-                                .padding(.horizontal, Spacing.md)
-                        }
-                        contentSection
-                    }
-                    .padding(.bottom, 88)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    headerSection
+                    mainContent
                 }
-
+            }
+            .refreshable {
+                await store.send(.refresh).finish()
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 generateButton
             }
-            .navigationBarHidden(true)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        store.send(.settingsTapped)
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 20))
+                    }
+                }
+            }
+            .toolbarBackground(Brand.pink, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .tint(.white)
         } destination: { store in
             switch store.case {
-            case .courseGenerate(let store):
-                CourseGenerateView(store: store)
-            case .courseResult(let store):
-                CourseResultView(store: store)
-            case .settings(let store):
-                SettingsView(store: store)
-            case .partner(let store):
-                PartnerView(store: store)
-            case .anniversary(let store):
-                AnniversaryView(store: store)
+            case .courseGenerate(let store): CourseGenerateView(store: store)
+            case .courseResult(let store): CourseResultView(store: store)
+            case .settings(let store): SettingsView(store: store)
+            case .partner(let store): PartnerView(store: store)
+            case .anniversary(let store): AnniversaryView(store: store)
             }
         }
         .onAppear { store.send(.onAppear) }
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 
+    // MARK: - Header
+
     private var headerSection: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("안녕하세요")
+        LinearGradient(
+            colors: [Brand.pink, Color(red: 1.0, green: 0.6, blue: 0.4)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 120)
+        .overlay(alignment: .bottomLeading) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("안녕하세요, \(store.user.nickname)님")
                     .font(Typography.caption)
-                    .foregroundStyle(.secondary)
-                Text("\(store.user.nickname)님의 코스")
-                    .font(Typography.largeTitle)
+                    .foregroundStyle(.white.opacity(0.85))
+                Text("오늘 어디 갈까요?")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundStyle(.white)
             }
-
-            Spacer()
-
-            Button {
-                store.send(.settingsTapped)
-            } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(.secondary)
-                    .padding(Spacing.sm)
-            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.bottom, Spacing.lg)
         }
-        .padding(.horizontal, Spacing.md)
-        .padding(.top, Spacing.lg + Spacing.sm)
     }
+
+    // MARK: - Main Content
 
     @ViewBuilder
-    private var contentSection: some View {
-        if store.isLoading {
-            ProgressView()
-                .frame(maxWidth: .infinity)
-                .padding(.top, Spacing.xxl)
-        } else if store.recentCourses.isEmpty {
-            emptyView
-        } else {
-            courseList
+    private var mainContent: some View {
+        VStack(spacing: Spacing.xl) {
+            if let anniversary = store.upcomingAnniversary {
+                anniversaryBanner(anniversary)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.top, Spacing.lg)
+            } else {
+                Spacer().frame(height: Spacing.lg)
+            }
+
+            if store.isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, Spacing.xxl)
+            } else if store.recentCourses.isEmpty {
+                emptyView
+            } else {
+                if !store.likedCourses.isEmpty {
+                    likedCourseSection
+                }
+                courseSection
+            }
         }
     }
 
-    private var emptyView: some View {
-        VStack(spacing: Spacing.md) {
+    // MARK: - Anniversary Banner
+
+    private func anniversaryBanner(_ anniversary: Anniversary) -> some View {
+        let days = anniversary.daysUntilThisYear
+        return HStack(spacing: Spacing.md) {
             ZStack {
                 Circle()
                     .fill(Brand.softPink)
-                    .frame(width: 88, height: 88)
-                Image(systemName: "map.fill")
-                    .font(.system(size: 36))
-                    .foregroundStyle(Brand.pink)
-            }
-            Text("아직 만든 코스가 없어요")
-                .font(Typography.headline)
-            Text("하단 버튼을 눌러 첫 코스를 만들어보세요")
-                .font(Typography.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 72)
-        .padding(.horizontal, Spacing.md)
-    }
-
-    private var courseList: some View {
-        LazyVStack(spacing: Spacing.sm) {
-            ForEach(store.recentCourses) { course in
-                Button {
-                    store.send(.courseSelected(course))
-                } label: {
-                    courseCard(course)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, Spacing.md)
-    }
-
-    private func courseCard(_ course: Course) -> some View {
-        HStack(spacing: Spacing.md) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Brand.pink)
-                .frame(width: 3, height: 44)
-
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(course.title)
-                    .font(Typography.headline)
-                    .foregroundStyle(.primary)
-                Text(course.places.map { $0.placeName ?? $0.keyword }.joined(separator: " → "))
-                    .font(Typography.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .frame(width: 48, height: 48)
+                Text(days == 0 ? "💕" : "🗓️")
+                    .font(.system(size: 22))
             }
 
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.tertiary)
-        }
-        .padding(Spacing.md)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
-    }
-
-    private func anniversaryCard(_ anniversary: Anniversary) -> some View {
-        HStack(spacing: Spacing.md) {
-            Image(systemName: "heart.fill")
-                .font(.title2)
-                .foregroundStyle(Brand.pink)
-
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(anniversary.name)
                     .font(Typography.body.weight(.semibold))
-                let days = anniversary.daysUntilThisYear
-                Text(days == 0 ? "오늘이에요!" : "D-\(days)")
+                Text(days == 0 ? "오늘이에요! 특별한 코스를 만들어봐요" : "D-\(days) 다가오고 있어요")
                     .font(Typography.caption)
                     .foregroundStyle(.secondary)
             }
@@ -169,32 +135,190 @@ public struct HomeView: View {
 
             if anniversary.yearsElapsed > 0 {
                 Text("\(anniversary.yearsElapsed + 1)주년")
-                    .font(Typography.caption.weight(.semibold))
-                    .foregroundStyle(Brand.pink)
+                    .font(Typography.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Brand.pink)
+                    .clipShape(Capsule())
             }
         }
         .padding(Spacing.md)
-        .background(Brand.softPink)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Brand.softPink, lineWidth: 1.5)
+        )
     }
 
-    private var generateButton: some View {
-        Button {
-            store.send(.generateCourseTapped)
-        } label: {
-            HStack(spacing: Spacing.xs) {
-                Image(systemName: "sparkles")
-                Text("코스 만들기")
-                    .font(Typography.body.weight(.semibold))
+    // MARK: - Liked Course Section
+
+    private var likedCourseSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Label("마음에 든 코스", systemImage: "heart.fill")
+                    .font(Typography.headline)
+                    .foregroundStyle(.primary)
+                    .labelStyle(TitleAndIconLabelStyle())
+                Spacer()
             }
             .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.sm + 4)
-            .background(Brand.pink)
-            .foregroundStyle(.white)
-            .clipShape(Capsule())
-            .shadow(color: Brand.pink.opacity(0.4), radius: 10, x: 0, y: 4)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.md) {
+                    ForEach(Array(store.likedCourses.enumerated()), id: \.element.id) { index, course in
+                        Button {
+                            store.send(.courseSelected(course))
+                        } label: {
+                            courseCard(course, gradientIndex: index, compact: true)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, 4)
+            }
         }
-        .padding(.trailing, Spacing.md)
-        .padding(.bottom, Spacing.lg + Spacing.sm)
+    }
+
+    // MARK: - Course Section
+
+    private var courseSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Text("최근 코스")
+                    .font(Typography.headline)
+                Spacer()
+                Text("\(store.recentCourses.count)개")
+                    .font(Typography.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, Spacing.lg)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.md) {
+                    ForEach(Array(store.recentCourses.enumerated()), id: \.element.id) { index, course in
+                        Button {
+                            store.send(.courseSelected(course))
+                        } label: {
+                            courseCard(course, gradientIndex: index, compact: false)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private func courseCard(_ course: Course, gradientIndex: Int, compact: Bool) -> some View {
+        let gradient = courseGradients[gradientIndex % courseGradients.count]
+        let cardWidth: CGFloat = compact ? 160 : 220
+        let imageHeight: CGFloat = compact ? 90 : 120
+        return VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .bottomLeading) {
+                LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+                    .frame(height: imageHeight)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(course.title)
+                        .font(Typography.headline)
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    Text("\(course.places.count)곳")
+                        .font(Typography.caption2)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                .padding(Spacing.md)
+
+                if course.isLiked {
+                    Image(systemName: "heart.fill")
+                        .font(.caption)
+                        .foregroundStyle(.white)
+                        .padding(6)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                        .padding(Spacing.sm)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                Text(course.places.compactMap { $0.placeName ?? $0.keyword }.prefix(3).joined(separator: " · "))
+                    .font(Typography.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                let formatter: DateFormatter = {
+                    let f = DateFormatter()
+                    f.locale = Locale(identifier: "ko_KR")
+                    f.dateFormat = "M월 d일"
+                    return f
+                }()
+                Text(formatter.string(from: course.date))
+                    .font(Typography.caption2)
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+        }
+        .frame(width: cardWidth)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+    }
+
+    // MARK: - Empty
+
+    private var emptyView: some View {
+        VStack(spacing: Spacing.lg) {
+            ZStack {
+                Circle()
+                    .fill(Brand.softPink)
+                    .frame(width: 100, height: 100)
+                Text("💝")
+                    .font(.system(size: 44))
+            }
+            VStack(spacing: Spacing.xs) {
+                Text("첫 코스를 만들어봐요")
+                    .font(Typography.headline)
+                Text("아래 버튼을 눌러\n설레는 데이트 코스를 완성해보세요")
+                    .font(Typography.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+    }
+
+    // MARK: - Generate Button
+
+    private var generateButton: some View {
+        VStack(spacing: 0) {
+            Divider().opacity(0.5)
+            Button {
+                store.send(.generateCourseTapped)
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("코스 만들기")
+                        .font(Typography.body.weight(.bold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.md)
+                .background(Brand.pink)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: Brand.pink.opacity(0.35), radius: 12, x: 0, y: 4)
+            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.top, Spacing.sm)
+            .padding(.bottom, Spacing.lg)
+            .background(.ultraThinMaterial)
+        }
     }
 }

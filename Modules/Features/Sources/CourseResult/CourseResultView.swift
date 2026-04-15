@@ -48,11 +48,20 @@ public struct CourseResultView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if store.isSaved {
-                    Button(role: .destructive) {
-                        store.send(.deleteTapped)
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(Typography.body.weight(.semibold))
+                    HStack(spacing: Spacing.sm) {
+                        Button {
+                            store.send(.likeTapped)
+                        } label: {
+                            Image(systemName: store.course.isLiked ? "heart.fill" : "heart")
+                                .foregroundStyle(store.course.isLiked ? Brand.pink : .secondary)
+                                .font(Typography.body.weight(.semibold))
+                        }
+                        Button(role: .destructive) {
+                            store.send(.deleteTapped)
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(Typography.body.weight(.semibold))
+                        }
                     }
                 } else {
                     Button("저장") {

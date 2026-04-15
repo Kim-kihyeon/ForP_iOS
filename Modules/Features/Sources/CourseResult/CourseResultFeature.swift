@@ -21,6 +21,8 @@ public struct CourseResultFeature {
         case binding(BindingAction<State>)
         case saveTapped
         case saveResponse(Result<Void, Error>)
+        case likeTapped
+        case likeResponse(Result<Void, Error>)
         case deleteTapped
         case deleteResponse(Result<Void, Error>)
         case dismissTapped
@@ -69,6 +71,25 @@ public struct CourseResultFeature {
             case .saveResponse(.failure(let error)):
                 state.isSaving = false
                 state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
+                return .none
+
+            case .likeTapped:
+                guard state.isSaved else { return .none }
+                let newValue = !state.course.isLiked
+                state.course.isLiked = newValue
+                let id = state.course.id
+                return .run { send in
+                    await send(.likeResponse(Result {
+                        try await courseRepository.toggleLike(id: id, isLiked: newValue)
+                    }))
+                }
+
+            case .likeResponse(.failure(let error)):
+                state.course.isLiked = !state.course.isLiked // 롤백
+                state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
+                return .none
+
+            case .likeResponse(.success):
                 return .none
 
             case .deleteTapped:

@@ -17,6 +17,7 @@ public struct HomeFeature {
         public var user: User
         public var path = StackState<Path.State>()
         public var recentCourses: [Course] = []
+        public var likedCourses: [Course] { recentCourses.filter { $0.isLiked } }
         public var upcomingAnniversary: Anniversary? = nil
         public var isLoading = false
         @Presents public var alert: AlertState<Action.Alert>?
@@ -29,6 +30,7 @@ public struct HomeFeature {
     public enum Action {
         case path(StackActionOf<Path>)
         case onAppear
+        case refresh
         case loadCoursesResponse(Result<[Course], Error>)
         case loadAnniversariesResponse(Result<[Anniversary], Error>)
         case generateCourseTapped
@@ -46,6 +48,7 @@ public struct HomeFeature {
     @Dependency(\.fetchRecentCoursesUseCase) var fetchRecentCoursesUseCase
     @Dependency(\.currentPartner) var currentPartner
     @Dependency(\.anniversaryRepository) var anniversaryRepository
+    @Dependency(\.notificationService) var notificationService: any NotificationServiceProtocol
 
     public init() {}
 
@@ -53,7 +56,17 @@ public struct HomeFeature {
         Reduce { state, action in
             switch action {
             case .onAppear:
-                state.isLoading = true
+                state.isLoading = state.recentCourses.isEmpty
+                return .run { [userId = state.user.id] send in
+                    await send(.loadCoursesResponse(
+                        Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
+                    ))
+                    await send(.loadAnniversariesResponse(
+                        Result { try await anniversaryRepository.fetchAnniversaries(userId: userId) }
+                    ))
+                }
+
+            case .refresh:
                 return .run { [userId = state.user.id] send in
                     await send(.loadCoursesResponse(
                         Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
@@ -70,6 +83,10 @@ public struct HomeFeature {
 
             case .loadAnniversariesResponse(.success(let anniversaries)):
                 state.upcomingAnniversary = anniversaries.sorted { $0.daysUntilThisYear < $1.daysUntilThisYear }.first
+                let anniversariesCopy = anniversaries
+                _Concurrency.Task.detached {
+                    await notificationService.scheduleAnniversaryNotifications(for: anniversariesCopy)
+                }
                 return .none
 
             case .loadAnniversariesResponse(.failure):
