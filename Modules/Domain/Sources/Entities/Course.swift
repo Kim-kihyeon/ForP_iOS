@@ -49,6 +49,8 @@ public struct Course: Identifiable, Codable, Equatable {
     public var promptSummary: String
     public var outfitSuggestion: String?
     public var isLiked: Bool
+    public var rating: Int?
+    public var review: String?
 
     public init(
         id: UUID = UUID(),
@@ -59,7 +61,9 @@ public struct Course: Identifiable, Codable, Equatable {
         places: [CoursePlace],
         promptSummary: String = "",
         outfitSuggestion: String? = nil,
-        isLiked: Bool = false
+        isLiked: Bool = false,
+        rating: Int? = nil,
+        review: String? = nil
     ) {
         self.id = id
         self.userId = userId
@@ -70,6 +74,8 @@ public struct Course: Identifiable, Codable, Equatable {
         self.promptSummary = promptSummary
         self.outfitSuggestion = outfitSuggestion
         self.isLiked = isLiked
+        self.rating = rating
+        self.review = review
     }
 }
 

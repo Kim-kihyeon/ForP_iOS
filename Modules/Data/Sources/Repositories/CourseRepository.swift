@@ -59,6 +59,39 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
         }
     }
 
+    public func updateTitle(id: UUID, title: String) async throws {
+        try await supabase
+            .from("courses")
+            .update(["title": title])
+            .eq("id", value: id)
+            .execute()
+
+        let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+        if let cache = try modelContext.fetch(descriptor).first {
+            cache.title = title
+            try modelContext.save()
+        }
+    }
+
+    public func updateRating(id: UUID, rating: Int, review: String) async throws {
+        struct RatingUpdate: Encodable {
+            let rating: Int
+            let review: String
+        }
+        try await supabase
+            .from("courses")
+            .update(RatingUpdate(rating: rating, review: review))
+            .eq("id", value: id)
+            .execute()
+
+        let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+        if let cache = try modelContext.fetch(descriptor).first {
+            cache.rating = rating
+            cache.review = review.isEmpty ? nil : review
+            try modelContext.save()
+        }
+    }
+
     public func deleteCourse(id: UUID) async throws {
         try await supabase
             .from("courses")
@@ -112,9 +145,11 @@ private struct CourseFetchRow: Decodable {
     let createdAt: String
     let outfitSuggestion: String?
     let isLiked: Bool?
+    let rating: Int?
+    let review: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, mode, places
+        case id, title, mode, places, rating, review
         case userId = "user_id"
         case createdAt = "created_at"
         case outfitSuggestion = "outfit_suggestion"
@@ -130,7 +165,9 @@ private struct CourseFetchRow: Decodable {
             mode: CourseMode(rawValue: mode) ?? .ordered,
             places: places,
             outfitSuggestion: outfitSuggestion,
-            isLiked: isLiked ?? false
+            isLiked: isLiked ?? false,
+            rating: rating,
+            review: review
         )
     }
 }

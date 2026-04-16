@@ -5,4 +5,6 @@ public protocol CourseRepositoryProtocol: Sendable {
     func saveCourse(_ course: Course) async throws
     func deleteCourse(id: UUID) async throws
     func toggleLike(id: UUID, isLiked: Bool) async throws
+    func updateRating(id: UUID, rating: Int, review: String) async throws
+    func updateTitle(id: UUID, title: String) async throws
 }

@@ -13,6 +13,8 @@ final class CourseCache {
     var promptSummary: String
     var outfitSuggestion: String?
     var isLiked: Bool = false
+    var rating: Int?
+    var review: String?
 
     init(from course: Course) throws {
         self.id = course.id
@@ -24,6 +26,8 @@ final class CourseCache {
         self.promptSummary = course.promptSummary
         self.outfitSuggestion = course.outfitSuggestion
         self.isLiked = course.isLiked
+        self.rating = course.rating
+        self.review = course.review
     }
 
     func toDomain() throws -> Course {
@@ -37,7 +41,9 @@ final class CourseCache {
             places: places,
             promptSummary: promptSummary,
             outfitSuggestion: outfitSuggestion,
-            isLiked: isLiked
+            isLiked: isLiked,
+            rating: rating,
+            review: review
         )
     }
 }
