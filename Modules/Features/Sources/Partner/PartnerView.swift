@@ -5,7 +5,12 @@ import CoreSharedUI
 public struct PartnerView: View {
     @Bindable var store: StoreOf<PartnerFeature>
 
-    private let categories = ["카페", "음식점", "공원", "문화", "쇼핑", "액티비티"]
+    private let categories: [(emoji: String, name: String)] = [
+        ("☕", "카페"), ("🍳", "브런치"), ("🍽️", "음식점"), ("🍸", "술/바"),
+        ("🎬", "영화"), ("🌿", "공원"), ("🖼️", "전시"), ("🎭", "문화"),
+        ("🛍️", "쇼핑"), ("🎯", "액티비티"), ("🚗", "드라이브"), ("🎤", "노래방"),
+        ("🏸", "스포츠"), ("🌃", "야경"), ("🧘", "힐링"),
+    ]
 
     public init(store: StoreOf<PartnerFeature>) {
         self.store = store
@@ -19,8 +24,7 @@ public struct PartnerView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
                         nicknameSection
-                        preferredSection
-                        dislikedSection
+                        categorySection
                         notesSection
                     }
                     .padding(.horizontal, Spacing.md)
@@ -55,33 +59,50 @@ public struct PartnerView: View {
         }
     }
 
-    private var preferredSection: some View {
+    private var categorySection: some View {
         PartnerFormCard {
             HStack(spacing: Spacing.md) {
-                iconBadge("heart.fill", color: Brand.pink)
-                Text("선호 카테고리")
-                    .font(Typography.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                iconBadge("tag.fill", color: Brand.pink)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("카테고리")
+                        .font(Typography.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("탭: 선호(핑크) → 비선호(빨강) → 해제")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color(.tertiaryLabel))
+                }
             }
-            ChipGrid(items: categories, selected: store.preferredCategories) {
-                store.send(.binding(.set(\.preferredCategories, toggle(store.preferredCategories, item: $0))))
-            }
-            .padding(.top, 4)
+            triStateChipGrid
+                .padding(.top, 4)
         }
     }
 
-    private var dislikedSection: some View {
-        PartnerFormCard {
-            HStack(spacing: Spacing.md) {
-                iconBadge("hand.thumbsdown.fill", color: Color(red: 0.6, green: 0.4, blue: 1.0))
-                Text("비선호 카테고리")
-                    .font(Typography.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+    private var triStateChipGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], spacing: Spacing.sm) {
+            ForEach(categories, id: \.name) { item in
+                let isPreferred = store.preferredCategories.contains(item.name)
+                let isDisliked = store.dislikedCategories.contains(item.name)
+                HStack(spacing: 4) {
+                    Text(item.emoji).font(.system(size: 14))
+                    if isPreferred {
+                        Image(systemName: "heart.fill").font(.system(size: 8)).foregroundStyle(.white.opacity(0.8))
+                    } else if isDisliked {
+                        Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundStyle(.white.opacity(0.8))
+                    }
+                    Text(item.name).font(Typography.caption)
+                }
+                .padding(.horizontal, Spacing.sm + 2)
+                .padding(.vertical, Spacing.xs + 2)
+                .frame(maxWidth: .infinity)
+                .background(
+                    isPreferred ? Brand.pink :
+                    isDisliked ? Color(red: 1.0, green: 0.35, blue: 0.35) :
+                    Color(.secondarySystemBackground)
+                )
+                .foregroundStyle((isPreferred || isDisliked) ? Color.white : Color.primary)
+                .clipShape(Capsule())
+                .onTapGesture { store.send(.categoryTapped(item.name)) }
             }
-            ChipGrid(items: categories, selected: store.dislikedCategories) {
-                store.send(.binding(.set(\.dislikedCategories, toggle(store.dislikedCategories, item: $0))))
-            }
-            .padding(.top, 4)
         }
     }
 
@@ -137,13 +158,6 @@ public struct PartnerView: View {
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(color)
         }
-    }
-
-    private func toggle(_ list: [String], item: String) -> [String] {
-        var updated = list
-        if updated.contains(item) { updated.removeAll { $0 == item } }
-        else { updated.append(item) }
-        return updated
     }
 }
 

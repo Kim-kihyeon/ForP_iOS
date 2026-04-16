@@ -30,6 +30,7 @@ public struct PartnerFeature {
 
     public enum Action: BindableAction {
         case binding(BindingAction<State>)
+        case categoryTapped(String)
         case saveTapped
         case saveResponse(Result<Partner, Error>)
         case alert(PresentationAction<Alert>)
@@ -48,6 +49,18 @@ public struct PartnerFeature {
         BindingReducer()
         Reduce { state, action in
             switch action {
+            case .categoryTapped(let category):
+                let isPreferred = state.preferredCategories.contains(category)
+                let isDisliked = state.dislikedCategories.contains(category)
+                if !isPreferred && !isDisliked {
+                    state.preferredCategories.append(category)
+                } else if isPreferred {
+                    state.preferredCategories.removeAll { $0 == category }
+                    state.dislikedCategories.append(category)
+                } else {
+                    state.dislikedCategories.removeAll { $0 == category }
+                }
+                return .none
             case .binding:
                 return .none
             case .saveTapped:
