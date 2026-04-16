@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Domain
+import Foundation
 
 @Reducer
 public struct PartnerFeature {
@@ -14,11 +15,13 @@ public struct PartnerFeature {
         public var notes = ""
         public var isLoading = false
         public var mode: Mode = .create
+        var existingPartnerId: UUID? = nil
         @Presents public var alert: AlertState<Action.Alert>?
 
         public init(mode: Mode = .create, existing: Partner? = nil) {
             self.mode = mode
             if let p = existing {
+                self.existingPartnerId = p.id
                 self.nickname = p.nickname
                 self.preferredCategories = p.preferredCategories
                 self.dislikedCategories = p.dislikedCategories
@@ -66,6 +69,7 @@ public struct PartnerFeature {
             case .saveTapped:
                 state.isLoading = true
                 let partner = Partner(
+                    id: state.existingPartnerId ?? UUID(),
                     userId: currentUserId(),
                     nickname: state.nickname,
                     preferredCategories: state.preferredCategories,

@@ -78,14 +78,14 @@ public struct SettingsView: View {
                 if let partner = store.partner {
                     HStack(spacing: Spacing.md) {
                         ZStack {
-                            Circle()
+                            RoundedRectangle(cornerRadius: 10)
                                 .fill(Brand.softPink)
-                                .frame(width: 48, height: 48)
-                            Text(String(partner.nickname.prefix(1)))
-                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 15, weight: .medium))
                                 .foregroundStyle(Brand.pink)
                         }
-                        VStack(alignment: .leading, spacing: 3) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(partner.nickname)
                                 .font(Typography.body.weight(.semibold))
                             if !partner.preferredCategories.isEmpty {
@@ -107,8 +107,9 @@ public struct SettingsView: View {
                                 .clipShape(Capsule())
                         }
                     }
+                    .padding(.vertical, 2)
 
-                    Divider().padding(.leading, 64)
+                    Divider().padding(.leading, 52)
 
                     settingRow(icon: "heart.fill", iconColor: Brand.pink, title: "기념일 관리") {
                         store.send(.anniversaryTapped)
