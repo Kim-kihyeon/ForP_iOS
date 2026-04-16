@@ -32,7 +32,7 @@ public struct SettingsFeature {
         }
 
         public enum Delegate: Equatable {
-            case openPartner
+            case openPartner(Partner?)
             case openAnniversary
             case loggedOut
         }
@@ -48,7 +48,6 @@ public struct SettingsFeature {
         Reduce { state, action in
             switch action {
             case .onAppear:
-                state.isLoading = true
                 let userId = currentUserId()
                 return .run { send in
                     await send(.loadPartnerResponse(Result {
@@ -57,16 +56,14 @@ public struct SettingsFeature {
                 }
 
             case .loadPartnerResponse(.success(let partner)):
-                state.isLoading = false
                 state.partner = partner
                 return .none
 
             case .loadPartnerResponse(.failure):
-                state.isLoading = false
                 return .none
 
             case .partnerTapped:
-                return .send(.delegate(.openPartner))
+                return .send(.delegate(.openPartner(state.partner)))
 
             case .anniversaryTapped:
                 return .send(.delegate(.openAnniversary))
