@@ -120,7 +120,24 @@ public struct HomeFeature {
                     places: plan.places,
                     outfitSuggestion: plan.outfitSuggestion
                 )
+                state.path.removeLast()
                 state.path.append(.courseResult(CourseResultFeature.State(course: course)))
+                return .none
+
+            case .path(.popFrom(id: let id)):
+                if case .courseResult(let courseState) = state.path[id: id], courseState.isSaved {
+                    let course = courseState.course
+                    if let idx = state.recentCourses.firstIndex(where: { $0.id == course.id }) {
+                        state.recentCourses[idx] = course
+                    }
+                }
+                return .none
+
+            case .path(.element(_, action: .courseResult(.delegate(.courseUpdated(let course))))):
+                state.path.removeAll()
+                if let idx = state.recentCourses.firstIndex(where: { $0.id == course.id }) {
+                    state.recentCourses[idx] = course
+                }
                 return .none
 
             case .path(.element(_, action: .courseResult(.delegate(.dismiss)))),
