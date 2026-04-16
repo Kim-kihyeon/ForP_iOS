@@ -64,6 +64,7 @@ struct ForPApp: App {
             $0.generateCourseUseCase = generateUseCase
             $0.saveCourseUseCase = saveUseCase
             $0.fetchRecentCoursesUseCase = fetchCoursesUseCase
+            $0.currentUserId = { supabase.auth.currentUser?.id ?? UUID() }
         }
     }
 

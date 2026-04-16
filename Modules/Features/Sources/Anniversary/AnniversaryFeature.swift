@@ -30,7 +30,9 @@ public struct AnniversaryFeature {
         case cancelTapped
         case alert(PresentationAction<Alert>)
 
-        public enum Alert: Equatable {}
+        public enum Alert: Equatable {
+            case confirmDelete(Anniversary)
+        }
     }
 
     @Dependency(\.anniversaryRepository) var anniversaryRepository
@@ -115,6 +117,21 @@ public struct AnniversaryFeature {
                 return .none
 
             case .deleteTapped(let anniversary):
+                state.alert = AlertState {
+                    TextState("기념일 삭제")
+                } actions: {
+                    ButtonState(role: .destructive, action: .confirmDelete(anniversary)) {
+                        TextState("삭제")
+                    }
+                    ButtonState(role: .cancel) {
+                        TextState("취소")
+                    }
+                } message: {
+                    TextState("'\(anniversary.name)'을 삭제할까요?")
+                }
+                return .none
+
+            case .alert(.presented(.confirmDelete(let anniversary))):
                 state.isLoading = true
                 return .run { send in
                     await send(.deleteResponse(Result {

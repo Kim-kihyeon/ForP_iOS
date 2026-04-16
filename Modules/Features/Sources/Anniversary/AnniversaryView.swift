@@ -6,6 +6,13 @@ import Domain
 public struct AnniversaryView: View {
     @Bindable var store: StoreOf<AnniversaryFeature>
 
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.dateFormat = "M월 d일"
+        return f
+    }()
+
     public init(store: StoreOf<AnniversaryFeature>) {
         self.store = store
     }
@@ -15,35 +22,17 @@ public struct AnniversaryView: View {
             Color(.systemGroupedBackground).ignoresSafeArea()
 
             if store.anniversaries.isEmpty && !store.isLoading {
-                VStack(spacing: Spacing.sm) {
-                    Image(systemName: "heart.circle")
-                        .font(.system(size: 48))
-                        .foregroundStyle(Brand.softPink)
-                    Text("기념일을 등록해보세요")
-                        .font(Typography.body)
-                        .foregroundStyle(.secondary)
-                }
+                emptyState
             } else {
-                List {
-                    ForEach(store.anniversaries) { anniversary in
-                        anniversaryRow(anniversary)
-                            .listRowBackground(Color(.systemBackground))
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    store.send(.deleteTapped(anniversary))
-                                } label: {
-                                    Label("삭제", systemImage: "trash")
-                                }
-                                Button {
-                                    store.send(.editTapped(anniversary))
-                                } label: {
-                                    Label("수정", systemImage: "pencil")
-                                }
-                                .tint(.orange)
-                            }
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 12) {
+                        ForEach(store.anniversaries) { anniversary in
+                            anniversaryCard(anniversary)
+                        }
                     }
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.md)
                 }
-                .listStyle(.insetGrouped)
             }
 
             if store.isLoading { LoadingView() }
@@ -67,45 +56,100 @@ public struct AnniversaryView: View {
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 
-    private func anniversaryRow(_ anniversary: Anniversary) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(anniversary.name)
-                    .font(Typography.body.weight(.medium))
+    // MARK: - Empty State
 
-                let formatter: DateFormatter = {
-                    let f = DateFormatter()
-                    f.locale = Locale(identifier: "ko_KR")
-                    f.dateFormat = "M월 d일"
-                    return f
-                }()
-                Text(formatter.string(from: anniversary.date))
-                    .font(Typography.caption)
-                    .foregroundStyle(.secondary)
-            }
+    private var emptyState: some View {
+        VStack(spacing: Spacing.md) {
+            Text("💑")
+                .font(.system(size: 64))
+            Text("아직 기념일이 없어요")
+                .font(Typography.body.weight(.semibold))
+                .foregroundStyle(.primary)
+            Text("우리 둘만의 소중한 날을\n기록해보세요")
+                .font(Typography.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+    }
 
-            Spacer()
+    // MARK: - Anniversary Card
 
-            let days = anniversary.daysUntilThisYear
-            VStack(alignment: .trailing, spacing: 2) {
-                if days == 0 {
-                    Text("D-Day")
-                        .font(Typography.caption.weight(.bold))
-                        .foregroundStyle(Brand.pink)
-                } else {
-                    Text("D-\(days)")
-                        .font(Typography.caption.weight(.bold))
-                        .foregroundStyle(Brand.pink)
-                }
-                if anniversary.yearsElapsed > 0 {
-                    Text("\(anniversary.yearsElapsed)주년")
-                        .font(Typography.caption2)
+    private func anniversaryCard(_ anniversary: Anniversary) -> some View {
+        AnniversaryFormCard {
+            HStack(spacing: Spacing.md) {
+                dateBadge(anniversary.date)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(anniversary.name)
+                        .font(Typography.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(Self.dateFormatter.string(from: anniversary.date))
+                        .font(Typography.caption)
                         .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 3) {
+                    let days = anniversary.daysUntilThisYear
+                    Text(days == 0 ? "D-Day" : "D-\(days)")
+                        .font(Typography.caption.weight(.bold))
+                        .foregroundStyle(Brand.pink)
+                    if anniversary.yearsElapsed > 0 {
+                        Text("\(anniversary.yearsElapsed)주년")
+                            .font(Typography.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                HStack(spacing: 4) {
+                    Button {
+                        store.send(.editTapped(anniversary))
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 32, height: 32)
+                            .background(Color(.tertiarySystemFill))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        store.send(.deleteTapped(anniversary))
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.red)
+                            .frame(width: 32, height: 32)
+                            .background(Color.red.opacity(0.08))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .padding(.vertical, 4)
     }
+
+    private func dateBadge(_ date: Date) -> some View {
+        let month = Calendar.current.component(.month, from: date)
+        let day = Calendar.current.component(.day, from: date)
+        return ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Brand.softPink)
+                .frame(width: 48, height: 48)
+            VStack(spacing: 0) {
+                Text("\(month)월")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Brand.pink)
+                Text("\(day)")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(Brand.pink)
+            }
+        }
+    }
+
+    // MARK: - Edit Sheet
 
     private var editSheet: some View {
         NavigationStack {
@@ -132,5 +176,20 @@ public struct AnniversaryView: View {
                 }
             }
         }
+    }
+}
+
+private struct AnniversaryFormCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            content
+        }
+        .padding(Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
 }

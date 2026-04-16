@@ -6,7 +6,7 @@ import Domain
 public struct CourseResultView: View {
     @Bindable var store: StoreOf<CourseResultFeature>
 
-    private let badgeColors: [Color] = [.pink, .orange, .purple, .blue, .green, .red]
+    private let placeColors: [Color] = [Brand.pink, Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.4, blue: 1.0), Color(red: 0.2, green: 0.78, blue: 0.65), Color(red: 1.0, green: 0.6, blue: 0.2), Color(red: 1.0, green: 0.4, blue: 0.4)]
 
     public init(store: StoreOf<CourseResultFeature>) {
         self.store = store
@@ -16,16 +16,18 @@ public struct CourseResultView: View {
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
 
-            ScrollView {
-                LazyVStack(spacing: Spacing.md) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 12) {
                     if let outfit = store.course.outfitSuggestion, !outfit.isEmpty {
                         outfitCard(outfit)
                     }
-                    ForEach(store.course.places, id: \.order) { place in
-                        placeCard(place)
+                    ForEach(Array(store.course.places.enumerated()), id: \.element.order) { index, place in
+                        placeCard(place, color: placeColors[index % placeColors.count])
                     }
                 }
-                .padding(Spacing.md)
+                .padding(.horizontal, Spacing.md)
+                .padding(.top, Spacing.md)
+                .padding(.bottom, 32)
             }
 
             if store.isSaving || store.isDeleting {
@@ -35,17 +37,16 @@ public struct CourseResultView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     TextField("코스 제목", text: $store.course.title)
                         .font(Typography.headline)
                         .multilineTextAlignment(.center)
+                        .fixedSize()
                     Image(systemName: "pencil")
-                        .font(Typography.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(.caption2)
+                        .foregroundStyle(Color(.tertiaryLabel))
                 }
             }
-        }
-        .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if store.isSaved {
                     HStack(spacing: Spacing.sm) {
@@ -54,13 +55,11 @@ public struct CourseResultView: View {
                         } label: {
                             Image(systemName: store.course.isLiked ? "heart.fill" : "heart")
                                 .foregroundStyle(store.course.isLiked ? Brand.pink : .secondary)
-                                .font(Typography.body.weight(.semibold))
                         }
                         Button(role: .destructive) {
                             store.send(.deleteTapped)
                         } label: {
                             Image(systemName: "trash")
-                                .font(Typography.body.weight(.semibold))
                         }
                     }
                 } else {
@@ -75,72 +74,101 @@ public struct CourseResultView: View {
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 
+    // MARK: - Outfit Card
+
     private func outfitCard(_ outfit: String) -> some View {
-        HStack(spacing: Spacing.sm) {
-            Image(systemName: "tshirt.fill")
-                .font(.title3)
-                .foregroundStyle(Brand.pink)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: Spacing.md) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Brand.softPink)
+                    .frame(width: 44, height: 44)
+                Image(systemName: "tshirt.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Brand.pink)
+            }
+            VStack(alignment: .leading, spacing: 3) {
                 Text("오늘의 옷차림")
-                    .font(Typography.caption2)
+                    .font(Typography.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Text(outfit)
                     .font(Typography.caption)
+                    .foregroundStyle(.primary)
             }
             Spacer()
-        }
-        .padding(Spacing.md)
-        .background(Brand.softPink)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private func placeCard(_ place: CoursePlace) -> some View {
-        HStack(alignment: .top, spacing: Spacing.md) {
-            ZStack {
-                Circle()
-                    .fill(badgeColors[(place.order - 1) % badgeColors.count].opacity(0.15))
-                    .frame(width: 44, height: 44)
-                Text("\(place.order)")
-                    .font(.system(.headline, design: .rounded, weight: .bold))
-                    .foregroundStyle(badgeColors[(place.order - 1) % badgeColors.count])
-            }
-
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(place.placeName ?? place.keyword)
-                    .font(Typography.headline)
-
-                Text(place.category)
-                    .font(Typography.caption2)
-                    .foregroundStyle(.secondary)
-
-                Text(place.reason)
-                    .font(Typography.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 2)
-
-                if let menu = place.menu, !menu.isEmpty {
-                    Label(menu, systemImage: "fork.knife")
-                        .font(Typography.caption2)
-                        .foregroundStyle(Brand.pink)
-                        .padding(.top, 2)
-                }
-            }
-
-            Spacer()
-
-            Button {
-                openKakaoMap(place: place)
-            } label: {
-                Image(systemName: "map.fill")
-                    .font(Typography.body)
-                    .foregroundStyle(Brand.pink)
-            }
         }
         .padding(Spacing.md)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
+
+    // MARK: - Place Card
+
+    private func placeCard(_ place: CoursePlace, color: Color) -> some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: Spacing.md) {
+                ZStack {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 36, height: 36)
+                    Text("\(place.order)")
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(place.placeName ?? place.keyword)
+                        .font(Typography.body.weight(.semibold))
+
+                    Text(place.category)
+                        .font(Typography.caption2)
+                        .foregroundStyle(color)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(color.opacity(0.1))
+                        .clipShape(Capsule())
+
+                    Text(place.reason)
+                        .font(Typography.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
+
+                    if let menu = place.menu, !menu.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "fork.knife")
+                            Text(menu)
+                        }
+                        .font(Typography.caption2)
+                        .foregroundStyle(Brand.pink)
+                        .padding(.top, 2)
+                    }
+                }
+
+                Spacer()
+
+                Button {
+                    openKakaoMap(place: place)
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: "map.fill")
+                            .font(.system(size: 16))
+                        Text("지도")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundStyle(Brand.pink)
+                    .padding(8)
+                    .background(Brand.softPink)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+            }
+            .padding(Spacing.md)
+        }
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+    }
+
+    // MARK: - Kakao Map
 
     private func openKakaoMap(place: CoursePlace) {
         let placeName = place.placeName ?? place.keyword
