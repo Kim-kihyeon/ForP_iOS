@@ -257,15 +257,29 @@ public struct HomeView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                let formatter: DateFormatter = {
-                    let f = DateFormatter()
-                    f.locale = Locale(identifier: "ko_KR")
-                    f.dateFormat = "M월 d일"
-                    return f
-                }()
-                Text(formatter.string(from: course.date))
-                    .font(Typography.caption2)
-                    .foregroundStyle(Color(.tertiaryLabel))
+                HStack(spacing: 4) {
+                    let formatter: DateFormatter = {
+                        let f = DateFormatter()
+                        f.locale = Locale(identifier: "ko_KR")
+                        f.dateFormat = "M월 d일"
+                        return f
+                    }()
+                    Text(formatter.string(from: course.date))
+                        .font(Typography.caption2)
+                        .foregroundStyle(Color(.tertiaryLabel))
+
+                    if let rating = course.rating {
+                        Spacer()
+                        HStack(spacing: 1) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.yellow)
+                            Text("\(rating)")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Color(.secondaryLabel))
+                        }
+                    }
+                }
             }
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
