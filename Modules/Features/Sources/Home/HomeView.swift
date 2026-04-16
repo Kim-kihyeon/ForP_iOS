@@ -31,21 +31,12 @@ public struct HomeView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 generateButton
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        store.send(.settingsTapped)
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 20))
-                    }
-                }
+            .toolbar(.hidden, for: .navigationBar)
+            .background(alignment: .top) {
+                Brand.pink
+                    .frame(height: 1)
+                    .ignoresSafeArea(edges: .top)
             }
-            .toolbarBackground(Brand.pink, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .tint(.white)
         } destination: { store in
             switch store.case {
             case .courseGenerate(let store): CourseGenerateView(store: store)
@@ -68,6 +59,17 @@ public struct HomeView: View {
             endPoint: .bottom
         )
         .frame(height: 120)
+        .overlay(alignment: .topTrailing) {
+            Button {
+                store.send(.settingsTapped)
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .frame(width: 44, height: 44)
+            }
+            .padding(.trailing, Spacing.sm)
+        }
         .overlay(alignment: .bottomLeading) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("안녕하세요, \(store.user.nickname)님")
