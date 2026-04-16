@@ -75,12 +75,40 @@ public struct SettingsView: View {
             sectionLabel("COUPLE")
 
             SettingsFormCard {
-                settingRow(icon: "person.2.fill", iconColor: Brand.pink, title: store.hasPartner ? "파트너 수정" : "파트너 등록") {
-                    store.send(.partnerTapped)
-                }
+                if let partner = store.partner {
+                    HStack(spacing: Spacing.md) {
+                        ZStack {
+                            Circle()
+                                .fill(Brand.softPink)
+                                .frame(width: 48, height: 48)
+                            Text(String(partner.nickname.prefix(1)))
+                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                                .foregroundStyle(Brand.pink)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(partner.nickname)
+                                .font(Typography.body.weight(.semibold))
+                            if !partner.preferredCategories.isEmpty {
+                                Text(partner.preferredCategories.prefix(3).joined(separator: " · "))
+                                    .font(Typography.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Button {
+                            store.send(.partnerTapped)
+                        } label: {
+                            Text("수정")
+                                .font(Typography.caption.weight(.semibold))
+                                .foregroundStyle(Brand.pink)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Brand.softPink)
+                                .clipShape(Capsule())
+                        }
+                    }
 
-                if store.hasPartner {
-                    Divider().padding(.leading, 52)
+                    Divider().padding(.leading, 64)
 
                     settingRow(icon: "heart.fill", iconColor: Brand.pink, title: "기념일 관리") {
                         store.send(.anniversaryTapped)
@@ -109,6 +137,10 @@ public struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
                 } else {
+                    settingRow(icon: "person.2.fill", iconColor: Brand.pink, title: "파트너 등록") {
+                        store.send(.partnerTapped)
+                    }
+
                     Divider().padding(.leading, 52)
 
                     settingRow(icon: "heart.fill", iconColor: Brand.pink, title: "기념일 관리") {

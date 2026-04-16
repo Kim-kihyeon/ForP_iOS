@@ -59,28 +59,30 @@ public struct HomeView: View {
             endPoint: .bottom
         )
         .frame(height: 120)
-        .overlay(alignment: .topTrailing) {
-            Button {
-                store.send(.settingsTapped)
-            } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .frame(width: 44, height: 44)
-            }
-            .padding(.trailing, Spacing.sm)
-        }
-        .overlay(alignment: .bottomLeading) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("안녕하세요, \(store.user.nickname)님")
-                    .font(Typography.caption)
-                    .foregroundStyle(.white.opacity(0.85))
-                Text("오늘 어디 갈까요?")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.white)
+        .overlay(alignment: .bottom) {
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("안녕하세요, \(store.user.nickname)님")
+                        .font(Typography.caption)
+                        .foregroundStyle(.white.opacity(0.85))
+                    Text("오늘 어디 갈까요?")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                Spacer()
+                Button {
+                    store.send(.settingsTapped)
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white)
+                        .padding(9)
+                        .background(.white.opacity(0.2))
+                        .clipShape(Circle())
+                }
             }
             .padding(.horizontal, Spacing.lg)
-            .padding(.bottom, Spacing.lg)
+            .padding(.bottom, Spacing.md)
         }
     }
 

@@ -6,7 +6,8 @@ public struct SettingsFeature {
     @ObservableState
     public struct State: Equatable {
         public var user: User?
-        public var hasPartner = false
+        public var partner: Partner? = nil
+        public var hasPartner: Bool { partner != nil }
         public var isLoading = false
         @Presents public var alert: AlertState<Action.Alert>?
 
@@ -15,6 +16,7 @@ public struct SettingsFeature {
 
     public enum Action {
         case onAppear
+        case loadPartnerResponse(Result<Partner?, Error>)
         case partnerTapped
         case anniversaryTapped
         case resetPartnerTapped
@@ -38,7 +40,6 @@ public struct SettingsFeature {
 
     @Dependency(\.authRepository) var authRepository
     @Dependency(\.partnerRepository) var partnerRepository
-    @Dependency(\.currentPartner) var currentPartner
     @Dependency(\.currentUserId) var currentUserId
 
     public init() {}
@@ -47,7 +48,21 @@ public struct SettingsFeature {
         Reduce { state, action in
             switch action {
             case .onAppear:
-                state.hasPartner = currentPartner() != nil
+                state.isLoading = true
+                let userId = currentUserId()
+                return .run { send in
+                    await send(.loadPartnerResponse(Result {
+                        try await partnerRepository.fetchPartner(for: userId)
+                    }))
+                }
+
+            case .loadPartnerResponse(.success(let partner)):
+                state.isLoading = false
+                state.partner = partner
+                return .none
+
+            case .loadPartnerResponse(.failure):
+                state.isLoading = false
                 return .none
 
             case .partnerTapped:
@@ -93,7 +108,7 @@ public struct SettingsFeature {
 
             case .resetPartnerResponse(.success):
                 state.isLoading = false
-                state.hasPartner = false
+                state.partner = nil
                 return .none
 
             case .resetPartnerResponse(.failure):
