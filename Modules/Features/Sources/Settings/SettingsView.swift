@@ -31,9 +31,8 @@ public struct SettingsView: View {
         }
         .navigationTitle("설정")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Brand.pink, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .tint(Brand.pink)
+        .toolbarBackground(Brand.softPink, for: .navigationBar)
         .onAppear { store.send(.onAppear) }
         .alert($store.scope(state: \.alert, action: \.alert))
     }
