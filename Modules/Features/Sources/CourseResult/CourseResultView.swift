@@ -35,6 +35,9 @@ public struct CourseResultView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Brand.pink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 6) {

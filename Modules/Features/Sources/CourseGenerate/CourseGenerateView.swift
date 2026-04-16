@@ -37,6 +37,9 @@ public struct CourseGenerateView: View {
         }
         .navigationTitle("코스 만들기")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Brand.pink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .alert("오류", isPresented: Binding(
             get: { store.errorMessage != nil },
             set: { if !$0 { store.send(.binding(.set(\.errorMessage, nil))) } }

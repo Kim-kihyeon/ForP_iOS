@@ -39,13 +39,16 @@ public struct AnniversaryView: View {
         }
         .navigationTitle("기념일")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Brand.pink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     store.send(.addTapped)
                 } label: {
                     Image(systemName: "plus")
-                        .foregroundStyle(Brand.pink)
+                        .foregroundStyle(.white)
                 }
             }
         }

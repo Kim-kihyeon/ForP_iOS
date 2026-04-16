@@ -39,6 +39,9 @@ public struct PartnerView: View {
         }
         .navigationTitle(store.mode == .create ? "파트너 등록" : "파트너 수정")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Brand.pink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 
