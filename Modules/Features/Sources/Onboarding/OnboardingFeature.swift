@@ -20,8 +20,7 @@ public struct OnboardingFeature {
 
     public enum Action: BindableAction {
         case binding(BindingAction<State>)
-        case preferredCategoryToggled(String)
-        case dislikedCategoryToggled(String)
+        case categoryTapped(String)
         case themeToggled(String)
         case saveTapped
         case saveResponse(Result<Void, Error>)
@@ -45,12 +44,17 @@ public struct OnboardingFeature {
             case .binding:
                 return .none
 
-            case .preferredCategoryToggled(let item):
-                state.preferredCategories.toggle(item)
-                return .none
-
-            case .dislikedCategoryToggled(let item):
-                state.dislikedCategories.toggle(item)
+            case .categoryTapped(let category):
+                let isPreferred = state.preferredCategories.contains(category)
+                let isDisliked = state.dislikedCategories.contains(category)
+                if !isPreferred && !isDisliked {
+                    state.preferredCategories.append(category)
+                } else if isPreferred {
+                    state.preferredCategories.removeAll { $0 == category }
+                    state.dislikedCategories.append(category)
+                } else {
+                    state.dislikedCategories.removeAll { $0 == category }
+                }
                 return .none
 
             case .themeToggled(let item):
