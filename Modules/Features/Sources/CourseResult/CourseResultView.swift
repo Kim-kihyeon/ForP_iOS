@@ -5,6 +5,7 @@ import Domain
 
 public struct CourseResultView: View {
     @Bindable var store: StoreOf<CourseResultFeature>
+    @FocusState private var titleFocused: Bool
 
     private let placeColors: [Color] = [Brand.pink, Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.4, blue: 1.0), Color(red: 0.2, green: 0.78, blue: 0.65), Color(red: 1.0, green: 0.6, blue: 0.2), Color(red: 1.0, green: 0.4, blue: 0.4)]
 
@@ -18,11 +19,22 @@ public struct CourseResultView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 12) {
-                    if let outfit = store.course.outfitSuggestion, !outfit.isEmpty {
+                    if store.isPlaying {
+                        progressBar
+                    } else {
+                        titleCard
+                    }
+
+                    if let outfit = store.course.outfitSuggestion, !outfit.isEmpty, !store.isPlaying {
                         outfitCard(outfit)
                     }
+
                     ForEach(Array(store.course.places.enumerated()), id: \.element.order) { index, place in
                         placeCard(place, color: placeColors[index % placeColors.count])
+                    }
+
+                    if let rating = store.course.rating, !store.isPlaying {
+                        ratingCard(rating: rating, review: store.course.review)
                     }
                 }
                 .padding(.horizontal, Spacing.md)
@@ -34,47 +46,176 @@ public struct CourseResultView: View {
                 LoadingView()
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Brand.pink, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                HStack(spacing: 6) {
-                    TextField("코스 제목", text: $store.course.title)
-                        .font(Typography.headline)
-                        .multilineTextAlignment(.center)
-                        .fixedSize()
-                    Image(systemName: "pencil")
-                        .font(.caption2)
-                        .foregroundStyle(Color(.tertiaryLabel))
-                }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !store.isSaved {
+                saveButton
+            } else if !store.isPlaying {
+                startButton
             }
+        }
+        .navigationTitle(store.course.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .tint(Brand.pink)
+        .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .onDisappear { store.send(.viewDisappeared) }
+        .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                if store.isSaved {
-                    HStack(spacing: Spacing.sm) {
-                        Button {
-                            store.send(.likeTapped)
-                        } label: {
-                            Image(systemName: store.course.isLiked ? "heart.fill" : "heart")
-                                .foregroundStyle(store.course.isLiked ? Brand.pink : .secondary)
-                        }
-                        Button(role: .destructive) {
-                            store.send(.deleteTapped)
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                    }
-                } else {
-                    Button("저장") {
-                        store.send(.saveTapped)
-                    }
-                    .font(Typography.body.weight(.semibold))
-                    .foregroundStyle(Brand.pink)
+                if store.isPlaying {
+                    Button("종료") { store.send(.stopPlayTapped) }
+                        .foregroundStyle(Brand.pink)
                 }
             }
         }
         .alert($store.scope(state: \.alert, action: \.alert))
+        .sheet(isPresented: $store.showCompletion) {
+            completionSheet
+        }
+    }
+
+    // MARK: - Floating Buttons
+
+    private var startButton: some View {
+        HStack(spacing: Spacing.md) {
+            Button {
+                store.send(.likeTapped)
+            } label: {
+                Image(systemName: store.course.isLiked ? "heart.fill" : "heart")
+                    .font(.system(size: 22))
+                    .foregroundStyle(store.course.isLiked ? Brand.pink : Color(.secondaryLabel))
+                    .frame(width: 48, height: 48)
+                    .background(Color(.systemFill))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+
+            Button {
+                store.send(.startPlayTapped)
+            } label: {
+                HStack(spacing: Spacing.sm) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("데이트 시작")
+                        .font(Typography.body.weight(.bold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(Brand.pink)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: Brand.pink.opacity(0.3), radius: 10, x: 0, y: 4)
+            }
+
+            Button {
+                store.send(.deleteTapped)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 20))
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .frame(width: 48, height: 48)
+                    .background(Color(.systemFill))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+        }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm)
+        .background(.regularMaterial)
+    }
+
+    private var saveButton: some View {
+        Button {
+            titleFocused = false
+            store.send(.saveTapped)
+        } label: {
+            Text("저장하기")
+                .font(Typography.body.weight(.bold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Spacing.md)
+                .background(Brand.pink)
+                .foregroundStyle(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: Brand.pink.opacity(0.3), radius: 10, x: 0, y: 4)
+        }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm)
+        .background(.regularMaterial)
+    }
+
+    // MARK: - Title Card
+
+    private var titleCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(store.isSaved ? "코스 이름" : "코스 이름을 정해주세요")
+                        .font(Typography.caption2.weight(.semibold))
+                        .foregroundStyle(store.isSaved ? .secondary : Brand.pink)
+                    TextField("코스 제목", text: $store.course.title)
+                        .font(.system(size: 22, weight: .bold))
+                        .focused($titleFocused)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            titleFocused = false
+                            store.send(.titleCommitted)
+                        }
+                    Rectangle()
+                        .fill(titleFocused ? Brand.pink : Color(.separator))
+                        .frame(height: titleFocused ? 2 : 1)
+                        .animation(.easeInOut(duration: 0.2), value: titleFocused)
+                }
+
+                Spacer()
+
+                if titleFocused && store.isSaved {
+                    Button("완료") {
+                        titleFocused = false
+                        store.send(.titleCommitted)
+                    }
+                    .font(Typography.caption.weight(.semibold))
+                    .foregroundStyle(Brand.pink)
+                    .padding(.top, 18)
+                }
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+    }
+
+    // MARK: - Progress Bar
+
+    private var progressBar: some View {
+        let visited = store.visitedOrders.count
+        let total = store.course.places.count
+        let progress = total > 0 ? Double(visited) / Double(total) : 0
+
+        return VStack(spacing: 8) {
+            HStack {
+                Text("진행 중")
+                    .font(Typography.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(visited)/\(total) 완료")
+                    .font(Typography.caption.weight(.bold))
+                    .foregroundStyle(Brand.pink)
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color(.systemFill))
+                        .frame(height: 6)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Brand.pink)
+                        .frame(width: geo.size.width * progress, height: 6)
+                        .animation(.spring(response: 0.4), value: progress)
+                }
+            }
+            .frame(height: 6)
+        }
+        .padding(Spacing.md)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
 
     // MARK: - Outfit Card
@@ -108,60 +249,89 @@ public struct CourseResultView: View {
     // MARK: - Place Card
 
     private func placeCard(_ place: CoursePlace, color: Color) -> some View {
-        VStack(spacing: 0) {
+        let isVisited = store.visitedOrders.contains(place.order)
+
+        return VStack(spacing: 0) {
             HStack(alignment: .top, spacing: Spacing.md) {
                 ZStack {
                     Circle()
-                        .fill(color)
+                        .fill(isVisited ? Color(.systemFill) : color)
                         .frame(width: 36, height: 36)
-                    Text("\(place.order)")
-                        .font(.system(.subheadline, design: .rounded, weight: .bold))
-                        .foregroundStyle(.white)
+                    if isVisited {
+                        Image(systemName: "checkmark")
+                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                            .foregroundStyle(color)
+                    } else {
+                        Text("\(place.order)")
+                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(place.placeName ?? place.keyword)
                         .font(Typography.body.weight(.semibold))
+                        .foregroundStyle(isVisited ? .secondary : .primary)
 
                     Text(place.category)
                         .font(Typography.caption2)
-                        .foregroundStyle(color)
+                        .foregroundStyle(isVisited ? .secondary : color)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(color.opacity(0.1))
+                        .background((isVisited ? Color.secondary : color).opacity(0.1))
                         .clipShape(Capsule())
 
-                    Text(place.reason)
-                        .font(Typography.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 2)
+                    if !isVisited {
+                        Text(place.reason)
+                            .font(Typography.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 2)
 
-                    if let menu = place.menu, !menu.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "fork.knife")
-                            Text(menu)
+                        if let menu = place.menu, !menu.isEmpty {
+                            HStack(spacing: 4) {
+                                Image(systemName: "fork.knife")
+                                Text(menu)
+                            }
+                            .font(Typography.caption2)
+                            .foregroundStyle(Brand.pink)
+                            .padding(.top, 2)
                         }
-                        .font(Typography.caption2)
-                        .foregroundStyle(Brand.pink)
-                        .padding(.top, 2)
                     }
                 }
 
                 Spacer()
 
-                Button {
-                    openKakaoMap(place: place)
-                } label: {
-                    VStack(spacing: 2) {
-                        Image(systemName: "map.fill")
-                            .font(.system(size: 16))
-                        Text("지도")
-                            .font(.system(size: 10, weight: .medium))
+                if store.isPlaying {
+                    ZStack {
+                        Circle()
+                            .stroke(isVisited ? color : Color(.systemFill), lineWidth: 2)
+                            .frame(width: 32, height: 32)
+                        if isVisited {
+                            Circle()
+                                .fill(color)
+                                .frame(width: 32, height: 32)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
                     }
-                    .foregroundStyle(Brand.pink)
-                    .padding(8)
-                    .background(Brand.softPink)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .animation(.spring(response: 0.3), value: isVisited)
+                    .onTapGesture { store.send(.placeVisited(place.order)) }
+                } else {
+                    Button {
+                        openKakaoMap(place: place)
+                    } label: {
+                        VStack(spacing: 2) {
+                            Image(systemName: "map.fill")
+                                .font(.system(size: 16))
+                            Text("지도")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(Brand.pink)
+                        .padding(8)
+                        .background(Brand.softPink)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
                 }
             }
             .padding(Spacing.md)
@@ -169,6 +339,96 @@ public struct CourseResultView: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+        .opacity(isVisited && store.isPlaying ? 0.6 : 1)
+        .animation(.easeInOut(duration: 0.2), value: isVisited)
+    }
+
+    // MARK: - Rating Card
+
+    private func ratingCard(rating: Int, review: String?) -> some View {
+        HStack(spacing: Spacing.md) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.yellow.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "star.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.yellow)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 2) {
+                    ForEach(1...5, id: \.self) { star in
+                        Image(systemName: star <= rating ? "star.fill" : "star")
+                            .font(.system(size: 12))
+                            .foregroundStyle(star <= rating ? .yellow : Color(.systemFill))
+                    }
+                }
+                if let review, !review.isEmpty {
+                    Text(review)
+                        .font(Typography.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+        }
+        .padding(Spacing.md)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+    }
+
+    // MARK: - Completion Sheet
+
+    private var completionSheet: some View {
+        NavigationStack {
+            VStack(spacing: Spacing.xl) {
+                VStack(spacing: Spacing.sm) {
+                    Text("🎉")
+                        .font(.system(size: 56))
+                    Text("데이트 완료!")
+                        .font(.system(size: 24, weight: .bold))
+                    Text("오늘 데이트는 어떠셨나요?")
+                        .font(Typography.body)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, Spacing.xl)
+
+                VStack(spacing: Spacing.md) {
+                    HStack(spacing: 12) {
+                        ForEach(1...5, id: \.self) { star in
+                            Image(systemName: star <= store.completionRating ? "star.fill" : "star")
+                                .font(.system(size: 36))
+                                .foregroundStyle(star <= store.completionRating ? .yellow : Color(.systemFill))
+                                .scaleEffect(star <= store.completionRating ? 1.1 : 1.0)
+                                .animation(.spring(response: 0.2), value: store.completionRating)
+                                .onTapGesture { store.send(.binding(.set(\.completionRating, star))) }
+                        }
+                    }
+
+                    TextField("한 줄 후기 (선택)", text: $store.completionReview)
+                        .font(Typography.body)
+                        .padding(Spacing.md)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, Spacing.md)
+                }
+
+                Spacer()
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("건너뛰기") { store.send(.skipReviewTapped) }
+                        .foregroundStyle(.secondary)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("저장") { store.send(.saveReviewTapped) }
+                        .font(Typography.body.weight(.semibold))
+                        .disabled(store.completionRating == 0)
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 
     // MARK: - Kakao Map

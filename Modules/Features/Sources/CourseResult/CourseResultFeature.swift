@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Domain
+import Foundation
 
 @Reducer
 public struct CourseResultFeature {
@@ -9,6 +10,17 @@ public struct CourseResultFeature {
         public var isSaving = false
         public var isSaved: Bool
         public var isDeleting = false
+        // 진행 모드
+        public var isPlaying = false
+        public var visitedOrders: Set<Int> = []
+        public var showCompletion = false
+        public var completionRating = 0
+        public var completionReview = ""
+
+        public var allVisited: Bool {
+            !course.places.isEmpty && course.places.allSatisfy { visitedOrders.contains($0.order) }
+        }
+
         @Presents public var alert: AlertState<Action.Alert>?
 
         public init(course: Course, isSaved: Bool = false) {
@@ -28,11 +40,22 @@ public struct CourseResultFeature {
         case dismissTapped
         case alert(PresentationAction<Alert>)
         case delegate(Delegate)
+        // 진행 모드
+        case startPlayTapped
+        case stopPlayTapped
+        case placeVisited(Int)
+        case saveReviewTapped
+        case skipReviewTapped
+        case updateRatingResponse(Result<Void, Error>)
+        case titleCommitted
+        case updateTitleResponse(Result<Void, Error>)
+        case viewDisappeared
 
         public enum Alert: Equatable { case confirmDelete }
         public enum Delegate: Equatable {
             case dismiss
             case deleted
+            case courseUpdated(Course)
         }
     }
 
@@ -85,7 +108,7 @@ public struct CourseResultFeature {
                 }
 
             case .likeResponse(.failure(let error)):
-                state.course.isLiked = !state.course.isLiked // 롤백
+                state.course.isLiked = !state.course.isLiked
                 state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
                 return .none
 
@@ -130,6 +153,74 @@ public struct CourseResultFeature {
 
             case .dismissTapped:
                 return .send(.delegate(.dismiss))
+
+            case .viewDisappeared:
+                guard state.isSaved else { return .none }
+                let id = state.course.id
+                let title = state.course.title
+                return .run { _ in
+                    try? await courseRepository.updateTitle(id: id, title: title)
+                }
+
+            case .startPlayTapped:
+                state.isPlaying = true
+                state.visitedOrders = []
+                state.completionRating = 0
+                state.completionReview = ""
+                return .none
+
+            case .stopPlayTapped:
+                state.isPlaying = false
+                state.visitedOrders = []
+                state.showCompletion = false
+                return .none
+
+            case .placeVisited(let order):
+                if state.visitedOrders.contains(order) {
+                    state.visitedOrders.remove(order)
+                } else {
+                    state.visitedOrders.insert(order)
+                    if state.allVisited {
+                        state.showCompletion = true
+                    }
+                }
+                return .none
+
+            case .saveReviewTapped:
+                state.showCompletion = false
+                state.isPlaying = false
+                let rating = state.completionRating
+                let review = state.completionReview
+                state.course.rating = rating > 0 ? rating : nil
+                state.course.review = review.isEmpty ? nil : review
+                guard rating > 0 else { return .none }
+                let id = state.course.id
+                return .run { send in
+                    await send(.updateRatingResponse(Result {
+                        try await courseRepository.updateRating(id: id, rating: rating, review: review)
+                    }))
+                }
+
+            case .skipReviewTapped:
+                state.showCompletion = false
+                state.isPlaying = false
+                return .none
+
+            case .updateRatingResponse:
+                return .none
+
+            case .titleCommitted:
+                guard state.isSaved, !state.course.title.isEmpty else { return .none }
+                let id = state.course.id
+                let title = state.course.title
+                return .run { send in
+                    await send(.updateTitleResponse(Result {
+                        try await courseRepository.updateTitle(id: id, title: title)
+                    }))
+                }
+
+            case .updateTitleResponse:
+                return .none
 
             case .delegate:
                 return .none
