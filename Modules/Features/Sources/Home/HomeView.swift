@@ -177,7 +177,8 @@ public struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, Spacing.lg)
-                .padding(.vertical, 4)
+                .padding(.top, 4)
+                .padding(.bottom, 20)
             }
         }
     }
@@ -208,7 +209,8 @@ public struct HomeView: View {
                     }
                 }
                 .padding(.horizontal, Spacing.lg)
-                .padding(.vertical, 4)
+                .padding(.top, 4)
+                .padding(.bottom, 20)
             }
         }
     }
@@ -297,28 +299,24 @@ public struct HomeView: View {
     // MARK: - Generate Button
 
     private var generateButton: some View {
-        VStack(spacing: 0) {
-            Divider().opacity(0.5)
-            Button {
-                store.send(.generateCourseTapped)
-            } label: {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("코스 만들기")
-                        .font(Typography.body.weight(.bold))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Spacing.md)
-                .background(Brand.pink)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: Brand.pink.opacity(0.35), radius: 12, x: 0, y: 4)
+        Button {
+            store.send(.generateCourseTapped)
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .semibold))
+                Text("코스 만들기")
+                    .font(Typography.body.weight(.bold))
             }
-            .padding(.horizontal, Spacing.lg)
-            .padding(.top, Spacing.sm)
-            .padding(.bottom, Spacing.lg)
-            .background(.ultraThinMaterial)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Spacing.md)
+            .background(Brand.pink)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: Brand.pink.opacity(0.3), radius: 10, x: 0, y: 4)
         }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm)
+        .background(.regularMaterial)
     }
 }
