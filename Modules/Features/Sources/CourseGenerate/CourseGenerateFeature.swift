@@ -18,6 +18,7 @@ public struct CourseGenerateFeature {
 
         public init(user: User) {
             self.user = user
+            self.location = user.location
         }
     }
 
