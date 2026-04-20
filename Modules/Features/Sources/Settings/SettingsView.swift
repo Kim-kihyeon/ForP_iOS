@@ -19,6 +19,7 @@ public struct SettingsView: View {
 
                     VStack(spacing: 12) {
                         coupleSection
+                        wishlistSection
                         accountSection
                     }
                     .padding(.horizontal, Spacing.md)
@@ -146,6 +147,22 @@ public struct SettingsView: View {
                     settingRow(icon: "heart.fill", iconColor: Brand.pink, title: "기념일 관리") {
                         store.send(.anniversaryTapped)
                     }
+                }
+            }
+        }
+    }
+
+    private var wishlistSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("WISHLIST")
+
+            SettingsFormCard {
+                settingRow(
+                    icon: "bookmark.fill",
+                    iconColor: Color(red: 1.0, green: 0.5, blue: 0.3),
+                    title: "찜 목록 관리"
+                ) {
+                    store.send(.wishlistTapped)
                 }
             }
         }

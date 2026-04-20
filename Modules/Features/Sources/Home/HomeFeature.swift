@@ -12,6 +12,7 @@ public struct HomeFeature {
         case partner(PartnerFeature)
         case anniversary(AnniversaryFeature)
         case profile(ProfileFeature)
+        case wishlist(WishlistManageFeature)
     }
 
     @ObservableState
@@ -181,6 +182,10 @@ public struct HomeFeature {
             case .path(.element(_, action: .settings(.delegate(.openPartner(let existing))))):
                 let mode: PartnerFeature.Mode = existing != nil ? .edit : .create
                 state.path.append(.partner(PartnerFeature.State(mode: mode, existing: existing)))
+                return .none
+
+            case .path(.element(_, action: .settings(.delegate(.openWishlist)))):
+                state.path.append(.wishlist(WishlistManageFeature.State()))
                 return .none
 
             case .path(.element(_, action: .settings(.delegate(.loggedOut)))):
