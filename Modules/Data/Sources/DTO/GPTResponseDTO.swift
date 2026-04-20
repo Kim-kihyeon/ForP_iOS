@@ -16,6 +16,7 @@ struct GPTAPIResponse: Decodable {
 
 // content 안의 JSON 구조
 struct GPTResponseDTO: Decodable {
+    let courseReason: String
     let courses: [CoursePlaceDTO]
     let outfit: String
 
@@ -25,6 +26,7 @@ struct GPTResponseDTO: Decodable {
         let keyword: String
         let reason: String
         let menu: String?
+        let isSelected: Bool
     }
 }
 
@@ -35,15 +37,12 @@ extension GPTAPIResponse {
         }
         let data = Data(content.utf8)
         let dto = try JSONDecoder().decode(GPTResponseDTO.self, from: data)
-        let places = dto.courses.map {
-            CoursePlace(
-                order: $0.order,
-                category: $0.category,
-                keyword: $0.keyword,
-                reason: $0.reason,
-                menu: $0.menu
-            )
+        let selected = dto.courses.filter { $0.isSelected }.map {
+            CoursePlace(order: $0.order, category: $0.category, keyword: $0.keyword, reason: $0.reason, menu: $0.menu)
         }
-        return CoursePlan(places: places, outfitSuggestion: dto.outfit)
+        let candidates = dto.courses.filter { !$0.isSelected }.map {
+            CoursePlace(order: $0.order, category: $0.category, keyword: $0.keyword, reason: $0.reason, menu: $0.menu)
+        }
+        return CoursePlan(places: selected, candidates: candidates, outfitSuggestion: dto.outfit, courseReason: dto.courseReason)
     }
 }

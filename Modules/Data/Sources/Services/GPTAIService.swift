@@ -41,6 +41,8 @@ public struct GPTAIService: AIServiceProtocol {
            올바른 예: "\(location) 카페", "\(location) 이탈리안 레스토랑"
            잘못된 예: "홍대 카페", "부산 맛집", 지역명 없는 키워드
         4. 실제 카카오맵에서 검색 가능한 장소만 추천하세요.
+        5. placeCount의 2배 장소를 생성하되, 가장 좋은 placeCount개에만 "isSelected": true를 표시하세요.
+        6. courseReason: 이 코스를 추천하는 이유를 2-3문장으로 설명하세요.
         """
     }
 
@@ -54,7 +56,7 @@ public struct GPTAIService: AIServiceProtocol {
         지역: \(options.location) (이 지역 장소만 추천)
         날짜: \(dateString)
         날씨: \(options.weatherDescription ?? "정보 없음")
-        장소 수: \(options.placeCount)개
+        장소 수: 총 \(options.placeCount * 2)개 생성, 그 중 \(options.placeCount)개 선택 (isSelected: true)
         테마: \(options.themes.isEmpty ? "자유" : options.themes.joined(separator: ", "))
         내 선호: \(user.preferredCategories.isEmpty ? "없음" : user.preferredCategories.joined(separator: ", "))
         내 비선호: \(user.dislikedCategories.isEmpty ? "없음" : user.dislikedCategories.joined(separator: ", "))
@@ -76,20 +78,23 @@ public struct GPTAIService: AIServiceProtocol {
 
         응답 형식 (JSON만, 예시):
         {
+          "courseReason": "맑은 날씨를 활용한 야외 중심 코스예요. 홍대 감성 거리를 걸으며 즐길 수 있어요.",
           "courses": [
             {
               "order": 1,
               "category": "카페",
               "keyword": "\(options.location) 감성 카페",
-              "reason": "조용한 분위기에서 대화하기 좋은 곳",
-              "menu": "아인슈페너, 크루아상"
+              "reason": "조용한 분위기에서 대화하기 좋은 시작점",
+              "menu": "아인슈페너, 크루아상",
+              "isSelected": true
             },
             {
               "order": 2,
-              "category": "음식점",
-              "keyword": "\(options.location) 파스타",
-              "reason": "분위기 좋은 이탈리안 레스토랑",
-              "menu": "트러플 파스타, 티라미수"
+              "category": "카페",
+              "keyword": "\(options.location) 루프탑 카페",
+              "reason": "야경이 아름다운 대안 카페",
+              "menu": "아이스 아메리카노",
+              "isSelected": false
             }
           ],
           "outfit": "가벼운 재킷에 청바지 조합이 어울려요. 저녁엔 쌀쌀할 수 있으니 얇은 겉옷을 챙기세요."
@@ -98,6 +103,7 @@ public struct GPTAIService: AIServiceProtocol {
         규칙:
         - menu: 해당 장소에서 추천하는 메뉴 또는 즐길 거리 (카페/음식점은 반드시 포함, 그 외는 null 가능)
         - outfit: 오늘 코스와 날씨/분위기에 어울리는 옷차림 제안 (1-2문장)
+        - isSelected: 최종 코스에 포함되는 장소는 true, 후보 장소는 false
         """
         return prompt
     }
