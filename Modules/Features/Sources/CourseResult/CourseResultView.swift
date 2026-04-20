@@ -140,8 +140,8 @@ public struct CourseResultView: View {
                             store.send(.titleCommitted)
                         }
                     Rectangle()
-                        .fill(titleFocused ? Brand.pink : Color(.separator))
-                        .frame(height: titleFocused ? 2 : 1)
+                        .fill(titleFocused ? Brand.pink : Color.clear)
+                        .frame(height: 2)
                         .animation(.easeInOut(duration: 0.2), value: titleFocused)
                 }
                 Spacer()
@@ -157,17 +157,17 @@ public struct CourseResultView: View {
             }
 
             // Metadata row
-            if !store.courseReason.isEmpty || store.course.outfitSuggestion != nil {
+            if !store.course.courseReason.isEmpty || store.course.outfitSuggestion != nil {
                 Divider()
                 VStack(alignment: .leading, spacing: 10) {
-                    if !store.courseReason.isEmpty {
+                    if !store.course.courseReason.isEmpty {
                         HStack(alignment: .top, spacing: 6) {
                             Image(systemName: "sparkles")
                                 .font(Typography.caption)
                                 .foregroundStyle(Brand.pink)
                                 .frame(width: 14)
                                 .padding(.top, 1)
-                            Text(store.courseReason)
+                            Text(store.course.courseReason)
                                 .font(Typography.caption)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
