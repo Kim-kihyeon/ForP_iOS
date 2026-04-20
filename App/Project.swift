@@ -2,17 +2,20 @@ import ProjectDescription
 
 let project = Project(
     name: "ForP",
-    settings: .settings(configurations: [
-        .debug(name: "Debug", xcconfig: "Secrets.xcconfig"),
-        .release(name: "Release", xcconfig: "Secrets.xcconfig"),
-    ]),
+    settings: .settings(
+        base: ["DEVELOPMENT_TEAM": "9T6JP32M2N"],
+        configurations: [
+            .debug(name: "Debug", xcconfig: "Secrets.xcconfig"),
+            .release(name: "Release", xcconfig: "Secrets.xcconfig"),
+        ]
+    ),
     targets: [
         .target(
             name: "ForP",
             destinations: .iOS,
             product: .app,
             bundleId: "com.kihyeonKim.ForP",
-            deploymentTargets: .iOS("17.0"),
+            deploymentTargets: .iOS("24.0"),
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": ["UIColorName": ""],
                 "CFBundleURLTypes": [

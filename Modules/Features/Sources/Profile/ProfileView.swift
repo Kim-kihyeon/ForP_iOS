@@ -93,6 +93,7 @@ public struct ProfileView: View {
                 let isExcluded = exclude.contains(name)
                 Button {
                     guard !isExcluded else { return }
+                    Haptics.selection()
                     if isSelected {
                         selected.wrappedValue.removeAll { $0 == name }
                     } else {
@@ -135,7 +136,7 @@ public struct ProfileView: View {
     // MARK: - Save Bar
 
     private var saveBar: some View {
-        Button { store.send(.saveTapped) } label: {
+        Button { Haptics.notification(.success); store.send(.saveTapped) } label: {
             Text("저장하기")
                 .font(Typography.body.weight(.bold))
                 .frame(maxWidth: .infinity)

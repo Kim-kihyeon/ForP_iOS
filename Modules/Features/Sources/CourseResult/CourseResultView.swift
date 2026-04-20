@@ -343,7 +343,7 @@ public struct CourseResultView: View {
                             }
                         }
                         .animation(.spring(response: 0.3), value: isVisited)
-                        .onTapGesture { store.send(.placeVisited(place.order)) }
+                        .onTapGesture { Haptics.impact(.rigid); store.send(.placeVisited(place.order)) }
                     } else {
                         Button { openKakaoMap(place: place) } label: {
                             VStack(spacing: 2) {
@@ -365,6 +365,7 @@ public struct CourseResultView: View {
         .scaleEffect(tappedPlaceOrder == place.order ? 0.97 : 1.0)
         .animation(.spring(response: 0.2, dampingFraction: 0.6), value: tappedPlaceOrder)
         .onTapGesture {
+            Haptics.selection()
             tappedPlaceOrder = place.order
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { tappedPlaceOrder = nil }
             focusMap(on: place)
@@ -477,7 +478,7 @@ public struct CourseResultView: View {
 
     private var startButton: some View {
         HStack(spacing: Spacing.md) {
-            Button { store.send(.likeTapped) } label: {
+            Button { Haptics.impact(.medium); store.send(.likeTapped) } label: {
                 Image(systemName: store.course.isLiked ? "heart.fill" : "heart")
                     .font(.system(size: 22))
                     .foregroundStyle(store.course.isLiked ? Brand.pink : Color(.secondaryLabel))
@@ -485,7 +486,7 @@ public struct CourseResultView: View {
                     .background(Color(.systemFill))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
-            Button { store.send(.startPlayTapped) } label: {
+            Button { Haptics.impact(.rigid); store.send(.startPlayTapped) } label: {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "play.fill").font(.system(size: 14, weight: .semibold))
                     Text("데이트 시작").font(Typography.body.weight(.bold))
@@ -514,6 +515,7 @@ public struct CourseResultView: View {
     private var saveButton: some View {
         Button {
             titleFocused = false
+            Haptics.notification(.success)
             store.send(.saveTapped)
         } label: {
             Text("저장하기")

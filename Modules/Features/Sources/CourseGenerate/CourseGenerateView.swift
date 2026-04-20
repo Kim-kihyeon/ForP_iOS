@@ -166,6 +166,7 @@ public struct CourseGenerateView: View {
                 ForEach(availableThemes, id: \.0) { theme, icon in
                     let selected = store.selectedThemes.contains(theme)
                     Button {
+                        Haptics.selection()
                         var themes = store.selectedThemes
                         if selected {
                             themes.removeAll { $0 == theme }
@@ -272,6 +273,7 @@ public struct CourseGenerateView: View {
         VStack(spacing: 0) {
             Divider().opacity(0.5)
             Button {
+                Haptics.impact(.medium)
                 store.send(.generateTapped)
             } label: {
                 HStack(spacing: Spacing.sm) {
