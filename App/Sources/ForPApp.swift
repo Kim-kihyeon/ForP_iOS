@@ -39,6 +39,7 @@ struct ForPApp: App {
         )
 
         let modelContext = ModelContext(container)
+        let wishlistRepo = WishlistRepository(supabase: supabase)
         let authRepo = AuthRepository(supabase: supabase, anonKey: Secrets.supabaseAnonKey)
         let userRepo = UserRepository(supabase: supabase)
         let partnerRepo = PartnerRepository(supabase: supabase)
@@ -60,6 +61,7 @@ struct ForPApp: App {
             $0.anniversaryRepository = anniversaryRepo
             $0.notificationService = NotificationService()
             $0.courseRepository = courseRepo
+            $0.wishlistRepository = wishlistRepo
             $0.placeRepository = placeRepo
             $0.generateCourseUseCase = generateUseCase
             $0.saveCourseUseCase = saveUseCase

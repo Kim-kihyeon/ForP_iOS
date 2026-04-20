@@ -48,6 +48,14 @@ private enum CourseRepositoryKey: DependencyKey {
     }
 }
 
+// MARK: - Wishlist
+
+private enum WishlistRepositoryKey: DependencyKey {
+    static var liveValue: any WishlistRepositoryProtocol {
+        fatalError("wishlistRepository: configure via withDependencies in ForPApp")
+    }
+}
+
 // MARK: - Place
 
 private enum PlaceRepositoryKey: DependencyKey {
@@ -134,6 +142,11 @@ extension DependencyValues {
     public var placeRepository: any PlaceRepositoryProtocol {
         get { self[PlaceRepositoryKey.self] }
         set { self[PlaceRepositoryKey.self] = newValue }
+    }
+
+    public var wishlistRepository: any WishlistRepositoryProtocol {
+        get { self[WishlistRepositoryKey.self] }
+        set { self[WishlistRepositoryKey.self] = newValue }
     }
 
     public var generateCourseUseCase: GenerateCourseUseCase {

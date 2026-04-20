@@ -104,13 +104,15 @@ public struct CourseOptions: Equatable {
     public var memo: String
     public var date: Date
     public var weatherDescription: String?
+    public var wishlistPlaces: [WishlistPlace]
 
-    public init(location: String, themes: [String], placeCount: Int, mode: CourseMode, memo: String = "", date: Date = Date()) {
+    public init(location: String, themes: [String], placeCount: Int, mode: CourseMode, memo: String = "", date: Date = Date(), wishlistPlaces: [WishlistPlace] = []) {
         self.location = location
         self.themes = themes
         self.placeCount = placeCount
         self.mode = mode
         self.memo = memo
         self.date = date
+        self.wishlistPlaces = wishlistPlaces
     }
 }
