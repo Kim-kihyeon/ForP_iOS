@@ -11,6 +11,7 @@ public struct CourseResultView: View {
     @State private var mapCameraPosition: MapCameraPosition = .automatic
     @State private var showCandidates = false
     @State private var tappedPlaceOrder: Int? = nil
+    @State private var isReordering = false
 
     private var coordinatePlaces: [(CoursePlace, CLLocationCoordinate2D)] {
         store.course.places.compactMap { place in
@@ -234,22 +235,84 @@ public struct CourseResultView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 if !store.isPlaying {
-                    Label("탭하면 지도 이동", systemImage: "mappin.and.ellipse")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
+                    if isReordering {
+                        Button("완료") {
+                            Haptics.impact(.light)
+                            withAnimation { isReordering = false }
+                        }
+                        .font(Typography.caption.weight(.semibold))
+                        .foregroundStyle(Brand.pink)
+                    } else {
+                        HStack(spacing: 10) {
+                            Label("탭하면 지도 이동", systemImage: "mappin.and.ellipse")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            Button("순서 편집") {
+                                Haptics.impact(.light)
+                                withAnimation { isReordering = true }
+                            }
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Brand.pink)
+                        }
+                    }
                 }
             }
             .padding(.leading, 4)
             .padding(.bottom, 8)
 
-            VStack(spacing: 0) {
-                ForEach(Array(store.course.places.enumerated()), id: \.element.order) { index, place in
-                    timelineRow(place: place, index: index, isLast: index == store.course.places.count - 1)
+            if isReordering {
+                reorderList
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(store.course.places.enumerated()), id: \.element.order) { index, place in
+                        timelineRow(place: place, index: index, isLast: index == store.course.places.count - 1)
+                    }
                 }
+                .padding(Spacing.md)
+                .cardStyle()
             }
-            .padding(Spacing.md)
-            .cardStyle()
         }
+    }
+
+    private var reorderList: some View {
+        List {
+            ForEach(Array(store.course.places.enumerated()), id: \.element.order) { index, place in
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(placeColors[index % placeColors.count])
+                            .frame(width: 28, height: 28)
+                        Text("\(place.order)")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(place.placeName ?? place.keyword)
+                            .font(Typography.body.weight(.semibold))
+                        Text(place.category)
+                            .font(Typography.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "line.3.horizontal")
+                        .foregroundStyle(.secondary)
+                }
+                .listRowBackground(Color(.systemBackground))
+            }
+            .onMove { source, destination in
+                Haptics.impact(.light)
+                store.send(.reorderPlaces(source, destination))
+            }
+            .onDelete { offsets in
+                Haptics.notification(.warning)
+                store.send(.removePlace(offsets))
+            }
+        }
+        .listStyle(.plain)
+        .frame(height: CGFloat(store.course.places.count) * 60)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.06), radius: 8)
+        .environment(\.editMode, .constant(.active))
     }
 
     private func timelineRow(place: CoursePlace, index: Int, isLast: Bool) -> some View {
@@ -459,15 +522,30 @@ public struct CourseResultView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button { openKakaoMap(place: place) } label: {
-                VStack(spacing: 2) {
-                    Image(systemName: "map.fill").font(.system(size: 13))
-                    Text("지도").font(.system(size: 9, weight: .medium))
+            HStack(spacing: 6) {
+                Button { openKakaoMap(place: place) } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: "map.fill").font(.system(size: 13))
+                        Text("지도").font(.system(size: 9, weight: .medium))
+                    }
+                    .foregroundStyle(Brand.pink)
+                    .padding(6)
+                    .background(Brand.softPink)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .foregroundStyle(Brand.pink)
-                .padding(6)
-                .background(Brand.softPink)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                Button {
+                    Haptics.impact(.medium)
+                    store.send(.addCandidate(place))
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: "plus").font(.system(size: 13, weight: .semibold))
+                        Text("추가").font(.system(size: 9, weight: .medium))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(6)
+                    .background(Brand.pink)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
             }
         }
         .padding(.vertical, 10)

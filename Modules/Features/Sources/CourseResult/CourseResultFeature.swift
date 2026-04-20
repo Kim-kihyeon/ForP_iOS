@@ -53,6 +53,9 @@ public struct CourseResultFeature {
         case titleCommitted
         case updateTitleResponse(Result<Void, Error>)
         case viewDisappeared
+        case reorderPlaces(IndexSet, Int)
+        case removePlace(IndexSet)
+        case addCandidate(CoursePlace)
 
         public enum Alert: Equatable { case confirmDelete }
         public enum Delegate: Equatable {
@@ -223,6 +226,30 @@ public struct CourseResultFeature {
                 }
 
             case .updateTitleResponse:
+                return .none
+
+            case .reorderPlaces(let source, let destination):
+                state.course.places.move(fromOffsets: source, toOffset: destination)
+                state.course.places = state.course.places.enumerated().map { index, place in
+                    var p = place; p.order = index + 1; return p
+                }
+                return .none
+
+            case .removePlace(let offsets):
+                state.course.places.remove(atOffsets: offsets)
+                state.course.places = state.course.places.enumerated().map { index, place in
+                    var p = place; p.order = index + 1; return p
+                }
+                return .none
+
+            case .addCandidate(let place):
+                var newPlace = place
+                newPlace.order = state.course.places.count + 1
+                state.course.places.append(newPlace)
+                state.candidates.removeAll { $0.keyword == place.keyword }
+                state.candidates = state.candidates.enumerated().map { index, p in
+                    var updated = p; updated.order = index + 1; return updated
+                }
                 return .none
 
             case .delegate:
