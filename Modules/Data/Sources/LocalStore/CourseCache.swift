@@ -12,6 +12,7 @@ final class CourseCache {
     var placesData: Data
     var promptSummary: String
     var outfitSuggestion: String?
+    var courseReason: String = ""
     var isLiked: Bool = false
     var rating: Int?
     var review: String?
@@ -25,6 +26,7 @@ final class CourseCache {
         self.placesData = try JSONEncoder().encode(course.places)
         self.promptSummary = course.promptSummary
         self.outfitSuggestion = course.outfitSuggestion
+        self.courseReason = course.courseReason
         self.isLiked = course.isLiked
         self.rating = course.rating
         self.review = course.review
@@ -41,6 +43,7 @@ final class CourseCache {
             places: places,
             promptSummary: promptSummary,
             outfitSuggestion: outfitSuggestion,
+            courseReason: courseReason,
             isLiked: isLiked,
             rating: rating,
             review: review

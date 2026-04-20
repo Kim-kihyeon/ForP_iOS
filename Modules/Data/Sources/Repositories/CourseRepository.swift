@@ -116,12 +116,14 @@ private struct CourseInsertRow: Encodable {
     let mode: String
     let places: [CoursePlace]
     let outfitSuggestion: String?
+    let courseReason: String
     let isLiked: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, title, mode, places
         case userId = "user_id"
         case outfitSuggestion = "outfit_suggestion"
+        case courseReason = "course_reason"
         case isLiked = "is_liked"
     }
 
@@ -132,6 +134,7 @@ private struct CourseInsertRow: Encodable {
         mode = course.mode.rawValue
         places = course.places
         outfitSuggestion = course.outfitSuggestion
+        courseReason = course.courseReason
         isLiked = course.isLiked
     }
 }
@@ -144,6 +147,7 @@ private struct CourseFetchRow: Decodable {
     let places: [CoursePlace]
     let createdAt: String
     let outfitSuggestion: String?
+    let courseReason: String?
     let isLiked: Bool?
     let rating: Int?
     let review: String?
@@ -153,6 +157,7 @@ private struct CourseFetchRow: Decodable {
         case userId = "user_id"
         case createdAt = "created_at"
         case outfitSuggestion = "outfit_suggestion"
+        case courseReason = "course_reason"
         case isLiked = "is_liked"
     }
 
@@ -165,6 +170,7 @@ private struct CourseFetchRow: Decodable {
             mode: CourseMode(rawValue: mode) ?? .ordered,
             places: places,
             outfitSuggestion: outfitSuggestion,
+            courseReason: courseReason ?? "",
             isLiked: isLiked ?? false,
             rating: rating,
             review: review
