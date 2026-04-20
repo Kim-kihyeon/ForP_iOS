@@ -6,8 +6,13 @@ import Domain
 public struct CourseResultView: View {
     @Bindable var store: StoreOf<CourseResultFeature>
     @FocusState private var titleFocused: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
-    private let placeColors: [Color] = [Brand.pink, Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.4, blue: 1.0), Color(red: 0.2, green: 0.78, blue: 0.65), Color(red: 1.0, green: 0.6, blue: 0.2), Color(red: 1.0, green: 0.4, blue: 0.4)]
+    private var placeColors: [Color] {
+        colorScheme == .dark
+            ? [Brand.pink, Color(red: 0.3, green: 0.5, blue: 0.95), Color(red: 0.5, green: 0.3, blue: 0.95), Color(red: 0.1, green: 0.65, blue: 0.55), Color(red: 0.85, green: 0.45, blue: 0.1), Color(red: 0.85, green: 0.25, blue: 0.25)]
+            : [Brand.pink, Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.4, blue: 1.0), Color(red: 0.2, green: 0.78, blue: 0.65), Color(red: 1.0, green: 0.6, blue: 0.2), Color(red: 1.0, green: 0.4, blue: 0.4)]
+    }
 
     public init(store: StoreOf<CourseResultFeature>) {
         self.store = store
@@ -176,9 +181,7 @@ public struct CourseResultView: View {
             }
         }
         .padding(Spacing.md)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+        .cardStyle()
     }
 
     // MARK: - Progress Bar
@@ -213,9 +216,7 @@ public struct CourseResultView: View {
             .frame(height: 6)
         }
         .padding(Spacing.md)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+        .cardStyle()
     }
 
     // MARK: - Outfit Card
@@ -241,9 +242,7 @@ public struct CourseResultView: View {
             Spacer()
         }
         .padding(Spacing.md)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+        .cardStyle()
     }
 
     // MARK: - Place Card
@@ -336,9 +335,7 @@ public struct CourseResultView: View {
             }
             .padding(Spacing.md)
         }
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+        .cardStyle()
         .opacity(isVisited && store.isPlaying ? 0.6 : 1)
         .animation(.easeInOut(duration: 0.2), value: isVisited)
     }
@@ -372,9 +369,7 @@ public struct CourseResultView: View {
             Spacer()
         }
         .padding(Spacing.md)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+        .cardStyle()
     }
 
     // MARK: - Completion Sheet

@@ -216,8 +216,6 @@ private struct SettingsFormCard<Content: View>: View {
         }
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+        .cardStyle()
     }
 }

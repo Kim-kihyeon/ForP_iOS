@@ -1,8 +1,52 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
+
+// MARK: - Card Style
+
+public struct CardStyle: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    public let cornerRadius: CGFloat
+    public let shadowRadius: CGFloat
+
+    public func body(content: Content) -> some View {
+        content
+            .background(Color(UIColor.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .shadow(
+                color: colorScheme == .dark ? .clear : .black.opacity(0.06),
+                radius: shadowRadius, x: 0, y: 2
+            )
+            .overlay {
+                if colorScheme == .dark {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(Color(UIColor.separator), lineWidth: 1)
+                }
+            }
+    }
+}
+
+extension View {
+    public func cardStyle(cornerRadius: CGFloat = 16, shadowRadius: CGFloat = 8) -> some View {
+        modifier(CardStyle(cornerRadius: cornerRadius, shadowRadius: shadowRadius))
+    }
+}
 
 public enum Brand {
     public static let pink = Color(red: 1.0, green: 0.33, blue: 0.53)
+    #if canImport(UIKit)
+    public static let softPink = Color(UIColor { trait in
+        switch trait.userInterfaceStyle {
+        case .dark:
+            return UIColor(red: 0.20, green: 0.07, blue: 0.11, alpha: 1)
+        default:
+            return UIColor(red: 1.0, green: 0.90, blue: 0.94, alpha: 1)
+        }
+    })
+    #else
     public static let softPink = Color(red: 1.0, green: 0.90, blue: 0.94)
+    #endif
     public static let kakaoYellow = Color(red: 0.996, green: 0.898, blue: 0.0)
 }
 
