@@ -21,11 +21,16 @@ public struct CourseResultFeature {
             !course.places.isEmpty && course.places.allSatisfy { visitedOrders.contains($0.order) }
         }
 
+        public var candidates: [CoursePlace] = []
+        public var courseReason: String = ""
+
         @Presents public var alert: AlertState<Action.Alert>?
 
-        public init(course: Course, isSaved: Bool = false) {
+        public init(course: Course, isSaved: Bool = false, candidates: [CoursePlace] = [], courseReason: String = "") {
             self.course = course
             self.isSaved = isSaved
+            self.candidates = candidates
+            self.courseReason = courseReason
         }
     }
 

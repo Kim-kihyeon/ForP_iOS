@@ -135,7 +135,7 @@ public struct HomeFeature {
                     outfitSuggestion: plan.outfitSuggestion
                 )
                 state.path.removeLast()
-                state.path.append(.courseResult(CourseResultFeature.State(course: course)))
+                state.path.append(.courseResult(CourseResultFeature.State(course: course, candidates: plan.candidates, courseReason: plan.courseReason)))
                 return .none
 
             case .path(.popFrom(id: let id)):

@@ -2,11 +2,20 @@ import SwiftUI
 import ComposableArchitecture
 import CoreSharedUI
 import Domain
+import MapKit
 
 public struct CourseResultView: View {
     @Bindable var store: StoreOf<CourseResultFeature>
     @FocusState private var titleFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
+    @State private var mapCameraPosition: MapCameraPosition = .automatic
+
+    private var coordinatePlaces: [(CoursePlace, CLLocationCoordinate2D)] {
+        store.course.places.compactMap { place in
+            guard let lat = place.latitude, let lon = place.longitude else { return nil }
+            return (place, CLLocationCoordinate2D(latitude: lat, longitude: lon))
+        }
+    }
 
     private var placeColors: [Color] {
         colorScheme == .dark
@@ -30,6 +39,12 @@ public struct CourseResultView: View {
                         titleCard
                     }
 
+                    if !store.courseReason.isEmpty, !store.isPlaying {
+                        courseReasonCard
+                    }
+
+                    mapCard
+
                     if let outfit = store.course.outfitSuggestion, !outfit.isEmpty, !store.isPlaying {
                         outfitCard(outfit)
                     }
@@ -40,6 +55,10 @@ public struct CourseResultView: View {
 
                     if let rating = store.course.rating, !store.isPlaying {
                         ratingCard(rating: rating, review: store.course.review)
+                    }
+
+                    if !store.candidates.isEmpty, !store.isPlaying {
+                        candidatesSection
                     }
                 }
                 .padding(.horizontal, Spacing.md)
@@ -245,6 +264,74 @@ public struct CourseResultView: View {
         .cardStyle()
     }
 
+    // MARK: - Course Reason Card
+
+    private var courseReasonCard: some View {
+        HStack(spacing: Spacing.md) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Brand.softPink)
+                    .frame(width: 44, height: 44)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Brand.pink)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("이 코스를 추천하는 이유")
+                    .font(Typography.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(store.courseReason)
+                    .font(Typography.caption)
+                    .foregroundStyle(.primary)
+            }
+            Spacer()
+        }
+        .padding(Spacing.md)
+        .cardStyle()
+    }
+
+    // MARK: - Candidates Section
+
+    private var candidatesSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("다른 후보 장소")
+                .font(Typography.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
+
+            ForEach(Array(store.candidates.enumerated()), id: \.element.order) { index, place in
+                HStack(spacing: Spacing.md) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(.tertiarySystemFill))
+                            .frame(width: 36, height: 36)
+                        Text("\(index + 1)")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(place.placeName ?? place.keyword)
+                            .font(Typography.body.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(place.category)
+                            .font(Typography.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color(.tertiarySystemFill))
+                            .clipShape(Capsule())
+                        Text(place.reason)
+                            .font(Typography.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(Spacing.md)
+                .cardStyle()
+            }
+        }
+    }
+
     // MARK: - Place Card
 
     private func placeCard(_ place: CoursePlace, color: Color) -> some View {
@@ -338,6 +425,7 @@ public struct CourseResultView: View {
         .cardStyle()
         .opacity(isVisited && store.isPlaying ? 0.6 : 1)
         .animation(.easeInOut(duration: 0.2), value: isVisited)
+        .onTapGesture { focusMap(on: place) }
     }
 
     // MARK: - Rating Card
@@ -424,6 +512,70 @@ public struct CourseResultView: View {
             }
         }
         .presentationDetents([.medium])
+    }
+
+    // MARK: - Map Card
+
+    @ViewBuilder
+    private var mapCard: some View {
+        if !coordinatePlaces.isEmpty {
+            let coords = coordinatePlaces.map { $0.1 }
+            Map(position: $mapCameraPosition) {
+                ForEach(Array(coordinatePlaces.enumerated()), id: \.element.0.order) { index, item in
+                    Annotation(item.0.placeName ?? item.0.keyword, coordinate: item.1) {
+                        ZStack {
+                            Circle()
+                                .fill(placeColors[index % placeColors.count])
+                                .frame(width: 30, height: 30)
+                                .shadow(color: .black.opacity(0.25), radius: 4)
+                            Text("\(item.0.order)")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                }
+                if coords.count > 1 {
+                    MapPolyline(coordinates: coords)
+                        .stroke(Brand.pink.opacity(0.8), lineWidth: 3)
+                }
+            }
+            .frame(height: 220)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: colorScheme == .dark ? .clear : .black.opacity(0.06), radius: 8)
+            .overlay {
+                if colorScheme == .dark {
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color(UIColor.separator), lineWidth: 1)
+                }
+            }
+            .onAppear {
+                mapCameraPosition = .region(mapRegion(for: coords))
+            }
+        }
+    }
+
+    private func focusMap(on place: CoursePlace) {
+        guard let lat = place.latitude, let lon = place.longitude else { return }
+        withAnimation(.easeInOut(duration: 0.5)) {
+            mapCameraPosition = .region(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                span: MKCoordinateSpan(latitudeDelta: 0.003, longitudeDelta: 0.003)
+            ))
+        }
+    }
+
+    private func mapRegion(for coordinates: [CLLocationCoordinate2D]) -> MKCoordinateRegion {
+        let lats = coordinates.map { $0.latitude }
+        let lons = coordinates.map { $0.longitude }
+        let center = CLLocationCoordinate2D(
+            latitude: (lats.min()! + lats.max()!) / 2,
+            longitude: (lons.min()! + lons.max()!) / 2
+        )
+        let span = MKCoordinateSpan(
+            latitudeDelta: max((lats.max()! - lats.min()!) * 1.6, 0.008),
+            longitudeDelta: max((lons.max()! - lons.min()!) * 1.6, 0.008)
+        )
+        return MKCoordinateRegion(center: center, span: span)
     }
 
     // MARK: - Kakao Map
