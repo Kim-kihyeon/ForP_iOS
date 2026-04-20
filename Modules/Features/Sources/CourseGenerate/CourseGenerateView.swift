@@ -21,7 +21,6 @@ public struct CourseGenerateView: View {
                         dateSection
                         placeCountSection
                         themeSection
-                        modeSection
                         memoSection
                     }
                     .padding(.horizontal, Spacing.md)

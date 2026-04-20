@@ -50,7 +50,7 @@ public struct CourseGenerateFeature {
                     location: state.location,
                     themes: state.selectedThemes,
                     placeCount: state.placeCount,
-                    mode: state.mode,
+                    mode: .ordered,
                     memo: state.memo,
                     date: state.date
                 )
@@ -66,7 +66,7 @@ public struct CourseGenerateFeature {
                     location: state.location,
                     themes: state.selectedThemes,
                     placeCount: state.placeCount,
-                    mode: state.mode,
+                    mode: .ordered,
                     memo: state.memo,
                     date: state.date
                 )
