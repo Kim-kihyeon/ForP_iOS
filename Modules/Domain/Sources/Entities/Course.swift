@@ -81,11 +81,15 @@ public struct Course: Identifiable, Codable, Equatable {
 
 public struct CoursePlan: Equatable {
     public var places: [CoursePlace]
+    public var candidates: [CoursePlace]
     public var outfitSuggestion: String
+    public var courseReason: String
 
-    public init(places: [CoursePlace], outfitSuggestion: String) {
+    public init(places: [CoursePlace], candidates: [CoursePlace] = [], outfitSuggestion: String, courseReason: String = "") {
         self.places = places
+        self.candidates = candidates
         self.outfitSuggestion = outfitSuggestion
+        self.courseReason = courseReason
     }
 }
 

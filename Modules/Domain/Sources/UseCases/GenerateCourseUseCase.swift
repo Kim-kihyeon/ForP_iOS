@@ -37,20 +37,65 @@ public struct GenerateCourseUseCase {
         }
 
         let plan = try await aiService.generateCoursePlan(user: user, partner: partner, options: optionsWithWeather)
-        var enriched: [CoursePlace] = []
+        let locationCoord = try? await placeRepository.searchPlaces(keyword: options.location).first
+
+        // 선택된 장소 검증
+        var enrichedSelected: [CoursePlace] = []
         for place in plan.places {
-            let results = try await placeRepository.searchPlaces(keyword: place.keyword)
+            let results: [CoursePlace]
+            if let lat = locationCoord?.latitude, let lon = locationCoord?.longitude {
+                results = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: lat, longitude: lon, radius: 5000)) ?? []
+            } else {
+                results = (try? await placeRepository.searchPlaces(keyword: place.keyword)) ?? []
+            }
             if let first = results.first {
                 var updated = place
                 updated.placeName = first.placeName
                 updated.address = first.address
                 updated.latitude = first.latitude
                 updated.longitude = first.longitude
-                enriched.append(updated)
+                enrichedSelected.append(updated)
+            }
+            if enrichedSelected.count == options.placeCount { break }
+        }
+
+        // 후보 장소 검증
+        var enrichedCandidates: [CoursePlace] = []
+        for place in plan.candidates {
+            let results: [CoursePlace]
+            if let lat = locationCoord?.latitude, let lon = locationCoord?.longitude {
+                results = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: lat, longitude: lon, radius: 5000)) ?? []
             } else {
-                enriched.append(place)
+                results = (try? await placeRepository.searchPlaces(keyword: place.keyword)) ?? []
+            }
+            if let first = results.first {
+                var updated = place
+                updated.placeName = first.placeName
+                updated.address = first.address
+                updated.latitude = first.latitude
+                updated.longitude = first.longitude
+                enrichedCandidates.append(updated)
             }
         }
-        return CoursePlan(places: enriched, outfitSuggestion: plan.outfitSuggestion)
+
+        // 선택 장소가 부족하면 후보에서 보충
+        if enrichedSelected.count < options.placeCount {
+            let needed = options.placeCount - enrichedSelected.count
+            let fill = Array(enrichedCandidates.prefix(needed))
+            enrichedCandidates = Array(enrichedCandidates.dropFirst(needed))
+            enrichedSelected.append(contentsOf: fill)
+        }
+
+        let reordered = enrichedSelected.enumerated().map { index, place -> CoursePlace in
+            var p = place
+            p.order = index + 1
+            return p
+        }
+        let reorderedCandidates = enrichedCandidates.enumerated().map { index, place -> CoursePlace in
+            var p = place
+            p.order = index + 1
+            return p
+        }
+        return CoursePlan(places: reordered, candidates: reorderedCandidates, outfitSuggestion: plan.outfitSuggestion, courseReason: plan.courseReason)
     }
 }
