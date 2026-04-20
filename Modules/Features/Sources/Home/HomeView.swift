@@ -54,6 +54,7 @@ public struct HomeView: View {
             case .settings(let store): SettingsView(store: store)
             case .partner(let store): PartnerView(store: store)
             case .anniversary(let store): AnniversaryView(store: store)
+            case .profile(let store): ProfileView(store: store)
             }
         }
         .onAppear { store.send(.onAppear) }

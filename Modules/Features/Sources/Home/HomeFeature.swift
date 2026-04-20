@@ -11,6 +11,7 @@ public struct HomeFeature {
         case settings(SettingsFeature)
         case partner(PartnerFeature)
         case anniversary(AnniversaryFeature)
+        case profile(ProfileFeature)
     }
 
     @ObservableState
@@ -163,6 +164,15 @@ public struct HomeFeature {
                         Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
                     ))
                 }
+
+            case .path(.element(_, action: .settings(.delegate(.openProfile)))):
+                state.path.append(.profile(ProfileFeature.State(user: state.user)))
+                return .none
+
+            case .path(.element(_, action: .profile(.delegate(.saved(let user))))):
+                state.user = user
+                state.path.removeLast()
+                return .none
 
             case .path(.element(_, action: .settings(.delegate(.openAnniversary)))):
                 state.path.append(.anniversary(AnniversaryFeature.State()))

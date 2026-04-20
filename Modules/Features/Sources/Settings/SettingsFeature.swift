@@ -17,6 +17,7 @@ public struct SettingsFeature {
     public enum Action {
         case onAppear
         case loadPartnerResponse(Result<Partner?, Error>)
+        case profileTapped
         case partnerTapped
         case anniversaryTapped
         case resetPartnerTapped
@@ -32,6 +33,7 @@ public struct SettingsFeature {
         }
 
         public enum Delegate: Equatable {
+            case openProfile
             case openPartner(Partner?)
             case openAnniversary
             case loggedOut
@@ -61,6 +63,9 @@ public struct SettingsFeature {
 
             case .loadPartnerResponse(.failure):
                 return .none
+
+            case .profileTapped:
+                return .send(.delegate(.openProfile))
 
             case .partnerTapped:
                 return .send(.delegate(.openPartner(state.partner)))

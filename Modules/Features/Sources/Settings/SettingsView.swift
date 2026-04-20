@@ -157,6 +157,16 @@ public struct SettingsView: View {
 
             SettingsFormCard {
                 settingRow(
+                    icon: "person.crop.circle",
+                    iconColor: Color(red: 0.4, green: 0.6, blue: 1.0),
+                    title: "내 프로필 편집"
+                ) {
+                    store.send(.profileTapped)
+                }
+
+                Divider().padding(.leading, 52)
+
+                settingRow(
                     icon: "rectangle.portrait.and.arrow.right",
                     iconColor: Color(.secondaryLabel),
                     title: "로그아웃"
