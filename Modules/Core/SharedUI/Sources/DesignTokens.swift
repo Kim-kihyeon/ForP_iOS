@@ -68,3 +68,30 @@ public enum Spacing {
     public static let xl: CGFloat = 32
     public static let xxl: CGFloat = 48
 }
+
+// MARK: - Keyboard Dismiss
+
+#if canImport(UIKit)
+public extension View {
+    func hideKeyboardOnTap() -> some View {
+        self.onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
+    }
+
+    func disableSwipeBack() -> some View {
+        self.background(SwipeBackDisabler())
+    }
+}
+
+private struct SwipeBackDisabler: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController {
+        UIViewController()
+    }
+    func updateUIViewController(_ vc: UIViewController, context: Context) {
+        DispatchQueue.main.async {
+            vc.navigationController?.interactivePopGestureRecognizer?.isEnabled = false
+        }
+    }
+}
+#endif

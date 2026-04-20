@@ -6,6 +6,8 @@ import Domain
 public struct CourseGenerateView: View {
     @Bindable var store: StoreOf<CourseGenerateFeature>
     @State private var pendingDeleteId: UUID? = nil
+    @State private var showExitConfirm = false
+    @Environment(\.dismiss) private var dismiss
 
     public init(store: StoreOf<CourseGenerateFeature>) {
         self.store = store
@@ -39,9 +41,33 @@ public struct CourseGenerateView: View {
                 CourseLoadingView()
             }
         }
+        .hideKeyboardOnTap()
+        .disableSwipeBack()
         .onAppear { store.send(.onAppear) }
         .navigationTitle("코스 만들기")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    showExitConfirm = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("뒤로")
+                            .font(Typography.body)
+                    }
+                }
+                .tint(Brand.pink)
+            }
+        }
+        .alert("코스 만들기를 그만할까요?", isPresented: $showExitConfirm) {
+            Button("나가기", role: .destructive) { dismiss() }
+            Button("계속하기", role: .cancel) {}
+        } message: {
+            Text("입력한 내용이 사라져요.")
+        }
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
         .alert("오류", isPresented: Binding(

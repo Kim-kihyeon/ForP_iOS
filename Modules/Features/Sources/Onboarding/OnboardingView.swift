@@ -45,6 +45,7 @@ public struct OnboardingView: View {
 
             if store.isLoading { LoadingView() }
         }
+        .hideKeyboardOnTap()
         .animation(.easeInOut(duration: 0.4), value: showIntro)
         .navigationBarBackButtonHidden()
         .alert($store.scope(state: \.alert, action: \.alert))

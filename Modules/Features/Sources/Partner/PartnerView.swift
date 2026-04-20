@@ -37,6 +37,7 @@ public struct PartnerView: View {
 
             if store.isLoading { LoadingView() }
         }
+        .hideKeyboardOnTap()
         .navigationTitle(store.mode == .create ? "파트너 등록" : "파트너 수정")
         .navigationBarTitleDisplayMode(.inline)
         .tint(Brand.pink)

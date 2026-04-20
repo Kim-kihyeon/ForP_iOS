@@ -37,6 +37,7 @@ public struct ProfileView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             saveBar
         }
+        .hideKeyboardOnTap()
         .navigationTitle("내 프로필")
         .navigationBarTitleDisplayMode(.inline)
         .tint(Brand.pink)

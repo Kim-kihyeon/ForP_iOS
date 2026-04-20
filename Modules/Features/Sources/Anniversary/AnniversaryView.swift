@@ -37,6 +37,7 @@ public struct AnniversaryView: View {
 
             if store.isLoading { LoadingView() }
         }
+        .hideKeyboardOnTap()
         .navigationTitle("기념일")
         .navigationBarTitleDisplayMode(.inline)
         .tint(Brand.pink)
