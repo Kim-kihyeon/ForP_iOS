@@ -9,6 +9,8 @@ public struct CourseResultView: View {
     @FocusState private var titleFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
     @State private var mapCameraPosition: MapCameraPosition = .automatic
+    @State private var showCandidates = false
+    @State private var tappedPlaceOrder: Int? = nil
 
     private var coordinatePlaces: [(CoursePlace, CLLocationCoordinate2D)] {
         store.course.places.compactMap { place in
@@ -32,37 +34,10 @@ public struct CourseResultView: View {
             Color(.systemGroupedBackground).ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 12) {
-                    if store.isPlaying {
-                        progressBar
-                    } else {
-                        titleCard
-                    }
-
-                    if !store.courseReason.isEmpty, !store.isPlaying {
-                        courseReasonCard
-                    }
-
-                    mapCard
-
-                    if let outfit = store.course.outfitSuggestion, !outfit.isEmpty, !store.isPlaying {
-                        outfitCard(outfit)
-                    }
-
-                    ForEach(Array(store.course.places.enumerated()), id: \.element.order) { index, place in
-                        placeCard(place, color: placeColors[index % placeColors.count])
-                    }
-
-                    if let rating = store.course.rating, !store.isPlaying {
-                        ratingCard(rating: rating, review: store.course.review)
-                    }
-
-                    if !store.candidates.isEmpty, !store.isPlaying {
-                        candidatesSection
-                    }
+                VStack(spacing: 0) {
+                    heroMap
+                    mainContent
                 }
-                .padding(.horizontal, Spacing.md)
-                .padding(.top, Spacing.md)
                 .padding(.bottom, 32)
             }
 
@@ -96,13 +71,413 @@ public struct CourseResultView: View {
         }
     }
 
+    // MARK: - Hero Map
+
+    @ViewBuilder
+    private var heroMap: some View {
+        if !coordinatePlaces.isEmpty {
+            let coords = coordinatePlaces.map { $0.1 }
+            Map(position: $mapCameraPosition) {
+                ForEach(Array(coordinatePlaces.enumerated()), id: \.element.0.order) { index, item in
+                    Annotation(item.0.placeName ?? item.0.keyword, coordinate: item.1) {
+                        ZStack {
+                            Circle()
+                                .fill(placeColors[index % placeColors.count])
+                                .frame(width: 32, height: 32)
+                                .shadow(color: .black.opacity(0.25), radius: 4)
+                            Text("\(item.0.order)")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                }
+                if coords.count > 1 {
+                    MapPolyline(coordinates: coords)
+                        .stroke(Brand.pink.opacity(0.8), lineWidth: 3)
+                }
+            }
+            .frame(height: 280)
+            .onAppear {
+                mapCameraPosition = .region(mapRegion(for: coords))
+            }
+        }
+    }
+
+    // MARK: - Main Content
+
+    private var mainContent: some View {
+        VStack(spacing: 16) {
+            headerCard
+            if store.isPlaying { progressBar }
+            timelinePlaces
+            if let rating = store.course.rating, !store.isPlaying {
+                ratingCard(rating: rating, review: store.course.review)
+            }
+            if !store.candidates.isEmpty, !store.isPlaying {
+                candidatesAccordion
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.top, 16)
+    }
+
+    // MARK: - Header Card
+
+    private var headerCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Title
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(store.isSaved ? "코스 이름" : "코스 이름을 정해주세요")
+                        .font(Typography.caption2.weight(.semibold))
+                        .foregroundStyle(store.isSaved ? .secondary : Brand.pink)
+                    TextField("코스 제목", text: $store.course.title)
+                        .font(.system(size: 22, weight: .bold))
+                        .focused($titleFocused)
+                        .submitLabel(.done)
+                        .onSubmit {
+                            titleFocused = false
+                            store.send(.titleCommitted)
+                        }
+                    Rectangle()
+                        .fill(titleFocused ? Brand.pink : Color(.separator))
+                        .frame(height: titleFocused ? 2 : 1)
+                        .animation(.easeInOut(duration: 0.2), value: titleFocused)
+                }
+                Spacer()
+                if titleFocused && store.isSaved {
+                    Button("완료") {
+                        titleFocused = false
+                        store.send(.titleCommitted)
+                    }
+                    .font(Typography.caption.weight(.semibold))
+                    .foregroundStyle(Brand.pink)
+                    .padding(.top, 20)
+                }
+            }
+
+            // Metadata row
+            if !store.courseReason.isEmpty || store.course.outfitSuggestion != nil {
+                Divider()
+                VStack(alignment: .leading, spacing: 10) {
+                    if !store.courseReason.isEmpty {
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "sparkles")
+                                .font(Typography.caption)
+                                .foregroundStyle(Brand.pink)
+                                .frame(width: 14)
+                                .padding(.top, 1)
+                            Text(store.courseReason)
+                                .font(Typography.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    if let outfit = store.course.outfitSuggestion, !outfit.isEmpty {
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "tshirt")
+                                .font(Typography.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 14)
+                                .padding(.top, 1)
+                            Text(outfit)
+                                .font(Typography.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(Spacing.md)
+        .cardStyle()
+    }
+
+    // MARK: - Progress Bar
+
+    private var progressBar: some View {
+        let visited = store.visitedOrders.count
+        let total = store.course.places.count
+        let progress = total > 0 ? Double(visited) / Double(total) : 0
+
+        return VStack(spacing: 8) {
+            HStack {
+                Text("진행 중")
+                    .font(Typography.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(visited)/\(total) 완료")
+                    .font(Typography.caption.weight(.bold))
+                    .foregroundStyle(Brand.pink)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4).fill(Color(.systemFill)).frame(height: 6)
+                    RoundedRectangle(cornerRadius: 4).fill(Brand.pink)
+                        .frame(width: geo.size.width * progress, height: 6)
+                        .animation(.spring(response: 0.4), value: progress)
+                }
+            }
+            .frame(height: 6)
+        }
+        .padding(Spacing.md)
+        .cardStyle()
+    }
+
+    // MARK: - Timeline
+
+    private var timelinePlaces: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("코스")
+                    .font(Typography.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if !store.isPlaying {
+                    Label("탭하면 지도 이동", systemImage: "mappin.and.ellipse")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.leading, 4)
+            .padding(.bottom, 8)
+
+            VStack(spacing: 0) {
+                ForEach(Array(store.course.places.enumerated()), id: \.element.order) { index, place in
+                    timelineRow(place: place, index: index, isLast: index == store.course.places.count - 1)
+                }
+            }
+            .padding(Spacing.md)
+            .cardStyle()
+        }
+    }
+
+    private func timelineRow(place: CoursePlace, index: Int, isLast: Bool) -> some View {
+        let color = placeColors[index % placeColors.count]
+        let isVisited = store.visitedOrders.contains(place.order)
+
+        return HStack(alignment: .top, spacing: 14) {
+            // Timeline indicator
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(isVisited ? Color(.systemFill) : color)
+                        .frame(width: 32, height: 32)
+                    if isVisited {
+                        Image(systemName: "checkmark")
+                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                            .foregroundStyle(color)
+                    } else {
+                        Text("\(place.order)")
+                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                if !isLast {
+                    Rectangle()
+                        .fill(Color(.separator))
+                        .frame(width: 1.5)
+                        .frame(minHeight: 24)
+                        .padding(.vertical, 4)
+                }
+            }
+
+            // Place info
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 4) {
+                            Text(place.placeName ?? place.keyword)
+                                .font(Typography.body.weight(.semibold))
+                                .foregroundStyle(isVisited ? .secondary : .primary)
+                            if !store.isPlaying {
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(color.opacity(isVisited ? 0.3 : 0.7))
+                            }
+                        }
+
+                        HStack(spacing: 6) {
+                            Text(place.category)
+                                .font(Typography.caption2)
+                                .foregroundStyle(isVisited ? .secondary : color)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 2)
+                                .background((isVisited ? Color.secondary : color).opacity(0.1))
+                                .clipShape(Capsule())
+
+                            if let addr = place.address {
+                                Text(addr)
+                                    .font(Typography.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+
+                        if !isVisited {
+                            Text(place.reason)
+                                .font(Typography.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 1)
+
+                            if let menu = place.menu, !menu.isEmpty {
+                                Label(menu, systemImage: "fork.knife")
+                                    .font(Typography.caption2)
+                                    .foregroundStyle(Brand.pink)
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    if store.isPlaying {
+                        ZStack {
+                            Circle()
+                                .stroke(isVisited ? color : Color(.systemFill), lineWidth: 2)
+                                .frame(width: 30, height: 30)
+                            if isVisited {
+                                Circle().fill(color).frame(width: 30, height: 30)
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .animation(.spring(response: 0.3), value: isVisited)
+                        .onTapGesture { store.send(.placeVisited(place.order)) }
+                    } else {
+                        Button { openKakaoMap(place: place) } label: {
+                            VStack(spacing: 2) {
+                                Image(systemName: "map.fill").font(.system(size: 14))
+                                Text("지도").font(.system(size: 10, weight: .medium))
+                            }
+                            .foregroundStyle(Brand.pink)
+                            .padding(7)
+                            .background(Brand.softPink)
+                            .clipShape(RoundedRectangle(cornerRadius: 9))
+                        }
+                    }
+                }
+            }
+            .padding(.bottom, isLast ? 0 : 16)
+            .opacity(isVisited && store.isPlaying ? 0.55 : 1)
+            .animation(.easeInOut(duration: 0.2), value: isVisited)
+        }
+        .scaleEffect(tappedPlaceOrder == place.order ? 0.97 : 1.0)
+        .animation(.spring(response: 0.2, dampingFraction: 0.6), value: tappedPlaceOrder)
+        .onTapGesture {
+            tappedPlaceOrder = place.order
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { tappedPlaceOrder = nil }
+            focusMap(on: place)
+        }
+    }
+
+    // MARK: - Rating Card
+
+    private func ratingCard(rating: Int, review: String?) -> some View {
+        HStack(spacing: Spacing.md) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.yellow.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                Image(systemName: "star.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.yellow)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 2) {
+                    ForEach(1...5, id: \.self) { star in
+                        Image(systemName: star <= rating ? "star.fill" : "star")
+                            .font(.system(size: 12))
+                            .foregroundStyle(star <= rating ? .yellow : Color(.systemFill))
+                    }
+                }
+                if let review, !review.isEmpty {
+                    Text(review).font(Typography.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+        }
+        .padding(Spacing.md)
+        .cardStyle()
+    }
+
+    // MARK: - Candidates Accordion
+
+    private var candidatesAccordion: some View {
+        VStack(spacing: 0) {
+            Button {
+                withAnimation(.spring(response: 0.35)) { showCandidates.toggle() }
+            } label: {
+                HStack {
+                    Text("다른 후보 장소")
+                        .font(Typography.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Text("\(store.candidates.count)곳")
+                        .font(Typography.caption2)
+                        .foregroundStyle(.secondary)
+                    Image(systemName: showCandidates ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(Spacing.md)
+            }
+            .buttonStyle(.plain)
+
+            if showCandidates {
+                Divider().padding(.horizontal, Spacing.md)
+                VStack(spacing: 0) {
+                    ForEach(Array(store.candidates.enumerated()), id: \.element.order) { index, place in
+                        candidateRow(place: place, index: index, isLast: index == store.candidates.count - 1)
+                    }
+                }
+                .padding(.horizontal, Spacing.md)
+                .padding(.bottom, Spacing.md)
+            }
+        }
+        .cardStyle()
+    }
+
+    @ViewBuilder
+    private func candidateRow(place: CoursePlace, index: Int, isLast: Bool) -> some View {
+        HStack(spacing: Spacing.md) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.tertiarySystemFill))
+                    .frame(width: 30, height: 30)
+                Text("\(index + 1)")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(place.placeName ?? place.keyword)
+                    .font(Typography.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(place.reason)
+                    .font(Typography.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button { openKakaoMap(place: place) } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: "map.fill").font(.system(size: 13))
+                    Text("지도").font(.system(size: 9, weight: .medium))
+                }
+                .foregroundStyle(Brand.pink)
+                .padding(6)
+                .background(Brand.softPink)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .padding(.vertical, 10)
+        if !isLast { Divider() }
+    }
+
     // MARK: - Floating Buttons
 
     private var startButton: some View {
         HStack(spacing: Spacing.md) {
-            Button {
-                store.send(.likeTapped)
-            } label: {
+            Button { store.send(.likeTapped) } label: {
                 Image(systemName: store.course.isLiked ? "heart.fill" : "heart")
                     .font(.system(size: 22))
                     .foregroundStyle(store.course.isLiked ? Brand.pink : Color(.secondaryLabel))
@@ -110,15 +485,10 @@ public struct CourseResultView: View {
                     .background(Color(.systemFill))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
-
-            Button {
-                store.send(.startPlayTapped)
-            } label: {
+            Button { store.send(.startPlayTapped) } label: {
                 HStack(spacing: Spacing.sm) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text("데이트 시작")
-                        .font(Typography.body.weight(.bold))
+                    Image(systemName: "play.fill").font(.system(size: 14, weight: .semibold))
+                    Text("데이트 시작").font(Typography.body.weight(.bold))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
@@ -127,10 +497,7 @@ public struct CourseResultView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .shadow(color: Brand.pink.opacity(0.3), radius: 10, x: 0, y: 4)
             }
-
-            Button {
-                store.send(.deleteTapped)
-            } label: {
+            Button { store.send(.deleteTapped) } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 20))
                     .foregroundStyle(Color(.secondaryLabel))
@@ -163,330 +530,16 @@ public struct CourseResultView: View {
         .background(.regularMaterial)
     }
 
-    // MARK: - Title Card
-
-    private var titleCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(store.isSaved ? "코스 이름" : "코스 이름을 정해주세요")
-                        .font(Typography.caption2.weight(.semibold))
-                        .foregroundStyle(store.isSaved ? .secondary : Brand.pink)
-                    TextField("코스 제목", text: $store.course.title)
-                        .font(.system(size: 22, weight: .bold))
-                        .focused($titleFocused)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            titleFocused = false
-                            store.send(.titleCommitted)
-                        }
-                    Rectangle()
-                        .fill(titleFocused ? Brand.pink : Color(.separator))
-                        .frame(height: titleFocused ? 2 : 1)
-                        .animation(.easeInOut(duration: 0.2), value: titleFocused)
-                }
-
-                Spacer()
-
-                if titleFocused && store.isSaved {
-                    Button("완료") {
-                        titleFocused = false
-                        store.send(.titleCommitted)
-                    }
-                    .font(Typography.caption.weight(.semibold))
-                    .foregroundStyle(Brand.pink)
-                    .padding(.top, 18)
-                }
-            }
-        }
-        .padding(Spacing.md)
-        .cardStyle()
-    }
-
-    // MARK: - Progress Bar
-
-    private var progressBar: some View {
-        let visited = store.visitedOrders.count
-        let total = store.course.places.count
-        let progress = total > 0 ? Double(visited) / Double(total) : 0
-
-        return VStack(spacing: 8) {
-            HStack {
-                Text("진행 중")
-                    .font(Typography.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("\(visited)/\(total) 완료")
-                    .font(Typography.caption.weight(.bold))
-                    .foregroundStyle(Brand.pink)
-            }
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(.systemFill))
-                        .frame(height: 6)
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Brand.pink)
-                        .frame(width: geo.size.width * progress, height: 6)
-                        .animation(.spring(response: 0.4), value: progress)
-                }
-            }
-            .frame(height: 6)
-        }
-        .padding(Spacing.md)
-        .cardStyle()
-    }
-
-    // MARK: - Outfit Card
-
-    private func outfitCard(_ outfit: String) -> some View {
-        HStack(spacing: Spacing.md) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Brand.softPink)
-                    .frame(width: 44, height: 44)
-                Image(systemName: "tshirt.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(Brand.pink)
-            }
-            VStack(alignment: .leading, spacing: 3) {
-                Text("오늘의 옷차림")
-                    .font(Typography.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(outfit)
-                    .font(Typography.caption)
-                    .foregroundStyle(.primary)
-            }
-            Spacer()
-        }
-        .padding(Spacing.md)
-        .cardStyle()
-    }
-
-    // MARK: - Course Reason Card
-
-    private var courseReasonCard: some View {
-        HStack(spacing: Spacing.md) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Brand.softPink)
-                    .frame(width: 44, height: 44)
-                Image(systemName: "sparkles")
-                    .font(.system(size: 18))
-                    .foregroundStyle(Brand.pink)
-            }
-            VStack(alignment: .leading, spacing: 3) {
-                Text("이 코스를 추천하는 이유")
-                    .font(Typography.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(store.courseReason)
-                    .font(Typography.caption)
-                    .foregroundStyle(.primary)
-            }
-            Spacer()
-        }
-        .padding(Spacing.md)
-        .cardStyle()
-    }
-
-    // MARK: - Candidates Section
-
-    private var candidatesSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("다른 후보 장소")
-                .font(Typography.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.leading, 4)
-
-            ForEach(Array(store.candidates.enumerated()), id: \.element.order) { index, place in
-                HStack(spacing: Spacing.md) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(.tertiarySystemFill))
-                            .frame(width: 36, height: 36)
-                        Text("\(index + 1)")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(place.placeName ?? place.keyword)
-                            .font(Typography.body.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Text(place.category)
-                            .font(Typography.caption2)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color(.tertiarySystemFill))
-                            .clipShape(Capsule())
-                        Text(place.reason)
-                            .font(Typography.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button {
-                        openKakaoMap(place: place)
-                    } label: {
-                        VStack(spacing: 2) {
-                            Image(systemName: "map.fill")
-                                .font(.system(size: 16))
-                            Text("지도")
-                                .font(.system(size: 10, weight: .medium))
-                        }
-                        .foregroundStyle(Brand.pink)
-                        .padding(8)
-                        .background(Brand.softPink)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                }
-                .padding(Spacing.md)
-                .cardStyle()
-            }
-        }
-    }
-
-    // MARK: - Place Card
-
-    private func placeCard(_ place: CoursePlace, color: Color) -> some View {
-        let isVisited = store.visitedOrders.contains(place.order)
-
-        return VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: Spacing.md) {
-                ZStack {
-                    Circle()
-                        .fill(isVisited ? Color(.systemFill) : color)
-                        .frame(width: 36, height: 36)
-                    if isVisited {
-                        Image(systemName: "checkmark")
-                            .font(.system(.subheadline, design: .rounded, weight: .bold))
-                            .foregroundStyle(color)
-                    } else {
-                        Text("\(place.order)")
-                            .font(.system(.subheadline, design: .rounded, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(place.placeName ?? place.keyword)
-                        .font(Typography.body.weight(.semibold))
-                        .foregroundStyle(isVisited ? .secondary : .primary)
-
-                    Text(place.category)
-                        .font(Typography.caption2)
-                        .foregroundStyle(isVisited ? .secondary : color)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background((isVisited ? Color.secondary : color).opacity(0.1))
-                        .clipShape(Capsule())
-
-                    if !isVisited {
-                        Text(place.reason)
-                            .font(Typography.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 2)
-
-                        if let menu = place.menu, !menu.isEmpty {
-                            HStack(spacing: 4) {
-                                Image(systemName: "fork.knife")
-                                Text(menu)
-                            }
-                            .font(Typography.caption2)
-                            .foregroundStyle(Brand.pink)
-                            .padding(.top, 2)
-                        }
-                    }
-                }
-
-                Spacer()
-
-                if store.isPlaying {
-                    ZStack {
-                        Circle()
-                            .stroke(isVisited ? color : Color(.systemFill), lineWidth: 2)
-                            .frame(width: 32, height: 32)
-                        if isVisited {
-                            Circle()
-                                .fill(color)
-                                .frame(width: 32, height: 32)
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                    .animation(.spring(response: 0.3), value: isVisited)
-                    .onTapGesture { store.send(.placeVisited(place.order)) }
-                } else {
-                    Button {
-                        openKakaoMap(place: place)
-                    } label: {
-                        VStack(spacing: 2) {
-                            Image(systemName: "map.fill")
-                                .font(.system(size: 16))
-                            Text("지도")
-                                .font(.system(size: 10, weight: .medium))
-                        }
-                        .foregroundStyle(Brand.pink)
-                        .padding(8)
-                        .background(Brand.softPink)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    }
-                }
-            }
-            .padding(Spacing.md)
-        }
-        .cardStyle()
-        .opacity(isVisited && store.isPlaying ? 0.6 : 1)
-        .animation(.easeInOut(duration: 0.2), value: isVisited)
-        .onTapGesture { focusMap(on: place) }
-    }
-
-    // MARK: - Rating Card
-
-    private func ratingCard(rating: Int, review: String?) -> some View {
-        HStack(spacing: Spacing.md) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.yellow.opacity(0.15))
-                    .frame(width: 44, height: 44)
-                Image(systemName: "star.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(.yellow)
-            }
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 2) {
-                    ForEach(1...5, id: \.self) { star in
-                        Image(systemName: star <= rating ? "star.fill" : "star")
-                            .font(.system(size: 12))
-                            .foregroundStyle(star <= rating ? .yellow : Color(.systemFill))
-                    }
-                }
-                if let review, !review.isEmpty {
-                    Text(review)
-                        .font(Typography.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-        }
-        .padding(Spacing.md)
-        .cardStyle()
-    }
-
     // MARK: - Completion Sheet
 
     private var completionSheet: some View {
         NavigationStack {
             VStack(spacing: Spacing.xl) {
                 VStack(spacing: Spacing.sm) {
-                    Text("🎉")
-                        .font(.system(size: 56))
-                    Text("데이트 완료!")
-                        .font(.system(size: 24, weight: .bold))
+                    Text("🎉").font(.system(size: 56))
+                    Text("데이트 완료!").font(.system(size: 24, weight: .bold))
                     Text("오늘 데이트는 어떠셨나요?")
-                        .font(Typography.body)
-                        .foregroundStyle(.secondary)
+                        .font(Typography.body).foregroundStyle(.secondary)
                 }
                 .padding(.top, Spacing.xl)
 
@@ -501,7 +554,6 @@ public struct CourseResultView: View {
                                 .onTapGesture { store.send(.binding(.set(\.completionRating, star))) }
                         }
                     }
-
                     TextField("한 줄 후기 (선택)", text: $store.completionReview)
                         .font(Typography.body)
                         .padding(Spacing.md)
@@ -509,14 +561,12 @@ public struct CourseResultView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .padding(.horizontal, Spacing.md)
                 }
-
                 Spacer()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("건너뛰기") { store.send(.skipReviewTapped) }
-                        .foregroundStyle(.secondary)
+                    Button("건너뛰기") { store.send(.skipReviewTapped) }.foregroundStyle(.secondary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("저장") { store.send(.saveReviewTapped) }
@@ -528,45 +578,7 @@ public struct CourseResultView: View {
         .presentationDetents([.medium])
     }
 
-    // MARK: - Map Card
-
-    @ViewBuilder
-    private var mapCard: some View {
-        if !coordinatePlaces.isEmpty {
-            let coords = coordinatePlaces.map { $0.1 }
-            Map(position: $mapCameraPosition) {
-                ForEach(Array(coordinatePlaces.enumerated()), id: \.element.0.order) { index, item in
-                    Annotation(item.0.placeName ?? item.0.keyword, coordinate: item.1) {
-                        ZStack {
-                            Circle()
-                                .fill(placeColors[index % placeColors.count])
-                                .frame(width: 30, height: 30)
-                                .shadow(color: .black.opacity(0.25), radius: 4)
-                            Text("\(item.0.order)")
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                }
-                if coords.count > 1 {
-                    MapPolyline(coordinates: coords)
-                        .stroke(Brand.pink.opacity(0.8), lineWidth: 3)
-                }
-            }
-            .frame(height: 220)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: colorScheme == .dark ? .clear : .black.opacity(0.06), radius: 8)
-            .overlay {
-                if colorScheme == .dark {
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color(UIColor.separator), lineWidth: 1)
-                }
-            }
-            .onAppear {
-                mapCameraPosition = .region(mapRegion(for: coords))
-            }
-        }
-    }
+    // MARK: - Map Helpers
 
     private func focusMap(on place: CoursePlace) {
         guard let lat = place.latitude, let lon = place.longitude else { return }
