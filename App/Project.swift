@@ -6,6 +6,8 @@ let project = Project(
         base: [
             "DEVELOPMENT_TEAM": "9T6JP32M2N",
             "CODE_SIGN_STYLE": "Automatic",
+            "CODE_SIGN_IDENTITY": "Apple Development",
+            "PROVISIONING_PROFILE_SPECIFIER": "",
         ],
         configurations: [
             .debug(name: "Debug", xcconfig: "Secrets.xcconfig"),
@@ -48,7 +50,13 @@ let project = Project(
                 .external(name: "KakaoSDKCommon"),
                 .external(name: "KakaoSDKAuth"),
                 .external(name: "KakaoSDKUser"),
-            ]
+            ],
+            settings: .settings(base: [
+                "CODE_SIGN_STYLE": "Automatic",
+                "CODE_SIGN_IDENTITY": "Apple Development",
+                "DEVELOPMENT_TEAM": "9T6JP32M2N",
+                "PROVISIONING_PROFILE_SPECIFIER": "",
+            ])
         ),
     ]
 )
