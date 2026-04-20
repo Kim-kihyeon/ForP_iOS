@@ -22,6 +22,7 @@ public struct CourseResultFeature {
         }
 
         public var candidates: [CoursePlace] = []
+        public var bookmarkedKeywords: Set<String> = []
 
         @Presents public var alert: AlertState<Action.Alert>?
 
@@ -56,6 +57,9 @@ public struct CourseResultFeature {
         case reorderPlaces(IndexSet, Int)
         case removePlace(IndexSet)
         case addCandidate(CoursePlace)
+        case onAppear
+        case bookmarkPlace(CoursePlace)
+        case bookmarksLoaded([WishlistPlace])
 
         public enum Alert: Equatable { case confirmDelete }
         public enum Delegate: Equatable {
@@ -67,6 +71,8 @@ public struct CourseResultFeature {
 
     @Dependency(\.saveCourseUseCase) var saveCourseUseCase
     @Dependency(\.courseRepository) var courseRepository
+    @Dependency(\.wishlistRepository) var wishlistRepository
+    @Dependency(\.currentUserId) var currentUserId
 
     public init() {}
 
@@ -251,6 +257,42 @@ public struct CourseResultFeature {
                     var updated = p; updated.order = index + 1; return updated
                 }
                 return .none
+
+            case .onAppear:
+                let userId = currentUserId()
+                return .run { [wishlistRepository] send in
+                    let all = (try? await wishlistRepository.fetchAll(userId: userId)) ?? []
+                    await send(.bookmarksLoaded(all))
+                }
+
+            case .bookmarksLoaded(let places):
+                state.bookmarkedKeywords = Set(places.map { $0.keyword })
+                return .none
+
+            case .bookmarkPlace(let place):
+                let isCurrentlyBookmarked = state.bookmarkedKeywords.contains(place.keyword)
+                if !isCurrentlyBookmarked && state.bookmarkedKeywords.count >= 20 {
+                    state.alert = AlertState { TextState("찜 목록이 가득 찼어요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("최대 20개까지 찜할 수 있어요. 기존 찜을 삭제한 후 다시 시도해주세요.") }
+                    return .none
+                }
+                if isCurrentlyBookmarked {
+                    state.bookmarkedKeywords.remove(place.keyword)
+                    let userId = currentUserId()
+                    let keyword = place.keyword
+                    return .run { [wishlistRepository] _ in
+                        let all = (try? await wishlistRepository.fetchAll(userId: userId)) ?? []
+                        if let existing = all.first(where: { $0.keyword == keyword }) {
+                            try? await wishlistRepository.delete(id: existing.id)
+                        }
+                    }
+                } else {
+                    state.bookmarkedKeywords.insert(place.keyword)
+                    let userId = currentUserId()
+                    let wp = WishlistPlace(userId: userId, keyword: place.keyword, placeName: place.placeName, address: place.address, latitude: place.latitude, longitude: place.longitude, category: place.category)
+                    return .run { [wishlistRepository] _ in
+                        try? await wishlistRepository.save(wp)
+                    }
+                }
 
             case .delegate:
                 return .none

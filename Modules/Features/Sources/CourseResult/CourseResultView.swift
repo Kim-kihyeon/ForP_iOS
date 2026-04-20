@@ -20,6 +20,25 @@ public struct CourseResultView: View {
         }
     }
 
+    private var shareText: String {
+        let dateText: String = {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "ko_KR")
+            f.dateFormat = "M월 d일 (E)"
+            return f.string(from: store.course.date)
+        }()
+        let places = store.course.places
+            .sorted { $0.order < $1.order }
+            .map { "\($0.order). \($0.placeName ?? $0.keyword)" }
+            .joined(separator: "\n")
+        var text = "📍 \(store.course.title)\n\(dateText)\n\n\(places)"
+        if let reason = store.course.courseReason.isEmpty ? nil : store.course.courseReason {
+            text += "\n\n💡 \(reason)"
+        }
+        text += "\n\n— ForP 앱으로 만든 데이트 코스 🩷"
+        return text
+    }
+
     private var placeColors: [Color] {
         colorScheme == .dark
             ? [Brand.pink, Color(red: 0.3, green: 0.5, blue: 0.95), Color(red: 0.5, green: 0.3, blue: 0.95), Color(red: 0.1, green: 0.65, blue: 0.55), Color(red: 0.85, green: 0.45, blue: 0.1), Color(red: 0.85, green: 0.25, blue: 0.25)]
@@ -57,12 +76,19 @@ public struct CourseResultView: View {
         .navigationBarTitleDisplayMode(.inline)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .onAppear { store.send(.onAppear) }
         .onDisappear { store.send(.viewDisappeared) }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if store.isPlaying {
                     Button("종료") { store.send(.stopPlayTapped) }
                         .foregroundStyle(Brand.pink)
+                } else if store.isSaved {
+                    ShareLink(item: shareText) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 15, weight: .medium))
+                    }
+                    .tint(Brand.pink)
                 }
             }
         }
@@ -313,6 +339,7 @@ public struct CourseResultView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.06), radius: 8)
         .environment(\.editMode, .constant(.active))
+        .environment(\.locale, Locale(identifier: "ko_KR"))
     }
 
     private func timelineRow(place: CoursePlace, index: Int, isLast: Bool) -> some View {
@@ -408,15 +435,33 @@ public struct CourseResultView: View {
                         .animation(.spring(response: 0.3), value: isVisited)
                         .onTapGesture { Haptics.impact(.rigid); store.send(.placeVisited(place.order)) }
                     } else {
-                        Button { openKakaoMap(place: place) } label: {
-                            VStack(spacing: 2) {
-                                Image(systemName: "map.fill").font(.system(size: 14))
-                                Text("지도").font(.system(size: 10, weight: .medium))
+                        HStack(spacing: 6) {
+                            let isBookmarked = store.bookmarkedKeywords.contains(place.keyword)
+                            Button {
+                                Haptics.impact(.light)
+                                store.send(.bookmarkPlace(place))
+                            } label: {
+                                VStack(spacing: 2) {
+                                    Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                                        .font(.system(size: 14))
+                                    Text("찜").font(.system(size: 10, weight: .medium))
+                                }
+                                .foregroundStyle(isBookmarked ? Brand.pink : .secondary)
+                                .padding(7)
+                                .background(isBookmarked ? Brand.softPink : Color(.tertiarySystemFill))
+                                .clipShape(RoundedRectangle(cornerRadius: 9))
                             }
-                            .foregroundStyle(Brand.pink)
-                            .padding(7)
-                            .background(Brand.softPink)
-                            .clipShape(RoundedRectangle(cornerRadius: 9))
+
+                            Button { openKakaoMap(place: place) } label: {
+                                VStack(spacing: 2) {
+                                    Image(systemName: "map.fill").font(.system(size: 14))
+                                    Text("지도").font(.system(size: 10, weight: .medium))
+                                }
+                                .foregroundStyle(Brand.pink)
+                                .padding(7)
+                                .background(Brand.softPink)
+                                .clipShape(RoundedRectangle(cornerRadius: 9))
+                            }
                         }
                     }
                 }
@@ -427,12 +472,13 @@ public struct CourseResultView: View {
         }
         .scaleEffect(tappedPlaceOrder == place.order ? 0.97 : 1.0)
         .animation(.spring(response: 0.2, dampingFraction: 0.6), value: tappedPlaceOrder)
-        .onTapGesture {
+        .contentShape(Rectangle())
+        .gesture(TapGesture().onEnded {
             Haptics.selection()
             tappedPlaceOrder = place.order
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { tappedPlaceOrder = nil }
             focusMap(on: place)
-        }
+        })
     }
 
     // MARK: - Rating Card
