@@ -64,6 +64,10 @@ public struct GPTAIService: AIServiceProtocol {
         if !options.memo.isEmpty {
             prompt += "\n요청사항 (최우선 반영): \(options.memo)"
         }
+        if !options.wishlistPlaces.isEmpty {
+            let names = options.wishlistPlaces.map { $0.placeName ?? $0.keyword }.joined(separator: ", ")
+            prompt += "\n선호 장소 (가능하면 포함, 단 \(options.location) 지역이 아닌 경우 비슷한 유형으로 대체): \(names)"
+        }
         if let partner, !partner.nickname.isEmpty {
             prompt += """
 

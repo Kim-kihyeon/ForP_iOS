@@ -5,6 +5,7 @@ import Domain
 
 public struct CourseGenerateView: View {
     @Bindable var store: StoreOf<CourseGenerateFeature>
+    @State private var pendingDeleteId: UUID? = nil
 
     public init(store: StoreOf<CourseGenerateFeature>) {
         self.store = store
@@ -21,6 +22,9 @@ public struct CourseGenerateView: View {
                         dateSection
                         placeCountSection
                         themeSection
+                        if !store.wishlistPlaces.isEmpty {
+                            wishlistSection
+                        }
                         memoSection
                     }
                     .padding(.horizontal, Spacing.md)
@@ -35,6 +39,7 @@ public struct CourseGenerateView: View {
                 CourseLoadingView()
             }
         }
+        .onAppear { store.send(.onAppear) }
         .navigationTitle("코스 만들기")
         .navigationBarTitleDisplayMode(.inline)
         .tint(Brand.pink)
@@ -46,6 +51,18 @@ public struct CourseGenerateView: View {
             Button("확인") { store.send(.binding(.set(\.errorMessage, nil))) }
         } message: {
             Text(store.errorMessage ?? "")
+        }
+        .alert("찜 목록에서 삭제할까요?", isPresented: Binding(
+            get: { pendingDeleteId != nil },
+            set: { if !$0 { pendingDeleteId = nil } }
+        )) {
+            Button("삭제", role: .destructive) {
+                if let id = pendingDeleteId {
+                    store.send(.removeFromWishlist(id))
+                    pendingDeleteId = nil
+                }
+            }
+            Button("취소", role: .cancel) { pendingDeleteId = nil }
         }
     }
 
@@ -248,6 +265,60 @@ public struct CourseGenerateView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Wishlist
+
+    private var wishlistSection: some View {
+        FormCard {
+            HStack(spacing: Spacing.md) {
+                iconBadge("bookmark.fill", color: Color(red: 1.0, green: 0.5, blue: 0.3))
+                Text("찜한 장소 포함")
+                    .font(Typography.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                HStack(spacing: 4) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Circle()
+                            .fill(i < store.selectedWishlistIds.count ? Brand.pink : Color(.tertiarySystemFill))
+                            .frame(width: 7, height: 7)
+                            .animation(.spring(response: 0.25), value: store.selectedWishlistIds.count)
+                    }
+                }
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(store.wishlistPlaces) { place in
+                        let selected = store.selectedWishlistIds.contains(place.id)
+                        let maxReached = store.selectedWishlistIds.count >= 3 && !selected
+                        WishlistChip(
+                            name: place.placeName ?? place.keyword,
+                            selected: selected,
+                            disabled: maxReached
+                        ) {
+                            Haptics.selection()
+                            store.send(.toggleWishlistPlace(place.id))
+                        } onDelete: {
+                            pendingDeleteId = place.id
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .padding(.leading, 44)
+
+            if store.selectedWishlistIds.count >= 3 {
+                Text("최대 3개 선택됐어요. 변경하려면 선택을 해제해주세요.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+            } else if !store.selectedWishlistIds.isEmpty && !store.location.isEmpty {
+                Text("'\(store.location)' 지역이 아닌 경우 AI가 비슷한 유형으로 대체해요.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+            }
+        }
+    }
+
     // MARK: - Memo
 
     private var memoSection: some View {
@@ -307,6 +378,57 @@ public struct CourseGenerateView: View {
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(color)
         }
+    }
+}
+
+private struct WishlistChip: View {
+    let name: String
+    let selected: Bool
+    let disabled: Bool
+    let onTap: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button(action: onTap) {
+                HStack(spacing: 5) {
+                    if selected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    Text(name)
+                        .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                        .lineLimit(1)
+                }
+                .padding(.leading, selected ? 10 : 12)
+                .padding(.trailing, 6)
+                .padding(.vertical, 7)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(selected ? Brand.pink : (disabled ? Color(.tertiaryLabel) : .primary))
+
+            if selected {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Brand.pink.opacity(0.7))
+                        .padding(.trailing, 8)
+                        .padding(.vertical, 7)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Color.clear.frame(width: 0)
+            }
+        }
+        .background(selected ? Brand.softPink : Color(.tertiarySystemFill))
+        .clipShape(Capsule())
+        .overlay {
+            if selected {
+                Capsule().stroke(Brand.pink.opacity(0.4), lineWidth: 1)
+            }
+        }
+        .opacity(disabled ? 0.4 : 1)
+        .animation(.spring(response: 0.2), value: selected)
     }
 }
 
