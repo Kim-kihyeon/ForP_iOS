@@ -33,7 +33,7 @@ public struct CourseGenerateView: View {
             }
 
             if store.isGenerating {
-                LoadingView()
+                CourseLoadingView()
             }
         }
         .navigationTitle("코스 만들기")
