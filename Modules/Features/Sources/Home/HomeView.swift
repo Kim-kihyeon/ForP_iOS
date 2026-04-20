@@ -7,13 +7,6 @@ public struct HomeView: View {
     @Bindable var store: StoreOf<HomeFeature>
     @Environment(\.colorScheme) private var colorScheme
 
-    private let cardGradients: [[Color]] = [
-        [Color(red: 1.0, green: 0.45, blue: 0.6), Color(red: 1.0, green: 0.7, blue: 0.5)],
-        [Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.85, blue: 1.0)],
-        [Color(red: 0.6, green: 0.4, blue: 1.0), Color(red: 0.9, green: 0.6, blue: 1.0)],
-        [Color(red: 0.2, green: 0.78, blue: 0.65), Color(red: 0.5, green: 0.95, blue: 0.82)],
-    ]
-
     public init(store: StoreOf<HomeFeature>) {
         self.store = store
     }
@@ -189,11 +182,11 @@ public struct HomeView: View {
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
-                            ForEach(Array(store.likedCourses.enumerated()), id: \.element.id) { index, course in
+                            ForEach(store.likedCourses, id: \.id) { course in
                                 Button {
                                     store.send(.courseSelected(course))
                                 } label: {
-                                    favoriteCourseCard(course, gradientIndex: index)
+                                    favoriteCourseCard(course)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -238,48 +231,38 @@ public struct HomeView: View {
 
     // MARK: - Favorite Card (horizontal scroll)
 
-    private func favoriteCourseCard(_ course: Course, gradientIndex: Int) -> some View {
-        let gradient = cardGradients[gradientIndex % cardGradients.count]
-        return ZStack(alignment: .bottomLeading) {
-            LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-
-            // 하단 페이드
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.45)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    Spacer()
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .padding(7)
-                        .background(.black.opacity(0.2))
-                        .clipShape(Circle())
-                }
-                .padding(10)
-
+    private func favoriteCourseCard(_ course: Course) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
                 Spacer()
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(course.title)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                    Text(course.places.compactMap { $0.placeName ?? $0.keyword }.prefix(2).joined(separator: " · "))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.8))
-                        .lineLimit(1)
-                }
-                .padding(12)
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Brand.pink)
+                    .padding(7)
+                    .background(Brand.softPink)
+                    .clipShape(Circle())
             }
+            .padding([.top, .trailing], 10)
+
+            Spacer()
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(course.title)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(course.places.compactMap { $0.placeName ?? $0.keyword }.prefix(2).joined(separator: " · "))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .padding(12)
         }
         .frame(width: 160, height: 110)
+        .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .shadow(color: gradient[0].opacity(0.4), radius: 10, x: 0, y: 4)
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(.separator).opacity(colorScheme == .dark ? 1.0 : 0.5), lineWidth: colorScheme == .dark ? 1.0 : 0.5))
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.4 : 0.06), radius: 8, x: 0, y: 2)
     }
 
     // MARK: - Recent Course Row
@@ -348,7 +331,7 @@ public struct HomeView: View {
         .padding(14)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(.separator).opacity(0.5), lineWidth: 0.5))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(.separator).opacity(colorScheme == .dark ? 1.0 : 0.5), lineWidth: colorScheme == .dark ? 1.0 : 0.5))
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.05), radius: 8, x: 0, y: 2)
     }
 
