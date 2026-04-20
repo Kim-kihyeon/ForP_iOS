@@ -11,7 +11,7 @@ let project = Project(
             name: "ForP",
             destinations: .iOS,
             product: .app,
-            bundleId: "com.forp.app",
+            bundleId: "com.kihyeonKim.ForP",
             deploymentTargets: .iOS("17.0"),
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": ["UIColorName": ""],
