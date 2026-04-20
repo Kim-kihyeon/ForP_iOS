@@ -20,6 +20,7 @@ public struct CourseGenerateView: View {
                         locationSection
                         dateSection
                         placeCountSection
+                        themeSection
                         modeSection
                         memoSection
                     }
@@ -128,6 +129,75 @@ public struct CourseGenerateView: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - Theme
+
+    private let availableThemes: [(String, String)] = [
+        ("로맨틱", "heart.fill"),
+        ("맛집 탐방", "fork.knife"),
+        ("카페 투어", "cup.and.saucer.fill"),
+        ("야외·자연", "leaf.fill"),
+        ("문화·예술", "paintpalette.fill"),
+        ("액티비티", "figure.walk"),
+        ("쇼핑", "bag.fill"),
+        ("야경", "moon.stars.fill"),
+    ]
+
+    private var themeSection: some View {
+        FormCard {
+            HStack(spacing: Spacing.md) {
+                iconBadge("tag.fill", color: Color(red: 1.0, green: 0.5, blue: 0.3))
+                Text("테마")
+                    .font(Typography.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                if !store.selectedThemes.isEmpty {
+                    Spacer()
+                    Button("초기화") {
+                        store.send(.binding(.set(\.selectedThemes, [])))
+                    }
+                    .font(Typography.caption2)
+                    .foregroundStyle(.secondary)
+                }
+            }
+            let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(availableThemes, id: \.0) { theme, icon in
+                    let selected = store.selectedThemes.contains(theme)
+                    Button {
+                        var themes = store.selectedThemes
+                        if selected {
+                            themes.removeAll { $0 == theme }
+                        } else {
+                            themes.append(theme)
+                        }
+                        store.send(.binding(.set(\.selectedThemes, themes)))
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: icon)
+                                .font(.system(size: 16))
+                            Text(theme)
+                                .font(.system(size: 11, weight: .medium))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(selected ? Brand.softPink : Color(.tertiarySystemFill))
+                        .foregroundStyle(selected ? Brand.pink : .secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay {
+                            if selected {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Brand.pink.opacity(0.4), lineWidth: 1.5)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.leading, 0)
         }
     }
 

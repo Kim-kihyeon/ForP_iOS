@@ -325,6 +325,20 @@ public struct CourseResultView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
+                    Button {
+                        openKakaoMap(place: place)
+                    } label: {
+                        VStack(spacing: 2) {
+                            Image(systemName: "map.fill")
+                                .font(.system(size: 16))
+                            Text("지도")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(Brand.pink)
+                        .padding(8)
+                        .background(Brand.softPink)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
                 }
                 .padding(Spacing.md)
                 .cardStyle()
