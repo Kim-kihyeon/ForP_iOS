@@ -332,6 +332,13 @@ public struct OnboardingView: View {
 
     // MARK: - Bottom Bar
 
+    private var canProceed: Bool {
+        switch currentStep {
+        case 0: return !store.location.trimmingCharacters(in: .whitespaces).isEmpty
+        default: return true
+        }
+    }
+
     private var bottomBar: some View {
         HStack(spacing: Spacing.md) {
             if currentStep > 0 {
@@ -358,11 +365,12 @@ public struct OnboardingView: View {
                     .font(Typography.body.weight(.bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.md)
-                    .background(Brand.pink)
+                    .background(canProceed ? Brand.pink : Color(.tertiaryLabel))
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: Brand.pink.opacity(0.3), radius: 10, x: 0, y: 4)
+                    .shadow(color: canProceed ? Brand.pink.opacity(0.3) : .clear, radius: 10, x: 0, y: 4)
             }
+            .disabled(!canProceed)
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)

@@ -62,6 +62,10 @@ public struct OnboardingFeature {
                 return .none
 
             case .saveTapped:
+                guard !state.location.trimmingCharacters(in: .whitespaces).isEmpty else {
+                    state.alert = AlertState { TextState("지역을 입력해주세요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("주로 데이트하는 동네를 입력해주세요") }
+                    return .none
+                }
                 state.isLoading = true
                 var user = state.user
                 user.preferredCategories = state.preferredCategories
