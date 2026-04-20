@@ -3,7 +3,10 @@ import ProjectDescription
 let project = Project(
     name: "ForP",
     settings: .settings(
-        base: ["DEVELOPMENT_TEAM": "9T6JP32M2N"],
+        base: [
+            "DEVELOPMENT_TEAM": "9T6JP32M2N",
+            "CODE_SIGN_STYLE": "Automatic",
+        ],
         configurations: [
             .debug(name: "Debug", xcconfig: "Secrets.xcconfig"),
             .release(name: "Release", xcconfig: "Secrets.xcconfig"),
