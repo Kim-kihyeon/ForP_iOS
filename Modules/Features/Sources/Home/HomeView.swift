@@ -5,13 +5,23 @@ import Domain
 
 public struct HomeView: View {
     @Bindable var store: StoreOf<HomeFeature>
+    @Environment(\.colorScheme) private var colorScheme
 
-    private let courseGradients: [[Color]] = [
-        [Color(red: 1.0, green: 0.45, blue: 0.6), Color(red: 1.0, green: 0.7, blue: 0.5)],
-        [Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.85, blue: 1.0)],
-        [Color(red: 0.6, green: 0.4, blue: 1.0), Color(red: 0.9, green: 0.6, blue: 1.0)],
-        [Color(red: 0.2, green: 0.78, blue: 0.65), Color(red: 0.4, green: 0.95, blue: 0.8)],
-    ]
+    private var courseGradients: [[Color]] {
+        colorScheme == .dark
+        ? [
+            [Color(red: 1.0, green: 0.35, blue: 0.5), Color(red: 0.8, green: 0.2, blue: 0.1)],
+            [Color(red: 0.3, green: 0.5, blue: 0.95), Color(red: 0.15, green: 0.35, blue: 0.8)],
+            [Color(red: 0.5, green: 0.3, blue: 0.95), Color(red: 0.35, green: 0.15, blue: 0.75)],
+            [Color(red: 0.1, green: 0.65, blue: 0.55), Color(red: 0.05, green: 0.45, blue: 0.38)],
+        ]
+        : [
+            [Color(red: 1.0, green: 0.45, blue: 0.6), Color(red: 1.0, green: 0.7, blue: 0.5)],
+            [Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.85, blue: 1.0)],
+            [Color(red: 0.6, green: 0.4, blue: 1.0), Color(red: 0.9, green: 0.6, blue: 1.0)],
+            [Color(red: 0.2, green: 0.78, blue: 0.65), Color(red: 0.4, green: 0.95, blue: 0.8)],
+        ]
+    }
 
     public init(store: StoreOf<HomeFeature>) {
         self.store = store
@@ -54,20 +64,37 @@ public struct HomeView: View {
 
     private var headerSection: some View {
         LinearGradient(
-            colors: [Brand.pink, Color(red: 1.0, green: 0.6, blue: 0.4)],
+            colors: colorScheme == .dark
+                ? [Brand.pink, Color(red: 0.7, green: 0.15, blue: 0.1)]
+                : [Brand.pink, Color(red: 1.0, green: 0.6, blue: 0.4)],
             startPoint: .top,
             endPoint: .bottom
         )
-        .frame(height: 120)
+        .frame(height: store.weather != nil ? 150 : 120)
         .overlay(alignment: .bottom) {
             HStack(alignment: .bottom) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("안녕하세요, \(store.user.nickname)님")
-                        .font(Typography.caption)
-                        .foregroundStyle(.white.opacity(0.85))
+                    HStack(spacing: 6) {
+                        Text("안녕하세요, \(store.user.nickname)님")
+                            .font(Typography.caption)
+                            .foregroundStyle(.white.opacity(0.85))
+                        if let weather = store.weather {
+                            Text("·")
+                                .font(Typography.caption)
+                                .foregroundStyle(.white.opacity(0.6))
+                            Text("\(weatherEmoji(weather.condition)) 서울 \(weather.temperature)°")
+                                .font(Typography.caption)
+                                .foregroundStyle(.white.opacity(0.85))
+                        }
+                    }
                     Text("오늘 어디 갈까요?")
                         .font(.system(size: 28, weight: .bold))
                         .foregroundStyle(.white)
+                    if let weather = store.weather {
+                        Text(weatherSuggestion(weather))
+                            .font(Typography.caption.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
                 }
                 Spacer()
                 Button {
@@ -154,6 +181,31 @@ public struct HomeView: View {
             RoundedRectangle(cornerRadius: 20)
                 .stroke(Brand.softPink, lineWidth: 1.5)
         )
+    }
+
+    // MARK: - Weather Helpers
+
+    private func weatherEmoji(_ condition: String) -> String {
+        if condition.contains("비") || condition.contains("rain") { return "🌧️" }
+        if condition.contains("눈") || condition.contains("snow") { return "❄️" }
+        if condition.contains("흐림") || condition.contains("cloud") || condition.contains("구름") { return "☁️" }
+        return "☀️"
+    }
+
+    private func weatherSuggestion(_ weather: WeatherInfo) -> String {
+        if weather.condition.contains("비") || weather.condition.contains("rain") {
+            return "비 오는 날엔 아늑한 실내 코스 어때요?"
+        } else if weather.condition.contains("눈") || weather.condition.contains("snow") {
+            return "눈 오는 날의 특별한 데이트 어때요?"
+        } else if weather.temperature >= 28 {
+            return "더운 날엔 시원한 실내 코스를 만들어봐요"
+        } else if weather.temperature <= 3 {
+            return "추운 날엔 따뜻한 실내 데이트 어때요?"
+        } else if weather.temperature >= 18 {
+            return "야외 데이트 하기 딱 좋은 날씨에요!"
+        } else {
+            return "선선한 날씨, 산책 코스 만들어봐요"
+        }
     }
 
     // MARK: - Liked Course Section
@@ -285,9 +337,7 @@ public struct HomeView: View {
             .padding(.vertical, Spacing.sm)
         }
         .frame(width: cardWidth)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+        .cardStyle(cornerRadius: 20, shadowRadius: 12)
     }
 
     // MARK: - Empty

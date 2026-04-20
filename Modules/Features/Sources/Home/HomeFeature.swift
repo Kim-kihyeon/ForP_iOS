@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Domain
+import Foundation
 
 @Reducer
 public struct HomeFeature {
@@ -19,6 +20,7 @@ public struct HomeFeature {
         public var recentCourses: [Course] = []
         public var likedCourses: [Course] { recentCourses.filter { $0.isLiked } }
         public var upcomingAnniversary: Anniversary? = nil
+        public var weather: WeatherInfo? = nil
         public var isLoading = false
         @Presents public var alert: AlertState<Action.Alert>?
 
@@ -33,6 +35,7 @@ public struct HomeFeature {
         case refresh
         case loadCoursesResponse(Result<[Course], Error>)
         case loadAnniversariesResponse(Result<[Anniversary], Error>)
+        case loadWeatherResponse(Result<WeatherInfo, Error>)
         case generateCourseTapped
         case courseSelected(Course)
         case settingsTapped
@@ -49,6 +52,7 @@ public struct HomeFeature {
     @Dependency(\.currentPartner) var currentPartner
     @Dependency(\.anniversaryRepository) var anniversaryRepository
     @Dependency(\.notificationService) var notificationService: any NotificationServiceProtocol
+    @Dependency(\.weatherService) var weatherService: any WeatherServiceProtocol
 
     public init() {}
 
@@ -63,6 +67,9 @@ public struct HomeFeature {
                     ))
                     await send(.loadAnniversariesResponse(
                         Result { try await anniversaryRepository.fetchAnniversaries(userId: userId) }
+                    ))
+                    await send(.loadWeatherResponse(
+                        Result { try await weatherService.fetchWeather(latitude: 37.5665, longitude: 126.9780, date: Date()) }
                     ))
                 }
 
@@ -87,6 +94,13 @@ public struct HomeFeature {
                 _Concurrency.Task.detached {
                     await notificationService.scheduleAnniversaryNotifications(for: anniversariesCopy)
                 }
+                return .none
+
+            case .loadWeatherResponse(.success(let weather)):
+                state.weather = weather
+                return .none
+
+            case .loadWeatherResponse(.failure):
                 return .none
 
             case .loadAnniversariesResponse(.failure):

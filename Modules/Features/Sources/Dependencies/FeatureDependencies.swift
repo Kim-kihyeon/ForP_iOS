@@ -76,6 +76,14 @@ private enum FetchRecentCoursesUseCaseKey: DependencyKey {
     }
 }
 
+// MARK: - Weather
+
+private enum WeatherServiceKey: DependencyKey {
+    static var liveValue: any WeatherServiceProtocol {
+        fatalError("weatherService: configure via withDependencies in ForPApp")
+    }
+}
+
 // MARK: - Session
 
 private enum CurrentUserKey: DependencyKey {
@@ -141,6 +149,11 @@ extension DependencyValues {
     public var fetchRecentCoursesUseCase: FetchRecentCoursesUseCase {
         get { self[FetchRecentCoursesUseCaseKey.self] }
         set { self[FetchRecentCoursesUseCaseKey.self] = newValue }
+    }
+
+    public var weatherService: any WeatherServiceProtocol {
+        get { self[WeatherServiceKey.self] }
+        set { self[WeatherServiceKey.self] = newValue }
     }
 
     public var currentUser: @Sendable () -> User? {
