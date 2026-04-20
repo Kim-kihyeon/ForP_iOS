@@ -41,6 +41,7 @@ public struct GenerateCourseUseCase {
 
         // 선택된 장소 검증
         var enrichedSelected: [CoursePlace] = []
+        var usedPlaceNames: Set<String> = []
         for place in plan.places {
             let results: [CoursePlace]
             if let lat = locationCoord?.latitude, let lon = locationCoord?.longitude {
@@ -48,13 +49,14 @@ public struct GenerateCourseUseCase {
             } else {
                 results = (try? await placeRepository.searchPlaces(keyword: place.keyword)) ?? []
             }
-            if let first = results.first {
+            if let first = results.first, let name = first.placeName, !usedPlaceNames.contains(name) {
                 var updated = place
-                updated.placeName = first.placeName
+                updated.placeName = name
                 updated.address = first.address
                 updated.latitude = first.latitude
                 updated.longitude = first.longitude
                 enrichedSelected.append(updated)
+                usedPlaceNames.insert(name)
             }
             if enrichedSelected.count == options.placeCount { break }
         }
@@ -68,13 +70,14 @@ public struct GenerateCourseUseCase {
             } else {
                 results = (try? await placeRepository.searchPlaces(keyword: place.keyword)) ?? []
             }
-            if let first = results.first {
+            if let first = results.first, let name = first.placeName, !usedPlaceNames.contains(name) {
                 var updated = place
-                updated.placeName = first.placeName
+                updated.placeName = name
                 updated.address = first.address
                 updated.latitude = first.latitude
                 updated.longitude = first.longitude
                 enrichedCandidates.append(updated)
+                usedPlaceNames.insert(name)
             }
         }
 
