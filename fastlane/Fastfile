@@ -13,6 +13,9 @@ platform :ios do
     setup_ci if is_ci
     match(type: "appstore", readonly: is_ci, api_key: api_key)
 
+    # match 이후 전역 API 키 해제 → upload는 앱 전용 비밀번호 사용
+    Actions.lane_context[SharedValues::APP_STORE_CONNECT_API_KEY] = nil
+
     increment_build_number(
       build_number: ENV["BUILD_NUMBER"] || Time.now.strftime("%Y%m%d%H%M"),
       xcodeproj: "App/ForP.xcodeproj"
