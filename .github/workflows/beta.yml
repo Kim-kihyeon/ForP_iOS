@@ -73,7 +73,9 @@ jobs:
       - name: Patch fastlane for OpenSSL 3.x compatibility
         run: |
           TOKEN_FILE=$(find vendor/bundle -path "*/spaceship/lib/spaceship/connect_api/token.rb" 2>/dev/null | head -1)
+          echo "TOKEN_FILE: $TOKEN_FILE"
           if [ -n "$TOKEN_FILE" ]; then
+            grep -n "PKey" "$TOKEN_FILE" || echo "PKey not found in file"
             ruby -e "
               f = '$TOKEN_FILE'
               c = File.read(f)
@@ -82,6 +84,7 @@ jobs:
               puts 'Patched: ' + f
               puts 'Changed: ' + (c != patched).to_s
             "
+            grep -n "PKey" "$TOKEN_FILE"
           else
             echo "token.rb not found in vendor/bundle"
             exit 1
