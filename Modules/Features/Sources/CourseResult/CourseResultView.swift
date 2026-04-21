@@ -7,7 +7,6 @@ import MapKit
 public struct CourseResultView: View {
     @Bindable var store: StoreOf<CourseResultFeature>
     @FocusState private var titleFocused: Bool
-    @Environment(\.colorScheme) private var colorScheme
     @State private var mapCameraPosition: MapCameraPosition = .automatic
     @State private var showCandidates = false
     @State private var tappedPlaceOrder: Int? = nil
@@ -40,9 +39,7 @@ public struct CourseResultView: View {
     }
 
     private var placeColors: [Color] {
-        colorScheme == .dark
-            ? [Brand.pink, Color(red: 0.3, green: 0.5, blue: 0.95), Color(red: 0.5, green: 0.3, blue: 0.95), Color(red: 0.1, green: 0.65, blue: 0.55), Color(red: 0.85, green: 0.45, blue: 0.1), Color(red: 0.85, green: 0.25, blue: 0.25)]
-            : [Brand.pink, Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.6, green: 0.4, blue: 1.0), Color(red: 0.2, green: 0.78, blue: 0.65), Color(red: 1.0, green: 0.6, blue: 0.2), Color(red: 1.0, green: 0.4, blue: 0.4)]
+        [Brand.pink, Brand.iconBlue, Brand.iconPurple, Brand.iconTeal, Brand.iconOrange, Brand.iconRed]
     }
 
     public init(store: StoreOf<CourseResultFeature>) {
@@ -50,9 +47,45 @@ public struct CourseResultView: View {
     }
 
     public var body: some View {
+        baseView
+            .alert($store.scope(state: \.alert, action: \.alert))
+            .sheet(isPresented: $store.showCompletion) { completionSheet }
+            .sheet(isPresented: Binding(
+                get: { store.showLiveMap },
+                set: { if !$0 { store.send(.liveMapDismissed) } }
+            )) {
+                CourseLiveMapView(
+                    places: store.course.places,
+                    visitedOrders: store.visitedOrders,
+                    onVisit: { store.send(.placeVisited($0)) },
+                    onDismiss: { store.send(.liveMapDismissed) },
+                    onStop: { store.send(.stopPlayTapped) }
+                )
+                .ignoresSafeArea()
+            }
+            .sheet(isPresented: Binding(
+                get: { store.showDeparture },
+                set: { if !$0 { store.send(.departureDismissed) } }
+            )) {
+                DepartureCalculatorView(places: store.course.places)
+            }
+            .sheet(isPresented: Binding(
+                get: { store.showBudget },
+                set: { if !$0 { store.send(.budgetDismissed) } }
+            )) {
+                BudgetCalculatorView(places: store.course.places)
+            }
+            .sheet(isPresented: Binding(
+                get: { store.showChecklist },
+                set: { if !$0 { store.send(.checklistDismissed) } }
+            )) {
+                ChecklistView()
+            }
+    }
+
+    private var baseView: some View {
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
-
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     heroMap
@@ -60,17 +93,11 @@ public struct CourseResultView: View {
                 }
                 .padding(.bottom, 32)
             }
-
-            if store.isSaving || store.isDeleting {
-                LoadingView()
-            }
+            if store.isSaving || store.isDeleting { LoadingView() }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !store.isSaved {
-                saveButton
-            } else if !store.isPlaying {
-                startButton
-            }
+            if !store.isSaved { saveButton }
+            else if !store.isPlaying { startButton }
         }
         .navigationTitle(store.course.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -82,11 +109,8 @@ public struct CourseResultView: View {
             ToolbarItem(placement: .primaryAction) {
                 if store.isPlaying {
                     HStack(spacing: 4) {
-                        Button {
-                            store.send(.showLiveMapTapped)
-                        } label: {
-                            Image(systemName: "map")
-                                .font(.system(size: 15, weight: .medium))
+                        Button { store.send(.showLiveMapTapped) } label: {
+                            Image(systemName: "map").font(.system(size: 15, weight: .medium))
                         }
                         .foregroundStyle(Brand.pink)
                         Button("종료") { store.send(.stopPlayTapped) }
@@ -94,37 +118,11 @@ public struct CourseResultView: View {
                     }
                 } else if store.isSaved {
                     ShareLink(item: shareText) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 15, weight: .medium))
+                        Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .medium))
                     }
                     .tint(Brand.pink)
                 }
             }
-        }
-        .alert($store.scope(state: \.alert, action: \.alert))
-        .sheet(isPresented: $store.showCompletion) {
-            completionSheet
-        }
-        .sheet(isPresented: Binding(
-            get: { store.showLiveMap },
-            set: { if !$0 { store.send(.liveMapDismissed) } }
-        )) {
-            CourseLiveMapView(
-                places: store.course.places,
-                visitedOrders: store.visitedOrders,
-                onVisit: { store.send(.placeVisited($0)) },
-                onDismiss: { store.send(.liveMapDismissed) },
-                onStop: { store.send(.stopPlayTapped) }
-            )
-            .ignoresSafeArea()
-        }
-        .sheet(isPresented: Binding(
-            get: { store.showDeparture },
-            set: { if !$0 { store.send(.departureDismissed) } }
-        )) {
-            DepartureCalculatorView(
-                places: store.course.places
-            )
         }
     }
 
@@ -632,18 +630,46 @@ public struct CourseResultView: View {
 
     private var startButton: some View {
         VStack(spacing: 8) {
-            Button { store.send(.departureTapped) } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "clock.fill")
-                        .font(.system(size: 11, weight: .medium))
-                    Text("출발 시각 계산")
-                        .font(.system(size: 12, weight: .semibold))
+            HStack(spacing: 8) {
+                Button { store.send(.departureTapped) } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 11, weight: .medium))
+                        Text("출발 시각 계산")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Brand.pink)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Brand.softPink)
+                    .clipShape(Capsule())
                 }
-                .foregroundStyle(Brand.pink)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(Brand.softPink)
-                .clipShape(Capsule())
+                Button { store.send(.budgetTapped) } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "wonsign.circle.fill")
+                            .font(.system(size: 11, weight: .medium))
+                        Text("예산 계산")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Brand.pink)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Brand.softPink)
+                    .clipShape(Capsule())
+                }
+                Button { store.send(.checklistTapped) } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "checklist")
+                            .font(.system(size: 11, weight: .medium))
+                        Text("체크리스트")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Brand.pink)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Brand.softPink)
+                    .clipShape(Capsule())
+                }
             }
             HStack(spacing: Spacing.md) {
                 Button { Haptics.impact(.medium); store.send(.likeTapped) } label: {
@@ -764,13 +790,20 @@ public struct CourseResultView: View {
     private func mapRegion(for coordinates: [CLLocationCoordinate2D]) -> MKCoordinateRegion {
         let lats = coordinates.map { $0.latitude }
         let lons = coordinates.map { $0.longitude }
+        guard let minLat = lats.min(), let maxLat = lats.max(),
+              let minLon = lons.min(), let maxLon = lons.max() else {
+            return MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 37.5665, longitude: 126.9780),
+                span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+            )
+        }
         let center = CLLocationCoordinate2D(
-            latitude: (lats.min()! + lats.max()!) / 2,
-            longitude: (lons.min()! + lons.max()!) / 2
+            latitude: (minLat + maxLat) / 2,
+            longitude: (minLon + maxLon) / 2
         )
         let span = MKCoordinateSpan(
-            latitudeDelta: max((lats.max()! - lats.min()!) * 1.6, 0.008),
-            longitudeDelta: max((lons.max()! - lons.min()!) * 1.6, 0.008)
+            latitudeDelta: max((maxLat - minLat) * 1.6, 0.008),
+            longitudeDelta: max((maxLon - minLon) * 1.6, 0.008)
         )
         return MKCoordinateRegion(center: center, span: span)
     }

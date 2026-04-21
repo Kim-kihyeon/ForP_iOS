@@ -14,6 +14,8 @@ public struct CourseResultFeature {
         public var isPlaying = false
         public var showLiveMap = false
         public var showDeparture = false
+        public var showBudget = false
+        public var showChecklist = false
         public var visitedOrders: Set<Int> = []
         public var showCompletion = false
         public var completionRating = 0
@@ -51,6 +53,10 @@ public struct CourseResultFeature {
         case stopPlayTapped
         case departureTapped
         case departureDismissed
+        case budgetTapped
+        case budgetDismissed
+        case checklistTapped
+        case checklistDismissed
         case liveMapDismissed
         case showLiveMapTapped
         case placeVisited(Int)
@@ -79,6 +85,7 @@ public struct CourseResultFeature {
     @Dependency(\.courseRepository) var courseRepository
     @Dependency(\.wishlistRepository) var wishlistRepository
     @Dependency(\.currentUserId) var currentUserId
+    @Dependency(\.notificationService) var notificationService
 
     public init() {}
 
@@ -107,7 +114,10 @@ public struct CourseResultFeature {
             case .saveResponse(.success):
                 state.isSaving = false
                 state.isSaved = true
-                return .none
+                let course = state.course
+                return .run { [notificationService] _ in
+                    await notificationService.scheduleCourseNotification(for: course)
+                }
 
             case .saveResponse(.failure(let error)):
                 state.isSaving = false
@@ -162,7 +172,11 @@ public struct CourseResultFeature {
 
             case .deleteResponse(.success):
                 state.isDeleting = false
-                return .send(.delegate(.deleted))
+                let courseId = state.course.id
+                return .run { [notificationService] send in
+                    await notificationService.cancelCourseNotification(courseId: courseId)
+                    await send(.delegate(.deleted))
+                }
 
             case .deleteResponse(.failure(let error)):
                 state.isDeleting = false
@@ -201,6 +215,22 @@ public struct CourseResultFeature {
 
             case .departureDismissed:
                 state.showDeparture = false
+                return .none
+
+            case .budgetTapped:
+                state.showBudget = true
+                return .none
+
+            case .budgetDismissed:
+                state.showBudget = false
+                return .none
+
+            case .checklistTapped:
+                state.showChecklist = true
+                return .none
+
+            case .checklistDismissed:
+                state.showChecklist = false
                 return .none
 
             case .liveMapDismissed:
