@@ -1,0 +1,6 @@
+git_url("https://github.com/Kim-kihyeon/BalanceEat-certificates.git")
+
+type("appstore")
+
+app_identifier(["com.kihyeonKim.ForP"])
+username("kimki1125@naver.com")

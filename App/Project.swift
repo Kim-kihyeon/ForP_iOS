@@ -4,7 +4,7 @@ let project = Project(
     name: "ForP",
     settings: .settings(
         base: [
-            "DEVELOPMENT_TEAM": "9T6JP32M2N",
+            "DEVELOPMENT_TEAM": "697ACQDW6C",
             "CODE_SIGN_STYLE": "Automatic",
             "CODE_SIGN_IDENTITY": "Apple Development",
             "PROVISIONING_PROFILE_SPECIFIER": "",
@@ -55,8 +55,10 @@ let project = Project(
             settings: .settings(base: [
                 "CODE_SIGN_STYLE": "Automatic",
                 "CODE_SIGN_IDENTITY": "Apple Development",
-                "DEVELOPMENT_TEAM": "9T6JP32M2N",
+                "DEVELOPMENT_TEAM": "697ACQDW6C",
                 "PROVISIONING_PROFILE_SPECIFIER": "",
+                "MARKETING_VERSION": "1.0.0",
+                "CURRENT_PROJECT_VERSION": "1",
             ])
         ),
     ]

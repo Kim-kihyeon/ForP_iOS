@@ -1,0 +1,103 @@
+name: Beta Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Install Tuist
+        run: |
+          curl -Ls https://install.tuist.io | bash
+
+      - name: Create Secrets.xcconfig
+        env:
+          KAKAO_APP_KEY: ${{ secrets.KAKAO_APP_KEY }}
+          KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
+          SUPABASE_HOST: ${{ secrets.SUPABASE_HOST }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+        run: |
+          cat > App/Secrets.xcconfig << EOF
+          DEVELOPMENT_TEAM = 697ACQDW6C
+          CODE_SIGN_STYLE = Manual
+          CODE_SIGN_IDENTITY = Apple Distribution
+          PROVISIONING_PROFILE_SPECIFIER = match AppStore com.kihyeonKim.ForP
+
+          KAKAO_APP_KEY = ${KAKAO_APP_KEY}
+          KAKAO_REST_KEY = ${KAKAO_REST_KEY}
+          SUPABASE_HOST = ${SUPABASE_HOST}
+          SUPABASE_ANON_KEY = ${SUPABASE_ANON_KEY}
+          OPENAI_API_KEY = ${OPENAI_API_KEY}
+          OPENWEATHER_API_KEY = ${OPENWEATHER_API_KEY}
+          EOF
+
+      - name: Tuist Generate
+        run: tuist generate --no-open
+
+      - name: Configure Git Credentials
+        env:
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+        run: |
+          DECODED=$(echo "$MATCH_GIT_BASIC_AUTHORIZATION" | base64 --decode)
+          USERNAME=$(echo "$DECODED" | cut -d: -f1)
+          TOKEN=$(echo "$DECODED" | cut -d: -f2-)
+          echo "machine github.com login ${USERNAME} password ${TOKEN}" > ~/.netrc
+          chmod 600 ~/.netrc
+
+      - name: Write API Key
+        env:
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+        run: |
+          echo "$APP_STORE_CONNECT_API_KEY_CONTENT" | base64 -d > /tmp/AuthKey.p8
+
+      - name: Patch fastlane for OpenSSL 3.x compatibility
+        run: |
+          TOKEN_FILE=$(find vendor/bundle -path "*/spaceship/lib/spaceship/connect_api/token.rb" 2>/dev/null | head -1)
+          if [ -n "$TOKEN_FILE" ]; then
+            ruby -e "
+              f = '$TOKEN_FILE'
+              c = File.read(f)
+              patched = c.gsub('OpenSSL::PKey::EC.new', 'OpenSSL::PKey.read')
+              File.write(f, patched)
+              puts 'Patched: ' + f
+              puts 'Changed: ' + (c != patched).to_s
+            "
+          else
+            echo "token.rb not found in vendor/bundle"
+            exit 1
+          fi
+
+      - name: Cache Derived Data
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-derived-data-${{ hashFiles('**/*.xcodeproj/project.pbxproj') }}
+          restore-keys: |
+            ${{ runner.os }}-derived-data-
+
+      - name: Deploy to TestFlight
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: 120
+          FASTLANE_XCODEBUILD_SETTINGS_RETRIES: 3
+        run: bundle exec fastlane beta
