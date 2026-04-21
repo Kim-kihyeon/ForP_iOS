@@ -10,6 +10,32 @@ public struct NotificationService: NotificationServiceProtocol {
         return (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
+    public func scheduleCourseNotification(for course: Course) async {
+        let center = UNUserNotificationCenter.current()
+        let id = "course-\(course.id)"
+        center.removePendingNotificationRequests(withIdentifiers: [id])
+
+        let calendar = Calendar.current
+        let courseDay = calendar.startOfDay(for: course.date)
+        guard courseDay >= calendar.startOfDay(for: Date()) else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "오늘 데이트 어때요?"
+        content.body = "\(course.title) 코스, 오늘 즐겨보세요!"
+        content.sound = .default
+
+        var components = calendar.dateComponents([.year, .month, .day], from: course.date)
+        components.hour = 8
+        components.minute = 0
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        try? await center.add(request)
+    }
+
+    public func cancelCourseNotification(courseId: UUID) async {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["course-\(courseId)"])
+    }
+
     public func scheduleAnniversaryNotifications(for anniversaries: [Anniversary]) async {
         let center = UNUserNotificationCenter.current()
         // 기존 기념일 알림 전부 제거 후 재등록
