@@ -12,6 +12,8 @@ public struct CourseResultFeature {
         public var isDeleting = false
         // 진행 모드
         public var isPlaying = false
+        public var showLiveMap = false
+        public var showDeparture = false
         public var visitedOrders: Set<Int> = []
         public var showCompletion = false
         public var completionRating = 0
@@ -47,6 +49,10 @@ public struct CourseResultFeature {
         // 진행 모드
         case startPlayTapped
         case stopPlayTapped
+        case departureTapped
+        case departureDismissed
+        case liveMapDismissed
+        case showLiveMapTapped
         case placeVisited(Int)
         case saveReviewTapped
         case skipReviewTapped
@@ -176,6 +182,7 @@ public struct CourseResultFeature {
 
             case .startPlayTapped:
                 state.isPlaying = true
+                state.showLiveMap = true
                 state.visitedOrders = []
                 state.completionRating = 0
                 state.completionReview = ""
@@ -183,8 +190,25 @@ public struct CourseResultFeature {
 
             case .stopPlayTapped:
                 state.isPlaying = false
+                state.showLiveMap = false
                 state.visitedOrders = []
                 state.showCompletion = false
+                return .none
+
+            case .departureTapped:
+                state.showDeparture = true
+                return .none
+
+            case .departureDismissed:
+                state.showDeparture = false
+                return .none
+
+            case .liveMapDismissed:
+                state.showLiveMap = false
+                return .none
+
+            case .showLiveMapTapped:
+                state.showLiveMap = true
                 return .none
 
             case .placeVisited(let order):

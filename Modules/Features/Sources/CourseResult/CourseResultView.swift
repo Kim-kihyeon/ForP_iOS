@@ -81,8 +81,17 @@ public struct CourseResultView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if store.isPlaying {
-                    Button("종료") { store.send(.stopPlayTapped) }
+                    HStack(spacing: 4) {
+                        Button {
+                            store.send(.showLiveMapTapped)
+                        } label: {
+                            Image(systemName: "map")
+                                .font(.system(size: 15, weight: .medium))
+                        }
                         .foregroundStyle(Brand.pink)
+                        Button("종료") { store.send(.stopPlayTapped) }
+                            .foregroundStyle(Brand.pink)
+                    }
                 } else if store.isSaved {
                     ShareLink(item: shareText) {
                         Image(systemName: "square.and.arrow.up")
@@ -95,6 +104,27 @@ public struct CourseResultView: View {
         .alert($store.scope(state: \.alert, action: \.alert))
         .sheet(isPresented: $store.showCompletion) {
             completionSheet
+        }
+        .sheet(isPresented: Binding(
+            get: { store.showLiveMap },
+            set: { if !$0 { store.send(.liveMapDismissed) } }
+        )) {
+            CourseLiveMapView(
+                places: store.course.places,
+                visitedOrders: store.visitedOrders,
+                onVisit: { store.send(.placeVisited($0)) },
+                onDismiss: { store.send(.liveMapDismissed) },
+                onStop: { store.send(.stopPlayTapped) }
+            )
+            .ignoresSafeArea()
+        }
+        .sheet(isPresented: Binding(
+            get: { store.showDeparture },
+            set: { if !$0 { store.send(.departureDismissed) } }
+        )) {
+            DepartureCalculatorView(
+                places: store.course.places
+            )
         }
     }
 
@@ -601,34 +631,49 @@ public struct CourseResultView: View {
     // MARK: - Floating Buttons
 
     private var startButton: some View {
-        HStack(spacing: Spacing.md) {
-            Button { Haptics.impact(.medium); store.send(.likeTapped) } label: {
-                Image(systemName: store.course.isLiked ? "heart.fill" : "heart")
-                    .font(.system(size: 22))
-                    .foregroundStyle(store.course.isLiked ? Brand.pink : Color(.secondaryLabel))
-                    .frame(width: 48, height: 48)
-                    .background(Color(.systemFill))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            Button { Haptics.impact(.rigid); store.send(.startPlayTapped) } label: {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "play.fill").font(.system(size: 14, weight: .semibold))
-                    Text("데이트 시작").font(Typography.body.weight(.bold))
+        VStack(spacing: 8) {
+            Button { store.send(.departureTapped) } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "clock.fill")
+                        .font(.system(size: 11, weight: .medium))
+                    Text("출발 시각 계산")
+                        .font(.system(size: 12, weight: .semibold))
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(Brand.pink)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: Brand.pink.opacity(0.3), radius: 10, x: 0, y: 4)
+                .foregroundStyle(Brand.pink)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(Brand.softPink)
+                .clipShape(Capsule())
             }
-            Button { store.send(.deleteTapped) } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 20))
-                    .foregroundStyle(Color(.secondaryLabel))
-                    .frame(width: 48, height: 48)
-                    .background(Color(.systemFill))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            HStack(spacing: Spacing.md) {
+                Button { Haptics.impact(.medium); store.send(.likeTapped) } label: {
+                    Image(systemName: store.course.isLiked ? "heart.fill" : "heart")
+                        .font(.system(size: 22))
+                        .foregroundStyle(store.course.isLiked ? Brand.pink : Color(.secondaryLabel))
+                        .frame(width: 48, height: 48)
+                        .background(Color(.systemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                Button { Haptics.impact(.rigid); store.send(.startPlayTapped) } label: {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "play.fill").font(.system(size: 14, weight: .semibold))
+                        Text("데이트 시작").font(Typography.body.weight(.bold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Brand.pink)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: Brand.pink.opacity(0.3), radius: 10, x: 0, y: 4)
+                }
+                Button { store.send(.deleteTapped) } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 20))
+                        .foregroundStyle(Color(.secondaryLabel))
+                        .frame(width: 48, height: 48)
+                        .background(Color(.systemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
             }
         }
         .padding(.horizontal, Spacing.lg)
