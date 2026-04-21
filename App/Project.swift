@@ -31,6 +31,7 @@ let project = Project(
                 ],
                 "LSApplicationQueriesSchemes": ["kakaokompassauth", "kakaoauth", "kakaolink", "kakaomap"],
                 "NSFaceIDUsageDescription": "Apple 로그인에 사용됩니다.",
+                "NSLocationWhenInUseUsageDescription": "출발 시각 계산을 위해 현재 위치가 필요해요.",
                 "KAKAO_APP_KEY": "$(KAKAO_APP_KEY)",
                 "KAKAO_REST_KEY": "$(KAKAO_REST_KEY)",
                 "SUPABASE_HOST": "$(SUPABASE_HOST)",
