@@ -90,6 +90,44 @@ jobs:
             exit 1
           fi
 
+      - name: Validate API Key JWT
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          ruby -r 'openssl' -r 'base64' -r 'json' -r 'net/http' -r 'uri' -r 'time' -e "
+            key_id = ENV['ASC_KEY_ID']
+            issuer_id = ENV['ASC_ISSUER_ID']
+            key_content = File.read('/tmp/AuthKey.p8')
+
+            puts 'Key ID length: ' + key_id.to_s.length.to_s
+            puts 'Issuer ID length: ' + issuer_id.to_s.length.to_s
+            puts 'Key first line: ' + key_content.lines.first.chomp
+
+            begin
+              pkey = OpenSSL::PKey.read(key_content)
+              puts 'Key loaded: ' + pkey.class.to_s
+
+              now = Time.now.to_i
+              header = Base64.urlsafe_encode64(JSON.generate({alg:'ES256', kid:key_id, typ:'JWT'}), padding:false)
+              payload = Base64.urlsafe_encode64(JSON.generate({iss:issuer_id, iat:now, exp:now+1200, aud:'appstoreconnect-v1'}), padding:false)
+              sig = Base64.urlsafe_encode64(pkey.sign(OpenSSL::Digest::SHA256.new, \"#{header}.#{payload}\"), padding:false)
+              token = \"#{header}.#{payload}.#{sig}\"
+              puts 'JWT length: ' + token.length.to_s
+
+              uri = URI('https://api.appstoreconnect.apple.com/v1/apps?limit=1')
+              http = Net::HTTP.new(uri.host, uri.port)
+              http.use_ssl = true
+              req = Net::HTTP::Get.new(uri)
+              req['Authorization'] = 'Bearer ' + token
+              res = http.request(req)
+              puts 'API response code: ' + res.code
+              puts 'API response: ' + res.body[0..300] if res.code != '200'
+            rescue => e
+              puts 'Error: ' + e.class.to_s + ': ' + e.message
+            end
+          "
+
       - name: Cache Derived Data
         uses: actions/cache@v4
         with:
