@@ -74,7 +74,7 @@ public struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("COUPLE")
 
-            SettingsFormCard {
+            FormCard {
                 if let partner = store.partner {
                     HStack(spacing: Spacing.md) {
                         ZStack {
@@ -156,13 +156,23 @@ public struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("WISHLIST")
 
-            SettingsFormCard {
+            FormCard {
                 settingRow(
                     icon: "bookmark.fill",
-                    iconColor: Color(red: 1.0, green: 0.5, blue: 0.3),
+                    iconColor: Brand.iconOrange,
                     title: "찜 목록 관리"
                 ) {
                     store.send(.wishlistTapped)
+                }
+
+                Divider().padding(.leading, 52)
+
+                settingRow(
+                    icon: "checklist",
+                    iconColor: Brand.iconGreen,
+                    title: "기본 준비물 관리"
+                ) {
+                    store.send(.checklistTapped)
                 }
             }
         }
@@ -172,10 +182,10 @@ public struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("ACCOUNT")
 
-            SettingsFormCard {
+            FormCard {
                 settingRow(
                     icon: "person.crop.circle",
-                    iconColor: Color(red: 0.4, green: 0.6, blue: 1.0),
+                    iconColor: Brand.iconBlue,
                     title: "내 프로필 편집"
                 ) {
                     store.send(.profileTapped)
@@ -234,15 +244,3 @@ public struct SettingsView: View {
     }
 }
 
-private struct SettingsFormCard<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            content
-        }
-        .padding(Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
-    }
-}

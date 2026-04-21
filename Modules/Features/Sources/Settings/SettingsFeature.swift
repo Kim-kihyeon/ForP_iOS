@@ -21,6 +21,7 @@ public struct SettingsFeature {
         case partnerTapped
         case anniversaryTapped
         case wishlistTapped
+        case checklistTapped
         case resetPartnerTapped
         case resetPartnerResponse(Result<Void, Error>)
         case logoutTapped
@@ -38,6 +39,7 @@ public struct SettingsFeature {
             case openPartner(Partner?)
             case openAnniversary
             case openWishlist
+            case openChecklist
             case loggedOut
         }
     }
@@ -77,6 +79,9 @@ public struct SettingsFeature {
 
             case .wishlistTapped:
                 return .send(.delegate(.openWishlist))
+
+            case .checklistTapped:
+                return .send(.delegate(.openChecklist))
 
             case .resetPartnerTapped:
                 state.alert = AlertState {

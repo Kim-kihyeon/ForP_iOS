@@ -36,6 +36,7 @@ public struct HomeView: View {
             case .anniversary(let store): AnniversaryView(store: store)
             case .profile(let store): ProfileView(store: store)
             case .wishlist(let store): WishlistManageView(store: store)
+            case .defaultChecklist: DefaultChecklistManageView()
             }
         }
         .onAppear { store.send(.onAppear) }
@@ -338,25 +339,12 @@ public struct HomeView: View {
     // MARK: - Empty
 
     private var emptyState: some View {
-        VStack(spacing: Spacing.lg) {
-            ZStack {
-                Circle()
-                    .fill(Brand.softPink)
-                    .frame(width: 96, height: 96)
-                Text("💝")
-                    .font(.system(size: 42))
-            }
-            VStack(spacing: 6) {
-                Text("첫 코스를 만들어봐요")
-                    .font(Typography.headline)
-                Text("아래 버튼을 눌러\n설레는 데이트 코스를 완성해보세요")
-                    .font(Typography.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 80)
+        EmptyStateView(
+            icon: "heart.text.square",
+            title: "첫 코스를 만들어봐요",
+            subtitle: "아래 버튼을 눌러\n설레는 데이트 코스를 완성해보세요"
+        )
+        .padding(.top, 60)
     }
 
     // MARK: - Generate Button

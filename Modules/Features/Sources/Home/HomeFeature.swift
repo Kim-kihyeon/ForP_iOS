@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import CoreLocation
 import Domain
 import Foundation
 
@@ -13,6 +14,7 @@ public struct HomeFeature {
         case anniversary(AnniversaryFeature)
         case profile(ProfileFeature)
         case wishlist(WishlistManageFeature)
+        case defaultChecklist
     }
 
     @ObservableState
@@ -63,6 +65,7 @@ public struct HomeFeature {
             switch action {
             case .onAppear:
                 state.isLoading = state.recentCourses.isEmpty
+                let userLocation = state.user.location
                 return .run { [userId = state.user.id] send in
                     await send(.loadCoursesResponse(
                         Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
@@ -70,8 +73,17 @@ public struct HomeFeature {
                     await send(.loadAnniversariesResponse(
                         Result { try await anniversaryRepository.fetchAnniversaries(userId: userId) }
                     ))
+                    let coord: (Double, Double) = await withCheckedContinuation { cont in
+                        CLGeocoder().geocodeAddressString(userLocation) { placemarks, _ in
+                            if let location = placemarks?.first?.location {
+                                cont.resume(returning: (location.coordinate.latitude, location.coordinate.longitude))
+                            } else {
+                                cont.resume(returning: (37.5665, 126.9780))
+                            }
+                        }
+                    }
                     await send(.loadWeatherResponse(
-                        Result { try await weatherService.fetchWeather(latitude: 37.5665, longitude: 126.9780, date: Date()) }
+                        Result { try await weatherService.fetchWeather(latitude: coord.0, longitude: coord.1, date: Date()) }
                     ))
                 }
 
@@ -186,6 +198,10 @@ public struct HomeFeature {
 
             case .path(.element(_, action: .settings(.delegate(.openWishlist)))):
                 state.path.append(.wishlist(WishlistManageFeature.State()))
+                return .none
+
+            case .path(.element(_, action: .settings(.delegate(.openChecklist)))):
+                state.path.append(.defaultChecklist)
                 return .none
 
             case .path(.element(_, action: .settings(.delegate(.loggedOut)))):
