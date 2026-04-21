@@ -66,7 +66,9 @@ jobs:
         env:
           APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
         run: |
-          echo "$APP_STORE_CONNECT_API_KEY_CONTENT" | base64 -d > /tmp/AuthKey.p8
+          echo "$APP_STORE_CONNECT_API_KEY_CONTENT" | tr -d ' \n' | base64 -d > /tmp/AuthKey.p8
+          echo "first line: $(head -1 /tmp/AuthKey.p8)"
+          echo "bytes: $(wc -c < /tmp/AuthKey.p8)"
 
       - name: Patch fastlane for OpenSSL 3.x compatibility
         run: |
