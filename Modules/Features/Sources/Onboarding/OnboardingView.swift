@@ -321,7 +321,7 @@ public struct OnboardingView: View {
                 .frame(maxWidth: .infinity)
                 .background(
                     isPreferred ? Brand.pink :
-                    isDisliked ? Color(red: 1.0, green: 0.35, blue: 0.35) :
+                    isDisliked ? Brand.iconRed :
                     Color(.secondarySystemBackground)
                 )
                 .foregroundStyle((isPreferred || isDisliked) ? Color.white : Color.primary)

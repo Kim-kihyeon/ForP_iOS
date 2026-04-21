@@ -62,23 +62,20 @@ public struct AnniversaryView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: Spacing.md) {
-            Text("💑")
-                .font(.system(size: 64))
-            Text("아직 기념일이 없어요")
-                .font(Typography.body.weight(.semibold))
-                .foregroundStyle(.primary)
-            Text("우리 둘만의 소중한 날을\n기록해보세요")
-                .font(Typography.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        EmptyStateView(
+            icon: "calendar.badge.plus",
+            title: "아직 기념일이 없어요",
+            subtitle: "우리 둘만의 소중한 날을\n기록해보세요",
+            actionTitle: "기념일 추가"
+        ) {
+            store.send(.addTapped)
         }
     }
 
     // MARK: - Anniversary Card
 
     private func anniversaryCard(_ anniversary: Anniversary) -> some View {
-        AnniversaryFormCard {
+        FormCard {
             HStack(spacing: Spacing.md) {
                 dateBadge(anniversary.date)
 
@@ -180,18 +177,5 @@ public struct AnniversaryView: View {
             }
         }
         .tint(Brand.pink)
-    }
-}
-
-private struct AnniversaryFormCard<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            content
-        }
-        .padding(Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
     }
 }

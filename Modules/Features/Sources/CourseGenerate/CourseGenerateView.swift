@@ -114,7 +114,7 @@ public struct CourseGenerateView: View {
     private var dateSection: some View {
         FormCard {
             HStack(spacing: Spacing.md) {
-                iconBadge("calendar", color: Color(red: 0.4, green: 0.6, blue: 1.0))
+                iconBadge("calendar", color: Brand.iconBlue)
                 Text("언제?")
                     .font(Typography.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -142,7 +142,7 @@ public struct CourseGenerateView: View {
     private var placeCountSection: some View {
         FormCard {
             HStack(spacing: Spacing.md) {
-                iconBadge("mappin.and.ellipse", color: Color(red: 0.6, green: 0.4, blue: 1.0))
+                iconBadge("mappin.and.ellipse", color: Brand.iconPurple)
                 Text("몇 곳?")
                     .font(Typography.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -190,7 +190,7 @@ public struct CourseGenerateView: View {
     private var themeSection: some View {
         FormCard {
             HStack(spacing: Spacing.md) {
-                iconBadge("tag.fill", color: Color(red: 1.0, green: 0.5, blue: 0.3))
+                iconBadge("tag.fill", color: Brand.iconOrange)
                 Text("테마")
                     .font(Typography.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -244,59 +244,12 @@ public struct CourseGenerateView: View {
         }
     }
 
-    // MARK: - Mode
-
-    private var modeSection: some View {
-        FormCard {
-            HStack(spacing: Spacing.md) {
-                iconBadge("list.bullet.rectangle", color: Color(red: 0.2, green: 0.78, blue: 0.65))
-                Text("코스 타입")
-                    .font(Typography.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            HStack(spacing: 8) {
-                modeChip("순서형", subtitle: "A → B → C", mode: .ordered)
-                modeChip("자유형", subtitle: "원하는 순서로", mode: .list)
-            }
-            .padding(.leading, 52)
-        }
-    }
-
-    private func modeChip(_ title: String, subtitle: String, mode: CourseMode) -> some View {
-        let selected = store.mode == mode
-        return Button {
-            store.send(.binding(.set(\.mode, mode)))
-        } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(Typography.caption.weight(.semibold))
-                Text(subtitle)
-                    .font(Typography.caption2)
-                    .foregroundStyle(selected ? Brand.pink.opacity(0.8) : Color(.tertiaryLabel))
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.sm)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(selected ? Brand.softPink : Color(.tertiarySystemFill))
-            .foregroundStyle(selected ? Brand.pink : .primary)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay {
-                if selected {
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Brand.pink.opacity(0.4), lineWidth: 1.5)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - Wishlist
 
     private var wishlistSection: some View {
         FormCard {
             HStack(spacing: Spacing.md) {
-                iconBadge("bookmark.fill", color: Color(red: 1.0, green: 0.5, blue: 0.3))
+                iconBadge("bookmark.fill", color: Brand.iconOrange)
                 Text("찜한 장소 포함")
                     .font(Typography.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -350,7 +303,7 @@ public struct CourseGenerateView: View {
     private var memoSection: some View {
         FormCard {
             HStack(alignment: .top, spacing: Spacing.md) {
-                iconBadge("sparkles", color: Color(red: 1.0, green: 0.6, blue: 0.2))
+                iconBadge("sparkles", color: Brand.iconOrange)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("요청사항")
                         .font(Typography.caption2.weight(.semibold))
@@ -455,18 +408,5 @@ private struct WishlistChip: View {
         }
         .opacity(disabled ? 0.4 : 1)
         .animation(.spring(response: 0.2), value: selected)
-    }
-}
-
-private struct FormCard<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            content
-        }
-        .padding(Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
     }
 }

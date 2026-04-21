@@ -56,7 +56,7 @@ public struct ProfileView: View {
                         .font(Typography.body)
                 }
                 Divider().padding(.leading, 52)
-                fieldRow(icon: "location.fill", iconColor: Color(red: 0.4, green: 0.6, blue: 1.0), label: "자주 가는 지역") {
+                fieldRow(icon: "location.fill", iconColor: Brand.iconBlue, label: "자주 가는 지역") {
                     TextField("강남, 홍대, 성수동...", text: $store.location)
                         .font(Typography.body)
                 }
@@ -80,7 +80,7 @@ public struct ProfileView: View {
     private var dislikedSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("싫어하는 것")
-            categoryGrid(selected: $store.dislikedCategories, exclude: store.preferredCategories, accentColor: Color(red: 0.5, green: 0.5, blue: 0.5))
+            categoryGrid(selected: $store.dislikedCategories, exclude: store.preferredCategories, accentColor: Color(.secondaryLabel))
         }
     }
 

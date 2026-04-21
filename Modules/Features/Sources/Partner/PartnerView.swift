@@ -48,7 +48,7 @@ public struct PartnerView: View {
     // MARK: - Sections
 
     private var nicknameSection: some View {
-        PartnerFormCard {
+        FormCard {
             HStack(spacing: Spacing.md) {
                 iconBadge("person.fill", color: Brand.pink)
                 VStack(alignment: .leading, spacing: 4) {
@@ -63,7 +63,7 @@ public struct PartnerView: View {
     }
 
     private var categorySection: some View {
-        PartnerFormCard {
+        FormCard {
             HStack(spacing: Spacing.md) {
                 iconBadge("tag.fill", color: Brand.pink)
                 VStack(alignment: .leading, spacing: 2) {
@@ -99,7 +99,7 @@ public struct PartnerView: View {
                 .frame(maxWidth: .infinity)
                 .background(
                     isPreferred ? Brand.pink :
-                    isDisliked ? Color(red: 1.0, green: 0.35, blue: 0.35) :
+                    isDisliked ? Brand.iconRed :
                     Color(.secondarySystemBackground)
                 )
                 .foregroundStyle((isPreferred || isDisliked) ? Color.white : Color.primary)
@@ -110,9 +110,9 @@ public struct PartnerView: View {
     }
 
     private var notesSection: some View {
-        PartnerFormCard {
+        FormCard {
             HStack(alignment: .top, spacing: Spacing.md) {
-                iconBadge("note.text", color: Color(red: 1.0, green: 0.6, blue: 0.2))
+                iconBadge("note.text", color: Brand.iconOrange)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("메모")
                         .font(Typography.caption2.weight(.semibold))
@@ -161,18 +161,5 @@ public struct PartnerView: View {
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(color)
         }
-    }
-}
-
-private struct PartnerFormCard<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            content
-        }
-        .padding(Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
     }
 }

@@ -10,7 +10,6 @@ public struct CourseGenerateFeature {
         public var location = ""
         public var selectedThemes: [String] = []
         public var placeCount = 3
-        public var mode: CourseMode = .ordered
         public var memo = ""
         public var date: Date = Date()
         public var isGenerating = false

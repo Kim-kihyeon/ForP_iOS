@@ -48,6 +48,27 @@ public enum Brand {
     public static let softPink = Color(red: 1.0, green: 0.90, blue: 0.94)
     #endif
     public static let kakaoYellow = Color(red: 0.996, green: 0.898, blue: 0.0)
+
+    // Semantic icon colors
+    public static let iconBlue   = Color(red: 0.4,  green: 0.6,  blue: 1.0)
+    public static let iconGreen  = Color(red: 0.3,  green: 0.7,  blue: 0.5)
+    public static let iconOrange = Color(red: 1.0,  green: 0.5,  blue: 0.3)
+    public static let iconPurple = Color(red: 0.6,  green: 0.4,  blue: 1.0)
+    public static let iconTeal   = Color(red: 0.2,  green: 0.78, blue: 0.65)
+    public static let iconRed    = Color(red: 1.0,  green: 0.4,  blue: 0.4)
+}
+
+public enum Radius {
+    public static let sm: CGFloat = 12
+    public static let md: CGFloat = 16
+    public static let lg: CGFloat = 20
+    public static let xl: CGFloat = 24
+}
+
+public enum Shadow {
+    public static let card  = (color: Color.black.opacity(0.06), radius: CGFloat(8),  y: CGFloat(2))
+    public static let float = (color: Color.black.opacity(0.10), radius: CGFloat(16), y: CGFloat(6))
+    public static let button = (color: CGFloat(0.3), radius: CGFloat(10), y: CGFloat(4)) // opacity multiplied with Brand.pink
 }
 
 public enum Typography {
