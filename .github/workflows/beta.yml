@@ -47,8 +47,10 @@ jobs:
           OPENWEATHER_API_KEY = ${OPENWEATHER_API_KEY}
           EOF
 
-      - name: Tuist Generate
-        run: tuist generate --no-open
+      - name: Tuist Install & Generate
+        run: |
+          tuist install
+          tuist generate --no-open
 
       - name: Configure Git Credentials
         env:
