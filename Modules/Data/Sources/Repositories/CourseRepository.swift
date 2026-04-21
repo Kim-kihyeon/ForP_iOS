@@ -114,13 +114,14 @@ private struct CourseInsertRow: Encodable {
     let userId: UUID
     let title: String
     let mode: String
+    let date: String
     let places: [CoursePlace]
     let outfitSuggestion: String?
     let courseReason: String
     let isLiked: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, title, mode, places
+        case id, title, mode, date, places
         case userId = "user_id"
         case outfitSuggestion = "outfit_suggestion"
         case courseReason = "course_reason"
@@ -132,6 +133,9 @@ private struct CourseInsertRow: Encodable {
         userId = course.userId
         title = course.title
         mode = course.mode.rawValue
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        date = f.string(from: course.date)
         places = course.places
         outfitSuggestion = course.outfitSuggestion
         courseReason = course.courseReason
@@ -144,6 +148,7 @@ private struct CourseFetchRow: Decodable {
     let userId: UUID
     let title: String
     let mode: String
+    let date: String?
     let places: [CoursePlace]
     let createdAt: String
     let outfitSuggestion: String?
@@ -153,7 +158,7 @@ private struct CourseFetchRow: Decodable {
     let review: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, mode, places, rating, review
+        case id, title, mode, date, places, rating, review
         case userId = "user_id"
         case createdAt = "created_at"
         case outfitSuggestion = "outfit_suggestion"
@@ -162,11 +167,17 @@ private struct CourseFetchRow: Decodable {
     }
 
     func toDomain() -> Course {
-        Course(
+        let parsedDate: Date = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd"
+            if let d = date, let parsed = f.date(from: d) { return parsed }
+            return ISO8601DateFormatter().date(from: createdAt) ?? Date()
+        }()
+        return Course(
             id: id,
             userId: userId,
             title: title,
-            date: ISO8601DateFormatter().date(from: createdAt) ?? Date(),
+            date: parsedDate,
             mode: CourseMode(rawValue: mode) ?? .ordered,
             places: places,
             outfitSuggestion: outfitSuggestion,

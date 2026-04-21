@@ -16,6 +16,8 @@ public struct WishlistManageView: View {
 
             if store.isLoading {
                 ProgressView()
+            } else if store.loadFailed {
+                errorView
             } else if store.places.isEmpty {
                 emptyView
             } else {
@@ -68,18 +70,23 @@ public struct WishlistManageView: View {
         .padding(.vertical, 4)
     }
 
-    private var emptyView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "bookmark")
-                .font(.system(size: 40, weight: .light))
-                .foregroundStyle(.tertiary)
-            Text("찜한 장소가 없어요")
-                .font(Typography.body.weight(.medium))
-                .foregroundStyle(.secondary)
-            Text("코스 결과에서 장소를 찜해보세요")
-                .font(Typography.caption)
-                .foregroundStyle(.tertiary)
+    private var errorView: some View {
+        EmptyStateView(
+            icon: "exclamationmark.triangle",
+            title: "불러오기 실패",
+            subtitle: "네트워크를 확인하고 다시 시도해주세요",
+            actionTitle: "다시 시도"
+        ) {
+            store.send(.onAppear)
         }
+    }
+
+    private var emptyView: some View {
+        EmptyStateView(
+            icon: "bookmark",
+            title: "찜한 장소가 없어요",
+            subtitle: "코스 결과에서 장소를 찜해보세요"
+        )
     }
 
     private func categoryIcon(_ category: String) -> String {

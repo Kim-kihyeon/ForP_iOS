@@ -8,13 +8,14 @@ public struct WishlistManageFeature {
     public struct State: Equatable {
         public var places: [WishlistPlace] = []
         public var isLoading = false
+        public var loadFailed = false
 
         public init() {}
     }
 
     public enum Action {
         case onAppear
-        case placesLoaded([WishlistPlace])
+        case loadResponse(Result<[WishlistPlace], Error>)
         case delete(IndexSet)
         case deleteResponse(Result<Void, Error>)
     }
@@ -29,15 +30,22 @@ public struct WishlistManageFeature {
             switch action {
             case .onAppear:
                 state.isLoading = true
+                state.loadFailed = false
                 let userId = currentUserId()
                 return .run { send in
-                    let places = (try? await wishlistRepository.fetchAll(userId: userId)) ?? []
-                    await send(.placesLoaded(places))
+                    await send(.loadResponse(
+                        Result { try await wishlistRepository.fetchAll(userId: userId) }
+                    ))
                 }
 
-            case .placesLoaded(let places):
+            case .loadResponse(.success(let places)):
                 state.isLoading = false
                 state.places = places
+                return .none
+
+            case .loadResponse(.failure):
+                state.isLoading = false
+                state.loadFailed = true
                 return .none
 
             case .delete(let offsets):
