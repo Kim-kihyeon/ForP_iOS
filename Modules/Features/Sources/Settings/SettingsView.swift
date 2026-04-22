@@ -43,15 +43,27 @@ public struct SettingsView: View {
     private var brandHeader: some View {
         ZStack {
             LinearGradient(
-                colors: [Brand.pink.opacity(0.85), Brand.pink.opacity(0.55)],
+                colors: [Brand.pink.opacity(0.9), Brand.pink.opacity(0.55), Color(red: 1.0, green: 0.6, blue: 0.4).opacity(0.4)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
+            Circle()
+                .fill(Color.white.opacity(0.12))
+                .frame(width: 200, height: 200)
+                .blur(radius: 60)
+                .offset(x: 80, y: -60)
+
+            Circle()
+                .fill(Color.white.opacity(0.07))
+                .frame(width: 140, height: 140)
+                .blur(radius: 40)
+                .offset(x: -70, y: 50)
+
             HStack(spacing: Spacing.md) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("ForP")
-                        .font(.system(.title2, design: .rounded, weight: .bold))
+                        .font(.system(.title, design: .rounded, weight: .bold))
                         .foregroundStyle(.white)
                     Text("우리만의 데이트 코스")
                         .font(Typography.caption.weight(.medium))
@@ -59,13 +71,13 @@ public struct SettingsView: View {
                 }
                 Spacer()
                 Image(systemName: "heart.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.white.opacity(0.3))
+                    .font(.system(size: 44))
+                    .foregroundStyle(.white.opacity(0.20))
             }
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.md)
         }
-        .frame(height: 90)
+        .frame(height: 130)
     }
 
     // MARK: - Sections

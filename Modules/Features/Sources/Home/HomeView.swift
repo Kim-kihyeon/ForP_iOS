@@ -69,13 +69,20 @@ public struct HomeView: View {
             }
             .padding(.horizontal, Spacing.lg)
             .padding(.top, 16)
-            .padding(.bottom, store.weather != nil ? 10 : Spacing.md)
+            .padding(.bottom, 10)
 
-            if let weather = store.weather {
-                weatherStrip(weather)
-                    .padding(.horizontal, Spacing.lg)
-                    .padding(.bottom, Spacing.md)
+            Group {
+                if let weather = store.weather {
+                    weatherStrip(weather)
+                } else {
+                    Capsule()
+                        .fill(Color(.tertiarySystemFill))
+                        .frame(width: 180, height: 14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.bottom, Spacing.md)
         }
         .background(Color(.systemBackground))
         .overlay(alignment: .bottom) {
@@ -89,7 +96,7 @@ public struct HomeView: View {
                 .font(.system(size: 14))
             Text("\(weather.temperature)°")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(Brand.pink)
             Text(weather.condition)
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
@@ -100,6 +107,10 @@ public struct HomeView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(Capsule())
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -256,11 +267,27 @@ public struct HomeView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                if let rating = course.rating {
+                    HStack(spacing: 2) {
+                        ForEach(1...5, id: \.self) { i in
+                            Image(systemName: i <= rating ? "star.fill" : "star")
+                                .font(.system(size: 8))
+                                .foregroundStyle(i <= rating ? Color.yellow : Color(.tertiaryLabel))
+                        }
+                    }
+                    .padding(.top, 1)
+                }
             }
             .padding(12)
         }
         .frame(width: 160, height: 110)
-        .background(Color(.systemBackground))
+        .background(
+            LinearGradient(
+                colors: [Brand.softPink.opacity(0.35), Color(.systemBackground)],
+                startPoint: .top,
+                endPoint: .center
+            )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(.separator).opacity(colorScheme == .dark ? 1.0 : 0.5), lineWidth: colorScheme == .dark ? 1.0 : 0.5))
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.4 : 0.06), radius: 8, x: 0, y: 2)

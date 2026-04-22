@@ -94,7 +94,11 @@ public struct AnniversaryView: View {
                     let days = anniversary.daysUntilThisYear
                     Text(days == 0 ? "D-Day" : "D-\(days)")
                         .font(Typography.caption.weight(.bold))
-                        .foregroundStyle(Brand.pink)
+                        .foregroundStyle(days == 0 ? .white : Brand.pink)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(days == 0 ? Brand.pink : Brand.softPink)
+                        .clipShape(Capsule())
                     if anniversary.yearsElapsed > 0 {
                         Text("\(anniversary.yearsElapsed)주년")
                             .font(Typography.caption2)
@@ -102,14 +106,14 @@ public struct AnniversaryView: View {
                     }
                 }
 
-                HStack(spacing: 4) {
+                HStack(spacing: 8) {
                     Button {
                         store.send(.editTapped(anniversary))
                     } label: {
                         Image(systemName: "pencil")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.secondary)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 38, height: 38)
                             .background(Color(.tertiarySystemFill))
                             .clipShape(Circle())
                     }
@@ -121,7 +125,7 @@ public struct AnniversaryView: View {
                         Image(systemName: "trash")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.red)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 38, height: 38)
                             .background(Color.red.opacity(0.08))
                             .clipShape(Circle())
                     }
@@ -136,7 +140,14 @@ public struct AnniversaryView: View {
         let day = Calendar.current.component(.day, from: date)
         return ZStack {
             RoundedRectangle(cornerRadius: 12)
-                .fill(Brand.softPink)
+                .fill(
+                    RadialGradient(
+                        colors: [Brand.softPink, Brand.pink.opacity(0.15)],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 24
+                    )
+                )
                 .frame(width: 48, height: 48)
             VStack(spacing: 0) {
                 Text("\(month)월")
@@ -147,6 +158,7 @@ public struct AnniversaryView: View {
                     .foregroundStyle(Brand.pink)
             }
         }
+        .shadow(color: Brand.pink.opacity(0.18), radius: 8, x: 0, y: 3)
     }
 
     // MARK: - Edit Sheet

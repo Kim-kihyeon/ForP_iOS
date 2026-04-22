@@ -7,6 +7,8 @@ import CryptoKit
 public struct LoginView: View {
     @Bindable var store: StoreOf<LoginFeature>
     @State private var nonce = ""
+    @State private var logoRing: CGFloat = 1.0
+    @State private var heartFloat: CGFloat = 0
 
     public init(store: StoreOf<LoginFeature>) {
         self.store = store
@@ -15,11 +17,25 @@ public struct LoginView: View {
     public var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Brand.softPink, Color(.systemBackground)],
+                colors: [Brand.softPink, Brand.softPink.opacity(0.4), Color(.systemBackground)],
                 startPoint: .top,
                 endPoint: .bottom
             )
             .ignoresSafeArea()
+
+            Circle()
+                .fill(Brand.pink.opacity(0.08))
+                .frame(width: 300, height: 300)
+                .blur(radius: 60)
+                .offset(x: 120, y: -180)
+                .ignoresSafeArea()
+
+            Circle()
+                .fill(Brand.softPink.opacity(0.5))
+                .frame(width: 220, height: 220)
+                .blur(radius: 50)
+                .offset(x: -100, y: 200)
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 Spacer()
@@ -27,11 +43,32 @@ public struct LoginView: View {
                 VStack(spacing: Spacing.sm) {
                     ZStack {
                         Circle()
-                            .fill(Brand.softPink)
+                            .fill(Brand.pink.opacity(0.1))
+                            .frame(width: 136, height: 136)
+                            .scaleEffect(logoRing)
+                        Circle()
+                            .fill(Brand.pink.opacity(0.2))
+                            .frame(width: 116, height: 116)
+                            .scaleEffect(logoRing)
+                        Circle()
+                            .fill(Brand.pink.opacity(0.35))
                             .frame(width: 96, height: 96)
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(Brand.pink)
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [Brand.softPink, Brand.pink.opacity(0.25)],
+                                        center: .center,
+                                        startRadius: 0,
+                                        endRadius: 44
+                                    )
+                                )
+                                .frame(width: 88, height: 88)
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 38))
+                                .foregroundStyle(Brand.pink)
+                                .offset(y: heartFloat)
+                        }
                     }
                     .padding(.bottom, Spacing.xs)
 
@@ -61,6 +98,7 @@ public struct LoginView: View {
                         .foregroundStyle(Color(red: 0.11, green: 0.09, blue: 0.09))
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
+                    .shadow(color: Brand.kakaoYellow.opacity(0.45), radius: 14, x: 0, y: 5)
 
                     SignInWithAppleButton(.signIn) { request in
                         let rawNonce = randomNonceString()
@@ -82,7 +120,7 @@ public struct LoginView: View {
                     }
                     .signInWithAppleButtonStyle(.black)
                     .frame(height: 54)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
                 .padding(.horizontal, Spacing.md)
                 .padding(.bottom, Spacing.xxl)
@@ -90,6 +128,14 @@ public struct LoginView: View {
 
             if store.isLoading {
                 LoadingView()
+            }
+        }
+        .task {
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                logoRing = 1.08
+            }
+            withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                heartFloat = -5
             }
         }
         .alert($store.scope(state: \.alert, action: \.alert))
