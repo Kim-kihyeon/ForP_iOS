@@ -15,77 +15,101 @@ public struct LoadingView: View {
 }
 
 public struct CourseLoadingView: View {
-    @State private var phase = 0
     @State private var messageIndex = 0
-    @State private var dotCount = 0
+    @State private var ring1: CGFloat = 1.0
+    @State private var ring2: CGFloat = 1.0
+    @State private var ring3: CGFloat = 1.0
+    @State private var iconOffset: CGFloat = 0
 
     private let messages = [
-        "맛집 찾는 중",
-        "동선 그리는 중",
-        "코스 짜는 중",
-        "설레는 날 준비 중",
-        "딱 맞는 장소 고르는 중",
+        "맛집을 살펴보고 있어요",
+        "최적 동선을 그리고 있어요",
+        "코스를 완성하고 있어요",
+        "설레는 순간을 준비 중이에요",
+        "딱 맞는 장소를 고르고 있어요",
     ]
 
     public init() {}
 
     public var body: some View {
         ZStack {
-            Color.black.opacity(0.25).ignoresSafeArea()
-                .background(.ultraThinMaterial)
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                heartsRow
+            VStack(spacing: 52) {
+                ZStack {
+                    rippleRing(scale: ring1, size: 140, color: Brand.pink.opacity(0.12))
+                    rippleRing(scale: ring2, size: 108, color: Brand.pink.opacity(0.20))
+                    rippleRing(scale: ring3, size: 84, color: Brand.pink.opacity(0.30))
 
-                VStack(spacing: 6) {
-                    Text(messages[messageIndex] + String(repeating: ".", count: dotCount + 1))
-                        .font(.system(size: 15, weight: .semibold))
+                    Circle()
+                        .fill(RadialGradient(
+                            colors: [Brand.softPink, Brand.pink.opacity(0.06)],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 36
+                        ))
+                        .frame(width: 74, height: 74)
+                        .shadow(color: Brand.pink.opacity(0.28), radius: 20, x: 0, y: 6)
+
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 30, weight: .medium))
+                        .foregroundStyle(Brand.pink)
+                        .offset(y: iconOffset)
+                }
+                .frame(width: 160, height: 160)
+
+                VStack(spacing: 14) {
+                    Text(messages[messageIndex])
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.primary)
-                        .contentTransition(.numericText())
-                        .animation(.easeInOut(duration: 0.3), value: messageIndex)
+                        .multilineTextAlignment(.center)
+                        .id(messageIndex)
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .offset(y: 10)),
+                            removal: .opacity.combined(with: .offset(y: -10))
+                        ))
 
-                    Text("잠깐만 기다려줘요 💕")
-                        .font(.system(size: 12))
+                    Text("AI가 맞춤 데이트 코스를 만들고 있어요")
+                        .font(.system(size: 13))
                         .foregroundStyle(.secondary)
+
+                    HStack(spacing: 7) {
+                        ForEach(0..<5, id: \.self) { i in
+                            Capsule()
+                                .fill(i == messageIndex % 5 ? Brand.pink : Brand.pink.opacity(0.2))
+                                .frame(width: i == messageIndex % 5 ? 22 : 6, height: 6)
+                                .animation(.spring(response: 0.4, dampingFraction: 0.7), value: messageIndex)
+                        }
+                    }
+                    .padding(.top, 4)
                 }
             }
-            .padding(.horizontal, 36)
-            .padding(.vertical, 28)
-            .background(Color(UIColor.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: 8)
+            .padding(.horizontal, 40)
         }
-        .onAppear {
-            startAnimations()
-        }
-    }
+        .task {
+            withAnimation(.easeOut(duration: 2.0).repeatForever(autoreverses: false)) { ring1 = 1.55 }
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            withAnimation(.easeOut(duration: 2.0).repeatForever(autoreverses: false)) { ring2 = 1.45 }
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            withAnimation(.easeOut(duration: 2.0).repeatForever(autoreverses: false)) { ring3 = 1.30 }
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { iconOffset = -7 }
 
-    private var heartsRow: some View {
-        HStack(spacing: 12) {
-            ForEach(0..<3, id: \.self) { i in
-                Text("🩷")
-                    .font(.system(size: 28))
-                    .scaleEffect(phase == i ? 1.35 : 0.85)
-                    .opacity(phase == i ? 1.0 : 0.45)
-                    .animation(
-                        .spring(response: 0.35, dampingFraction: 0.5),
-                        value: phase
-                    )
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 2_200_000_000)
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    messageIndex = (messageIndex + 1) % messages.count
+                }
             }
         }
     }
 
-    private func startAnimations() {
-        Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { _ in
-            phase = (phase + 1) % 3
-        }
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
-            dotCount = (dotCount + 1) % 3
-        }
-        Timer.scheduledTimer(withTimeInterval: 2.2, repeats: true) { _ in
-            withAnimation {
-                messageIndex = (messageIndex + 1) % messages.count
-            }
-        }
+    private func rippleRing(scale: CGFloat, size: CGFloat, color: Color) -> some View {
+        Circle()
+            .stroke(color, lineWidth: 1.5)
+            .frame(width: size, height: size)
+            .scaleEffect(scale)
+            .opacity(Double(max(0, 1.0 - (scale - 1.0) * 2)))
     }
 }
