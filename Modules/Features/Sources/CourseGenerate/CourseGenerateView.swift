@@ -7,6 +7,7 @@ public struct CourseGenerateView: View {
     @Bindable var store: StoreOf<CourseGenerateFeature>
     @State private var pendingDeleteId: UUID? = nil
     @State private var showExitConfirm = false
+    @FocusState private var locationFocused: Bool
     @Environment(\.dismiss) private var dismiss
 
     public init(store: StoreOf<CourseGenerateFeature>) {
@@ -95,18 +96,116 @@ public struct CourseGenerateView: View {
     // MARK: - Location
 
     private var locationSection: some View {
-        FormCard {
-            HStack(spacing: Spacing.md) {
-                iconBadge("location.fill", color: Brand.pink)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("어디서?")
-                        .font(Typography.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    TextField("홍대, 강남, 성수동...", text: $store.location)
-                        .font(Typography.body.weight(.medium))
+        VStack(spacing: 0) {
+            FormCard {
+                HStack(alignment: .top, spacing: Spacing.md) {
+                    iconBadge("location.fill", color: Brand.pink)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("어디서?")
+                                .font(Typography.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            if !store.selectedLocations.isEmpty {
+                                Text("\(store.selectedLocations.count)/3")
+                                    .font(Typography.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        if !store.selectedLocations.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 6) {
+                                    ForEach(Array(store.selectedLocations.enumerated()), id: \.offset) { index, place in
+                                        locationChip(place.placeName ?? place.keyword, index: index)
+                                    }
+                                }
+                            }
+                        }
+
+                        if store.selectedLocations.count < 3 {
+                            HStack(spacing: 6) {
+                                TextField(
+                                    store.selectedLocations.isEmpty ? "홍대, 강남, 사당역..." : "장소 추가...",
+                                    text: $store.locationQuery
+                                )
+                                .font(Typography.body.weight(.medium))
+                                .focused($locationFocused)
+                                if store.isSearchingLocation {
+                                    ProgressView().scaleEffect(0.7)
+                                }
+                            }
+                        }
+                    }
                 }
             }
+
+            if !store.locationSuggestions.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(Array(store.locationSuggestions.enumerated()), id: \.offset) { index, place in
+                        Button {
+                            Haptics.selection()
+                            store.send(.locationSuggestionSelected(place))
+                            locationFocused = store.selectedLocations.count < 3
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Brand.pink)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(place.placeName ?? place.keyword)
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    if let addr = place.address, !addr.isEmpty {
+                                        Text(addr)
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(.horizontal, Spacing.md)
+                            .padding(.vertical, 10)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if index < store.locationSuggestions.count - 1 {
+                            Divider().padding(.leading, 44)
+                        }
+                    }
+                }
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
+                .padding(.top, 4)
+            }
         }
+    }
+
+    private func locationChip(_ name: String, index: Int) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: "mappin.fill")
+                .font(.system(size: 9))
+            Text(name)
+                .font(.system(size: 12, weight: .semibold))
+                .lineLimit(1)
+            Button {
+                Haptics.selection()
+                store.send(.removeSelectedLocation(index))
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .padding(.leading, 2)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Brand.softPink)
+        .foregroundStyle(Brand.pink)
+        .clipShape(Capsule())
+        .overlay { Capsule().stroke(Brand.pink.opacity(0.4), lineWidth: 1) }
     }
 
     // MARK: - Date
@@ -289,8 +388,9 @@ public struct CourseGenerateView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .padding(.top, 2)
-            } else if !store.selectedWishlistIds.isEmpty && !store.location.isEmpty {
-                Text("'\(store.location)' 지역이 아닌 경우 AI가 비슷한 유형으로 대체해요.")
+            } else if !store.selectedWishlistIds.isEmpty && !store.selectedLocations.isEmpty {
+                let locationStr = store.selectedLocations.map { $0.placeName ?? $0.keyword }.joined(separator: ", ")
+                Text("'\(locationStr)' 지역이 아닌 경우 AI가 비슷한 유형으로 대체해요.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .padding(.top, 2)
@@ -333,12 +433,12 @@ public struct CourseGenerateView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
-                .background(store.location.isEmpty ? Color(.tertiaryLabel) : Brand.pink)
+                .background(store.selectedLocations.isEmpty ? Color(.tertiaryLabel) : Brand.pink)
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: store.location.isEmpty ? .clear : Brand.pink.opacity(0.35), radius: 12, x: 0, y: 4)
+                .shadow(color: store.selectedLocations.isEmpty ? .clear : Brand.pink.opacity(0.35), radius: 12, x: 0, y: 4)
             }
-            .disabled(store.location.isEmpty)
+            .disabled(store.selectedLocations.isEmpty)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.sm)
             .padding(.bottom, Spacing.lg)

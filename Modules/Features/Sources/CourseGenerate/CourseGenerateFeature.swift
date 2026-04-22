@@ -7,7 +7,10 @@ public struct CourseGenerateFeature {
     @ObservableState
     public struct State: Equatable {
         public var user: User
-        public var location = ""
+        public var locationQuery = ""
+        public var selectedLocations: [CoursePlace] = []
+        public var locationSuggestions: [CoursePlace] = []
+        public var isSearchingLocation = false
         public var selectedThemes: [String] = []
         public var placeCount = 3
         public var memo = ""
@@ -19,7 +22,6 @@ public struct CourseGenerateFeature {
 
         public init(user: User) {
             self.user = user
-            self.location = user.location
             self.selectedThemes = user.preferredThemes
         }
     }
@@ -33,6 +35,10 @@ public struct CourseGenerateFeature {
         case wishlistLoaded([WishlistPlace])
         case toggleWishlistPlace(UUID)
         case removeFromWishlist(UUID)
+        case locationSearchDebounced
+        case locationSuggestionsLoaded([CoursePlace])
+        case locationSuggestionSelected(CoursePlace)
+        case removeSelectedLocation(Int)
 
         public enum Delegate: Equatable {
             case courseGenerated(CoursePlan, CourseOptions)
@@ -45,6 +51,7 @@ public struct CourseGenerateFeature {
     @Dependency(\.wishlistRepository) var wishlistRepository
     @Dependency(\.currentUserId) var currentUserId
     @Dependency(\.userRepository) var userRepository
+    @Dependency(\.placeRepository) var placeRepository
 
     public init() {}
 
@@ -52,7 +59,60 @@ public struct CourseGenerateFeature {
         BindingReducer()
         Reduce { state, action in
             switch action {
-            case .binding(\.location):
+            case .binding(\.locationQuery):
+                state.locationSuggestions = []
+                guard state.locationQuery.count >= 2 else {
+                    state.isSearchingLocation = false
+                    return .cancel(id: "locationSearch")
+                }
+                state.isSearchingLocation = true
+                return .run { send in
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                    await send(.locationSearchDebounced)
+                }
+                .cancellable(id: "locationSearch", cancelInFlight: true)
+
+            case .locationSearchDebounced:
+                let query = state.locationQuery
+                return .run { [placeRepository] send in
+                    let results = (try? await placeRepository.searchPlaces(keyword: query)) ?? []
+                    await send(.locationSuggestionsLoaded(results))
+                }
+
+            case .locationSuggestionsLoaded(let places):
+                state.isSearchingLocation = false
+                let selectedKeys = Set(state.selectedLocations.compactMap { $0.placeName?.locationKey })
+                // 1차: 정규화된 이름으로 exact dedup
+                var seen = Set<String>()
+                var deduped = places.filter { place in
+                    let key = (place.placeName ?? place.keyword).locationKey
+                    if seen.contains(key) || selectedKeys.contains(key) { return false }
+                    seen.insert(key)
+                    return true
+                }
+                // 2차: 다른 항목의 prefix인 경우 제거 (예: "홍대입구역 2호선 1번출구" → "홍대입구역 2호선"의 중복)
+                deduped = deduped.filter { place in
+                    let key = (place.placeName ?? place.keyword).locationKey
+                    return !deduped.contains { other in
+                        let otherKey = (other.placeName ?? other.keyword).locationKey
+                        return otherKey != key && key.hasPrefix(otherKey)
+                    }
+                }
+                state.locationSuggestions = Array(deduped.prefix(5))
+                return .none
+
+            case .locationSuggestionSelected(let place):
+                guard state.selectedLocations.count < 3 else { return .none }
+                state.selectedLocations.append(place)
+                state.locationQuery = ""
+                state.locationSuggestions = []
+                state.isSearchingLocation = false
+                state.selectedWishlistIds = []
+                return .none
+
+            case .removeSelectedLocation(let index):
+                guard state.selectedLocations.indices.contains(index) else { return .none }
+                state.selectedLocations.remove(at: index)
                 state.selectedWishlistIds = []
                 return .none
 
@@ -87,15 +147,23 @@ public struct CourseGenerateFeature {
 
             case .generateTapped:
                 state.isGenerating = true
+                state.locationSuggestions = []
+                let locationStr = state.selectedLocations.map { $0.placeName ?? $0.keyword }.joined(separator: ", ")
+                let lats = state.selectedLocations.compactMap { $0.latitude }
+                let lons = state.selectedLocations.compactMap { $0.longitude }
+                let baseLat = lats.isEmpty ? nil : lats.reduce(0, +) / Double(lats.count)
+                let baseLon = lons.isEmpty ? nil : lons.reduce(0, +) / Double(lons.count)
                 let selectedWishlist = state.wishlistPlaces.filter { state.selectedWishlistIds.contains($0.id) }
                 let options = CourseOptions(
-                    location: state.location,
+                    location: locationStr,
                     themes: state.selectedThemes,
                     placeCount: state.placeCount,
                     mode: .ordered,
                     memo: state.memo,
                     date: state.date,
-                    wishlistPlaces: selectedWishlist
+                    wishlistPlaces: selectedWishlist,
+                    baseLatitude: baseLat,
+                    baseLongitude: baseLon
                 )
                 return .run { [options, user = state.user] send in
                     let partner = currentPartner()
@@ -106,9 +174,10 @@ public struct CourseGenerateFeature {
 
             case .generateResponse(.success(let plan)):
                 state.isGenerating = false
+                let locationStr = state.selectedLocations.map { $0.placeName ?? $0.keyword }.joined(separator: ", ")
                 let selectedWishlist = state.wishlistPlaces.filter { state.selectedWishlistIds.contains($0.id) }
                 let options = CourseOptions(
-                    location: state.location,
+                    location: locationStr,
                     themes: state.selectedThemes,
                     placeCount: state.placeCount,
                     mode: .ordered,
@@ -140,5 +209,14 @@ public struct CourseGenerateFeature {
                 return .none
             }
         }
+    }
+}
+
+private extension String {
+    // 유니코드 정규화 + 공백 제거 → 중복 판단 키
+    var locationKey: String {
+        self.folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+            .components(separatedBy: .whitespacesAndNewlines)
+            .joined()
     }
 }
