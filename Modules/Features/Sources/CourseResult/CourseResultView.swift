@@ -11,6 +11,8 @@ public struct CourseResultView: View {
     @State private var showCandidates = false
     @State private var tappedPlaceOrder: Int? = nil
     @State private var isReordering = false
+    @State private var placesBeforeReorder: [CoursePlace] = []
+    @State private var showExitConfirm = false
 
     private var coordinatePlaces: [(CoursePlace, CLLocationCoordinate2D)] {
         store.course.places.compactMap { place in
@@ -101,11 +103,34 @@ public struct CourseResultView: View {
         }
         .navigationTitle(store.course.title)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(!store.isSaved)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .disableSwipeBack()
         .onAppear { store.send(.onAppear) }
         .onDisappear { store.send(.viewDisappeared) }
+        .alert("코스를 저장하지 않고 나갈까요?", isPresented: $showExitConfirm) {
+            Button("나가기", role: .destructive) { store.send(.delegate(.dismiss)) }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("저장하지 않으면 이 코스가 사라져요.")
+        }
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                if !store.isSaved {
+                    Button {
+                        showExitConfirm = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("뒤로")
+                                .font(Typography.body)
+                        }
+                    }
+                    .tint(Brand.pink)
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 if store.isPlaying {
                     HStack(spacing: 4) {
@@ -290,12 +315,21 @@ public struct CourseResultView: View {
                 Spacer()
                 if !store.isPlaying {
                     if isReordering {
-                        Button("완료") {
-                            Haptics.impact(.light)
-                            withAnimation { isReordering = false }
+                        HStack(spacing: 12) {
+                            Button("취소") {
+                                Haptics.impact(.light)
+                                store.send(.resetPlaces(placesBeforeReorder))
+                                withAnimation { isReordering = false }
+                            }
+                            .font(Typography.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            Button("완료") {
+                                Haptics.impact(.light)
+                                withAnimation { isReordering = false }
+                            }
+                            .font(Typography.caption.weight(.semibold))
+                            .foregroundStyle(Brand.pink)
                         }
-                        .font(Typography.caption.weight(.semibold))
-                        .foregroundStyle(Brand.pink)
                     } else {
                         HStack(spacing: 10) {
                             Label("탭하면 지도 이동", systemImage: "mappin.and.ellipse")
@@ -303,6 +337,7 @@ public struct CourseResultView: View {
                                 .foregroundStyle(.secondary)
                             Button("순서 편집") {
                                 Haptics.impact(.light)
+                                placesBeforeReorder = store.course.places
                                 withAnimation { isReordering = true }
                             }
                             .font(.system(size: 10, weight: .semibold))
@@ -709,6 +744,11 @@ public struct CourseResultView: View {
 
     private var saveButton: some View {
         Button {
+            guard !store.course.title.trimmingCharacters(in: .whitespaces).isEmpty else {
+                Haptics.notification(.warning)
+                titleFocused = true
+                return
+            }
             titleFocused = false
             Haptics.notification(.success)
             store.send(.saveTapped)

@@ -67,6 +67,7 @@ public struct CourseResultFeature {
         case updateTitleResponse(Result<Void, Error>)
         case viewDisappeared
         case reorderPlaces(IndexSet, Int)
+        case resetPlaces([CoursePlace])
         case removePlace(IndexSet)
         case addCandidate(CoursePlace)
         case onAppear
@@ -293,6 +294,10 @@ public struct CourseResultFeature {
                 state.course.places = state.course.places.enumerated().map { index, place in
                     var p = place; p.order = index + 1; return p
                 }
+                return .none
+
+            case .resetPlaces(let places):
+                state.course.places = places
                 return .none
 
             case .removePlace(let offsets):
