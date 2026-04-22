@@ -46,6 +46,7 @@ public struct Course: Identifiable, Codable, Equatable {
     public var date: Date
     public var mode: CourseMode
     public var places: [CoursePlace]
+    public var candidates: [CoursePlace]
     public var promptSummary: String
     public var outfitSuggestion: String?
     public var courseReason: String
@@ -60,6 +61,7 @@ public struct Course: Identifiable, Codable, Equatable {
         date: Date = Date(),
         mode: CourseMode,
         places: [CoursePlace],
+        candidates: [CoursePlace] = [],
         promptSummary: String = "",
         outfitSuggestion: String? = nil,
         courseReason: String = "",
@@ -73,6 +75,7 @@ public struct Course: Identifiable, Codable, Equatable {
         self.date = date
         self.mode = mode
         self.places = places
+        self.candidates = candidates
         self.promptSummary = promptSummary
         self.outfitSuggestion = outfitSuggestion
         self.courseReason = courseReason

@@ -193,7 +193,7 @@ public struct CourseResultView: View {
             if let rating = store.course.rating, !store.isPlaying {
                 ratingCard(rating: rating, review: store.course.review)
             }
-            if !store.candidates.isEmpty, !store.isPlaying {
+            if !store.course.candidates.isEmpty, !store.isPlaying {
                 candidatesAccordion
             }
         }
@@ -586,7 +586,7 @@ public struct CourseResultView: View {
                         .font(Typography.caption.weight(.semibold))
                         .foregroundStyle(.primary)
                     Spacer()
-                    Text("\(store.candidates.count)곳")
+                    Text("\(store.course.candidates.count)곳")
                         .font(Typography.caption2)
                         .foregroundStyle(.secondary)
                     Image(systemName: showCandidates ? "chevron.up" : "chevron.down")
@@ -600,8 +600,8 @@ public struct CourseResultView: View {
             if showCandidates {
                 Divider().padding(.horizontal, Spacing.md)
                 VStack(spacing: 0) {
-                    ForEach(Array(store.candidates.enumerated()), id: \.element.order) { index, place in
-                        candidateRow(place: place, index: index, isLast: index == store.candidates.count - 1)
+                    ForEach(Array(store.course.candidates.enumerated()), id: \.element.order) { index, place in
+                        candidateRow(place: place, index: index, isLast: index == store.course.candidates.count - 1)
                     }
                 }
                 .padding(.horizontal, Spacing.md)

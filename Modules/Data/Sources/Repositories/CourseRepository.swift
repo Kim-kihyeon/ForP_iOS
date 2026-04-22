@@ -116,12 +116,13 @@ private struct CourseInsertRow: Encodable {
     let mode: String
     let date: String
     let places: [CoursePlace]
+    let candidates: [CoursePlace]
     let outfitSuggestion: String?
     let courseReason: String
     let isLiked: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, title, mode, date, places
+        case id, title, mode, date, places, candidates
         case userId = "user_id"
         case outfitSuggestion = "outfit_suggestion"
         case courseReason = "course_reason"
@@ -137,6 +138,7 @@ private struct CourseInsertRow: Encodable {
         f.dateFormat = "yyyy-MM-dd"
         date = f.string(from: course.date)
         places = course.places
+        candidates = course.candidates
         outfitSuggestion = course.outfitSuggestion
         courseReason = course.courseReason
         isLiked = course.isLiked
@@ -150,6 +152,7 @@ private struct CourseFetchRow: Decodable {
     let mode: String
     let date: String?
     let places: [CoursePlace]
+    let candidates: [CoursePlace]?
     let createdAt: String
     let outfitSuggestion: String?
     let courseReason: String?
@@ -158,7 +161,7 @@ private struct CourseFetchRow: Decodable {
     let review: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, mode, date, places, rating, review
+        case id, title, mode, date, places, candidates, rating, review
         case userId = "user_id"
         case createdAt = "created_at"
         case outfitSuggestion = "outfit_suggestion"
@@ -180,6 +183,7 @@ private struct CourseFetchRow: Decodable {
             date: parsedDate,
             mode: CourseMode(rawValue: mode) ?? .ordered,
             places: places,
+            candidates: candidates ?? [],
             outfitSuggestion: outfitSuggestion,
             courseReason: courseReason ?? "",
             isLiked: isLiked ?? false,

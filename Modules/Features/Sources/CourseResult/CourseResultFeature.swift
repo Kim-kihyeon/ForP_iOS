@@ -25,15 +25,13 @@ public struct CourseResultFeature {
             !course.places.isEmpty && course.places.allSatisfy { visitedOrders.contains($0.order) }
         }
 
-        public var candidates: [CoursePlace] = []
         public var bookmarkedKeywords: Set<String> = []
 
         @Presents public var alert: AlertState<Action.Alert>?
 
-        public init(course: Course, isSaved: Bool = false, candidates: [CoursePlace] = []) {
+        public init(course: Course, isSaved: Bool = false) {
             self.course = course
             self.isSaved = isSaved
-            self.candidates = candidates
         }
     }
 
@@ -311,8 +309,8 @@ public struct CourseResultFeature {
                 var newPlace = place
                 newPlace.order = state.course.places.count + 1
                 state.course.places.append(newPlace)
-                state.candidates.removeAll { $0.keyword == place.keyword }
-                state.candidates = state.candidates.enumerated().map { index, p in
+                state.course.candidates.removeAll { $0.keyword == place.keyword }
+                state.course.candidates = state.course.candidates.enumerated().map { index, p in
                     var updated = p; updated.order = index + 1; return updated
                 }
                 return .none

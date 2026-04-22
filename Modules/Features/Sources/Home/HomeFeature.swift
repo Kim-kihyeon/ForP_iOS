@@ -144,11 +144,12 @@ public struct HomeFeature {
                     title: "\(options.location) 데이트",
                     mode: options.mode,
                     places: plan.places,
+                    candidates: plan.candidates,
                     outfitSuggestion: plan.outfitSuggestion,
                     courseReason: plan.courseReason
                 )
                 state.path.removeLast()
-                state.path.append(.courseResult(CourseResultFeature.State(course: course, candidates: plan.candidates)))
+                state.path.append(.courseResult(CourseResultFeature.State(course: course)))
                 return .none
 
             case .path(.popFrom(id: let id)):
