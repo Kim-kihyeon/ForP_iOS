@@ -25,6 +25,10 @@ public struct HomeFeature {
         public var upcomingAnniversary: Anniversary? = nil
         public var weather: WeatherInfo? = nil
         public var isLoading = false
+        public var showMonthlyReport = false
+        public var monthlyCourses: [Course] = []
+        public var isLoadingMonthly = false
+        public var showTasteMap = false
         @Presents public var alert: AlertState<Action.Alert>?
 
         public init(user: User) {
@@ -42,6 +46,10 @@ public struct HomeFeature {
         case generateCourseTapped
         case courseSelected(Course)
         case settingsTapped
+        case monthlyReportTapped
+        case monthlyReportDismissed
+        case loadMonthlyCoursesResponse(Result<[Course], Error>)
+        case tasteMapDismissed
         case alert(PresentationAction<Alert>)
         case delegate(Delegate)
 
@@ -57,6 +65,7 @@ public struct HomeFeature {
     @Dependency(\.notificationService) var notificationService: any NotificationServiceProtocol
     @Dependency(\.weatherService) var weatherService: any WeatherServiceProtocol
     @Dependency(\.placeRepository) var placeRepository
+    @Dependency(\.courseRepository) var courseRepository: any CourseRepositoryProtocol
 
     public init() {}
 
@@ -121,6 +130,36 @@ public struct HomeFeature {
             case .loadCoursesResponse(.failure(let error)):
                 state.isLoading = false
                 state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
+                return .none
+
+            case .monthlyReportTapped:
+                let cal = Calendar.current
+                let now = Date()
+                let year = cal.component(.year, from: now)
+                let month = cal.component(.month, from: now)
+                state.showMonthlyReport = true
+                state.isLoadingMonthly = true
+                return .run { [userId = state.user.id] send in
+                    await send(.loadMonthlyCoursesResponse(
+                        Result { try await courseRepository.fetchCoursesByMonth(userId: userId, year: year, month: month) }
+                    ))
+                }
+
+            case .monthlyReportDismissed:
+                state.showMonthlyReport = false
+                return .none
+
+            case .loadMonthlyCoursesResponse(.success(let courses)):
+                state.isLoadingMonthly = false
+                state.monthlyCourses = courses
+                return .none
+
+            case .loadMonthlyCoursesResponse(.failure):
+                state.isLoadingMonthly = false
+                return .none
+
+            case .tasteMapDismissed:
+                state.showTasteMap = false
                 return .none
 
             case .alert:
@@ -209,6 +248,10 @@ public struct HomeFeature {
 
             case .path(.element(_, action: .settings(.delegate(.openChecklist)))):
                 state.path.append(.defaultChecklist)
+                return .none
+
+            case .path(.element(_, action: .settings(.delegate(.openTasteMap)))):
+                state.showTasteMap = true
                 return .none
 
             case .path(.element(_, action: .settings(.delegate(.loggedOut)))):

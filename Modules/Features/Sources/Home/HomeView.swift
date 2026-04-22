@@ -41,6 +41,26 @@ public struct HomeView: View {
         }
         .onAppear { store.send(.onAppear) }
         .alert($store.scope(state: \.alert, action: \.alert))
+        .sheet(isPresented: Binding(
+            get: { store.showMonthlyReport },
+            set: { if !$0 { store.send(.monthlyReportDismissed) } }
+        )) {
+            MonthlyReportView(
+                courses: store.monthlyCourses,
+                isLoading: store.isLoadingMonthly,
+                onDismiss: { store.send(.monthlyReportDismissed) }
+            )
+        }
+        .sheet(isPresented: Binding(
+            get: { store.showTasteMap },
+            set: { if !$0 { store.send(.tasteMapDismissed) } }
+        )) {
+            TasteMapView(
+                courses: store.recentCourses,
+                user: store.user,
+                onDismiss: { store.send(.tasteMapDismissed) }
+            )
+        }
     }
 
     // MARK: - Header
@@ -126,6 +146,11 @@ public struct HomeView: View {
                     .padding(.bottom, Spacing.sm)
             }
 
+            monthlyReportBanner
+                .padding(.horizontal, Spacing.lg)
+                .padding(.top, store.upcomingAnniversary == nil ? Spacing.lg : Spacing.sm)
+                .padding(.bottom, Spacing.sm)
+
             if store.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
@@ -137,6 +162,39 @@ public struct HomeView: View {
             }
         }
         .padding(.bottom, 100)
+    }
+
+    // MARK: - Monthly Report Banner
+
+    private var monthlyReportBanner: some View {
+        let month = Calendar.current.component(.month, from: Date())
+        return Button {
+            store.send(.monthlyReportTapped)
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Brand.pink.opacity(0.12))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Brand.pink)
+                }
+                Text("\(month)월 데이트 리포트 보기")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            .padding(12)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(.separator).opacity(colorScheme == .dark ? 1.0 : 0.5), lineWidth: 0.5))
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.04), radius: 6, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Anniversary
