@@ -20,6 +20,7 @@ public struct CourseGenerateFeature {
         public init(user: User) {
             self.user = user
             self.location = user.location
+            self.selectedThemes = user.preferredThemes
         }
     }
 
@@ -35,6 +36,7 @@ public struct CourseGenerateFeature {
 
         public enum Delegate: Equatable {
             case courseGenerated(CoursePlan, CourseOptions)
+            case userUpdated(User)
         }
     }
 
@@ -42,6 +44,7 @@ public struct CourseGenerateFeature {
     @Dependency(\.currentPartner) var currentPartner
     @Dependency(\.wishlistRepository) var wishlistRepository
     @Dependency(\.currentUserId) var currentUserId
+    @Dependency(\.userRepository) var userRepository
 
     public init() {}
 
@@ -113,6 +116,19 @@ public struct CourseGenerateFeature {
                     date: state.date,
                     wishlistPlaces: selectedWishlist
                 )
+                if !state.selectedThemes.isEmpty {
+                    var updatedUser = state.user
+                    let merged = state.selectedThemes + updatedUser.preferredThemes.filter { !state.selectedThemes.contains($0) }
+                    updatedUser.preferredThemes = Array(merged.prefix(5))
+                    state.user = updatedUser
+                    return .merge(
+                        .send(.delegate(.courseGenerated(plan, options))),
+                        .send(.delegate(.userUpdated(updatedUser))),
+                        .run { [updatedUser, userRepository] _ in
+                            try? await userRepository.updateUser(updatedUser)
+                        }
+                    )
+                }
                 return .send(.delegate(.courseGenerated(plan, options)))
 
             case .generateResponse(.failure(let error)):

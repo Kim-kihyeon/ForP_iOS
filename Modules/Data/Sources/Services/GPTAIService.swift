@@ -58,6 +58,7 @@ public struct GPTAIService: AIServiceProtocol {
         날씨: \(options.weatherDescription ?? "정보 없음")
         장소 수: 총 \(options.placeCount * 2)개 생성, 그 중 \(options.placeCount)개 선택 (isSelected: true)
         테마: \(options.themes.isEmpty ? "자유" : options.themes.joined(separator: ", "))
+        선호 테마: \(user.preferredThemes.isEmpty ? "없음" : user.preferredThemes.joined(separator: ", "))
         내 선호: \(user.preferredCategories.isEmpty ? "없음" : user.preferredCategories.joined(separator: ", "))
         내 비선호: \(user.dislikedCategories.isEmpty ? "없음" : user.dislikedCategories.joined(separator: ", "))
         """
