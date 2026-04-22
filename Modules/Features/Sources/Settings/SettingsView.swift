@@ -1,6 +1,7 @@
 import SwiftUI
 import ComposableArchitecture
 import CoreSharedUI
+import UIKit
 
 public struct SettingsView: View {
     @Bindable var store: StoreOf<SettingsFeature>
@@ -20,6 +21,7 @@ public struct SettingsView: View {
                     VStack(spacing: 12) {
                         coupleSection
                         wishlistSection
+                        insightSection
                         accountSection
                     }
                     .padding(.horizontal, Spacing.md)
@@ -34,7 +36,16 @@ public struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
-        .onAppear { store.send(.onAppear) }
+        .toolbarBackground(.visible, for: .navigationBar)
+        .onAppear {
+            store.send(.onAppear)
+            let appearance = UINavigationBarAppearance()
+            appearance.configureWithOpaqueBackground()
+            appearance.backgroundColor = UIColor(Brand.softPink)
+            appearance.shadowColor = .clear
+            UINavigationBar.appearance().standardAppearance = appearance
+            UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        }
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 
@@ -78,6 +89,7 @@ public struct SettingsView: View {
             .padding(.vertical, Spacing.md)
         }
         .frame(height: 130)
+        .clipped()
     }
 
     // MARK: - Sections
@@ -185,6 +197,22 @@ public struct SettingsView: View {
                     title: "기본 준비물 관리"
                 ) {
                     store.send(.checklistTapped)
+                }
+            }
+        }
+    }
+
+    private var insightSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("INSIGHT")
+
+            FormCard {
+                settingRow(
+                    icon: "sparkles",
+                    iconColor: Brand.pink,
+                    title: "취향 지도"
+                ) {
+                    store.send(.tasteMapTapped)
                 }
             }
         }
