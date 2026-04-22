@@ -15,7 +15,7 @@ public struct WishlistManageView: View {
             Color(.systemGroupedBackground).ignoresSafeArea()
 
             if store.isLoading {
-                ProgressView()
+                ProgressView("불러오는 중...")
             } else if store.loadFailed {
                 errorView
             } else if store.places.isEmpty {
@@ -26,7 +26,7 @@ public struct WishlistManageView: View {
                         placeRow(place)
                             .listRowBackground(Color(.secondarySystemGroupedBackground))
                     }
-                    .onDelete { store.send(.delete($0)) }
+                    .onDelete { store.send(.deleteRequested($0)) }
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
@@ -40,6 +40,13 @@ public struct WishlistManageView: View {
             EditButton()
                 .tint(Brand.pink)
         }
+        .alert("찜 목록에서 삭제할까요?", isPresented: Binding(
+            get: { store.pendingDeleteOffsets != nil },
+            set: { if !$0 { store.send(.deleteCancelled) } }
+        )) {
+            Button("삭제", role: .destructive) { store.send(.deleteConfirmed) }
+            Button("취소", role: .cancel) { store.send(.deleteCancelled) }
+        }
         .onAppear { store.send(.onAppear) }
     }
 
@@ -47,12 +54,20 @@ public struct WishlistManageView: View {
         HStack(spacing: Spacing.md) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Brand.softPink)
+                    .fill(
+                        RadialGradient(
+                            colors: [Brand.softPink, Brand.pink.opacity(0.12)],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 18
+                        )
+                    )
                     .frame(width: 36, height: 36)
                 Image(systemName: categoryIcon(place.category))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(Brand.pink)
             }
+            .shadow(color: Brand.pink.opacity(0.15), radius: 6, x: 0, y: 2)
             VStack(alignment: .leading, spacing: 3) {
                 Text(place.placeName ?? place.keyword)
                     .font(Typography.body.weight(.medium))

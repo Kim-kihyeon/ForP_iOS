@@ -9,6 +9,7 @@ public struct WishlistManageFeature {
         public var places: [WishlistPlace] = []
         public var isLoading = false
         public var loadFailed = false
+        public var pendingDeleteOffsets: IndexSet? = nil
 
         public init() {}
     }
@@ -16,7 +17,9 @@ public struct WishlistManageFeature {
     public enum Action {
         case onAppear
         case loadResponse(Result<[WishlistPlace], Error>)
-        case delete(IndexSet)
+        case deleteRequested(IndexSet)
+        case deleteConfirmed
+        case deleteCancelled
         case deleteResponse(Result<Void, Error>)
     }
 
@@ -48,9 +51,15 @@ public struct WishlistManageFeature {
                 state.loadFailed = true
                 return .none
 
-            case .delete(let offsets):
+            case .deleteRequested(let offsets):
+                state.pendingDeleteOffsets = offsets
+                return .none
+
+            case .deleteConfirmed:
+                guard let offsets = state.pendingDeleteOffsets else { return .none }
                 let ids = offsets.map { state.places[$0].id }
                 state.places.remove(atOffsets: offsets)
+                state.pendingDeleteOffsets = nil
                 return .run { send in
                     await send(.deleteResponse(Result {
                         for id in ids {
@@ -58,6 +67,10 @@ public struct WishlistManageFeature {
                         }
                     }))
                 }
+
+            case .deleteCancelled:
+                state.pendingDeleteOffsets = nil
+                return .none
 
             case .deleteResponse:
                 return .none
