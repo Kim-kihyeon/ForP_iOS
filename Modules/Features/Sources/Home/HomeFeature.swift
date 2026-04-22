@@ -1,5 +1,4 @@
 import ComposableArchitecture
-import CoreLocation
 import Domain
 import Foundation
 
@@ -57,6 +56,7 @@ public struct HomeFeature {
     @Dependency(\.anniversaryRepository) var anniversaryRepository
     @Dependency(\.notificationService) var notificationService: any NotificationServiceProtocol
     @Dependency(\.weatherService) var weatherService: any WeatherServiceProtocol
+    @Dependency(\.placeRepository) var placeRepository
 
     public init() {}
 
@@ -73,14 +73,12 @@ public struct HomeFeature {
                     await send(.loadAnniversariesResponse(
                         Result { try await anniversaryRepository.fetchAnniversaries(userId: userId) }
                     ))
-                    let coord: (Double, Double) = await withCheckedContinuation { cont in
-                        CLGeocoder().geocodeAddressString(userLocation) { placemarks, _ in
-                            if let location = placemarks?.first?.location {
-                                cont.resume(returning: (location.coordinate.latitude, location.coordinate.longitude))
-                            } else {
-                                cont.resume(returning: (37.5665, 126.9780))
-                            }
-                        }
+                    let coord: (Double, Double)
+                    if let place = try? await placeRepository.searchPlaces(keyword: userLocation).first,
+                       let lat = place.latitude, let lon = place.longitude {
+                        coord = (lat, lon)
+                    } else {
+                        coord = (37.5665, 126.9780)
                     }
                     await send(.loadWeatherResponse(
                         Result { try await weatherService.fetchWeather(latitude: coord.0, longitude: coord.1, date: Date()) }
@@ -158,6 +156,8 @@ public struct HomeFeature {
                     let course = courseState.course
                     if let idx = state.recentCourses.firstIndex(where: { $0.id == course.id }) {
                         state.recentCourses[idx] = course
+                    } else {
+                        state.recentCourses.insert(course, at: 0)
                     }
                 }
                 return .none
@@ -166,6 +166,8 @@ public struct HomeFeature {
                 state.path.removeAll()
                 if let idx = state.recentCourses.firstIndex(where: { $0.id == course.id }) {
                     state.recentCourses[idx] = course
+                } else {
+                    state.recentCourses.insert(course, at: 0)
                 }
                 return .none
 
@@ -185,6 +187,10 @@ public struct HomeFeature {
             case .path(.element(_, action: .profile(.delegate(.saved(let user))))):
                 state.user = user
                 state.path.removeLast()
+                return .none
+
+            case .path(.element(_, action: .courseGenerate(.delegate(.userUpdated(let user))))):
+                state.user = user
                 return .none
 
             case .path(.element(_, action: .settings(.delegate(.openAnniversary)))):

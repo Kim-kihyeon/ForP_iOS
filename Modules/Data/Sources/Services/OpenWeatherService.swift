@@ -11,11 +11,29 @@ public struct OpenWeatherService: WeatherServiceProtocol {
     public func fetchWeather(latitude: Double, longitude: Double, date: Date) async throws -> WeatherInfo {
         let daysFromNow = Calendar.current.dateComponents([.day], from: Date(), to: date).day ?? 0
 
-        if daysFromNow <= 4 {
+        if daysFromNow == 0 {
+            return try await fetchCurrentWeather(latitude: latitude, longitude: longitude)
+        } else if daysFromNow <= 4 {
             return try await fetchForecast(latitude: latitude, longitude: longitude, date: date)
         } else {
             return seasonalEstimate(for: date)
         }
+    }
+
+    private func fetchCurrentWeather(latitude: Double, longitude: Double) async throws -> WeatherInfo {
+        let urlString = "https://api.openweathermap.org/data/2.5/weather?lat=\(latitude)&lon=\(longitude)&appid=\(apiKey)&units=metric&lang=kr"
+        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let response = try JSONDecoder().decode(OWCurrentResponse.self, from: data)
+
+        let condition = response.weather.first?.description ?? "맑음"
+        let temp = Int(response.main.temp.rounded())
+        return WeatherInfo(
+            condition: condition,
+            temperature: temp,
+            description: "\(temp)°C, \(condition)"
+        )
     }
 
     private func fetchForecast(latitude: Double, longitude: Double, date: Date) async throws -> WeatherInfo {
@@ -25,7 +43,6 @@ public struct OpenWeatherService: WeatherServiceProtocol {
         let (data, _) = try await URLSession.shared.data(from: url)
         let response = try JSONDecoder().decode(OWForecastResponse.self, from: data)
 
-        // 날짜에 가장 가까운 예보 선택
         let target = date.timeIntervalSince1970
         let best = response.list.min { abs($0.dt - target) < abs($1.dt - target) }
 
@@ -60,6 +77,11 @@ public struct OpenWeatherService: WeatherServiceProtocol {
 }
 
 // MARK: - Response Models
+
+private struct OWCurrentResponse: Decodable {
+    let main: OWMain
+    let weather: [OWWeather]
+}
 
 private struct OWForecastResponse: Decodable {
     let list: [OWForecastItem]
