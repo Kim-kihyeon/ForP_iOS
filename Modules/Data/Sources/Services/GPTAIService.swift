@@ -10,7 +10,8 @@ public struct GPTAIService: AIServiceProtocol {
     }
 
     public func generateCoursePlan(user: User, partner: Partner?, options: CourseOptions) async throws -> CoursePlan {
-        let systemMessage = buildSystemMessage(location: options.location)
+        let primaryLocation = options.location.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces) ?? options.location
+        let systemMessage = buildSystemMessage(location: primaryLocation)
         let prompt = buildPrompt(user: user, partner: partner, options: options)
         return try await withCheckedThrowingContinuation { continuation in
             provider.request(.generateCourse(systemMessage: systemMessage, prompt: prompt)) { result in
@@ -32,9 +33,8 @@ public struct GPTAIService: AIServiceProtocol {
     private func buildSystemMessage(location: String) -> String {
         return """
         당신은 한국 커플 데이트 코스 큐레이터입니다.
-        반드시 유효한 JSON만 출력하세요. 설명, 마크다운, 추가 텍스트 없이 JSON만.
 
-        절대 규칙 (위반 시 응답 무효):
+        절대 규칙:
         1. 모든 장소는 '\(location)'에 실제로 존재해야 합니다.
         2. '\(location)'이 아닌 다른 시/구/동의 장소는 단 하나도 포함할 수 없습니다.
         3. keyword 값은 반드시 '\(location)'으로 시작하는 카카오맵 검색어여야 합니다.
@@ -43,6 +43,7 @@ public struct GPTAIService: AIServiceProtocol {
         4. 실제 카카오맵에서 검색 가능한 장소만 추천하세요.
         5. placeCount의 2배 장소를 생성하되, 가장 좋은 placeCount개에만 "isSelected": true를 표시하세요.
         6. courseReason: 이 코스를 추천하는 이유를 2-3문장으로 설명하세요.
+        7. 동선은 반드시 지리적으로 인접한 장소끼리 이동하도록 order를 배치하세요. 불필요하게 먼 곳을 오가는 동선은 절대 만들지 마세요.
         """
     }
 
@@ -81,34 +82,11 @@ public struct GPTAIService: AIServiceProtocol {
         }
         prompt += """
 
-        응답 형식 (JSON만, 예시):
-        {
-          "courseReason": "맑은 날씨를 활용한 야외 중심 코스예요. 홍대 감성 거리를 걸으며 즐길 수 있어요.",
-          "courses": [
-            {
-              "order": 1,
-              "category": "카페",
-              "keyword": "\(options.location) 감성 카페",
-              "reason": "조용한 분위기에서 대화하기 좋은 시작점",
-              "menu": "아인슈페너, 크루아상",
-              "isSelected": true
-            },
-            {
-              "order": 2,
-              "category": "카페",
-              "keyword": "\(options.location) 루프탑 카페",
-              "reason": "야경이 아름다운 대안 카페",
-              "menu": "아이스 아메리카노",
-              "isSelected": false
-            }
-          ],
-          "outfit": "가벼운 재킷에 청바지 조합이 어울려요. 저녁엔 쌀쌀할 수 있으니 얇은 겉옷을 챙기세요."
-        }
-
-        규칙:
-        - menu: 해당 장소에서 추천하는 메뉴 또는 즐길 거리 (카페/음식점은 반드시 포함, 그 외는 null 가능)
-        - outfit: 오늘 코스와 날씨/분위기에 어울리는 옷차림 제안 (1-2문장)
-        - isSelected: 최종 코스에 포함되는 장소는 true, 후보 장소는 false
+        필드 안내:
+        - keyword: '\(options.location)'으로 시작하는 카카오맵 검색어 (예: "\(options.location) 감성 카페")
+        - menu: 이 카테고리에서 일반적으로 즐기는 음식 종류나 활동 (예: "파스타, 와인", "아메리카노, 디저트"). 실제 존재하는 메뉴를 확신할 수 없으면 카테고리 특성 기반의 일반적인 표현으로만 작성. 카페·음식점·브런치·술/바 외에는 null
+        - outfit: 날씨·코스 분위기에 맞는 옷차림 제안 1-2문장
+        - isSelected: 최종 코스 포함 시 true, 후보 장소는 false
         """
         return prompt
     }
