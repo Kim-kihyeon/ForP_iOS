@@ -142,7 +142,24 @@ public struct CourseResultView: View {
                             .foregroundStyle(Brand.pink)
                     }
                 } else if store.isSaved {
-                    ShareLink(item: shareText) {
+                    Menu {
+                        Button {
+                            Task {
+                                guard let image = await renderShareCard() else { return }
+                                let activityVC = UIActivityViewController(activityItems: [image], applicationActivities: nil)
+                                guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                                      let window = windowScene.windows.first else { return }
+                                var topVC = window.rootViewController
+                                while let presented = topVC?.presentedViewController { topVC = presented }
+                                topVC?.present(activityVC, animated: true)
+                            }
+                        } label: {
+                            Label("카드 이미지로 공유", systemImage: "photo")
+                        }
+                        ShareLink(item: shareText) {
+                            Label("텍스트로 공유", systemImage: "doc.text")
+                        }
+                    } label: {
                         Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .medium))
                     }
                     .tint(Brand.pink)
@@ -211,14 +228,21 @@ public struct CourseResultView: View {
                     Text(store.isSaved ? "코스 이름" : "코스 이름을 정해주세요")
                         .font(Typography.caption2.weight(.semibold))
                         .foregroundStyle(store.isSaved ? .secondary : Brand.pink)
-                    TextField("코스 제목", text: $store.course.title)
-                        .font(.system(size: 22, weight: .bold))
-                        .focused($titleFocused)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            titleFocused = false
-                            store.send(.titleCommitted)
+                    HStack(spacing: 6) {
+                        TextField("코스 제목", text: $store.course.title)
+                            .font(.system(size: 22, weight: .bold))
+                            .focused($titleFocused)
+                            .submitLabel(.done)
+                            .onSubmit {
+                                titleFocused = false
+                                store.send(.titleCommitted)
+                            }
+                        if !titleFocused {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Color(.tertiaryLabel))
                         }
+                    }
                     Rectangle()
                         .fill(titleFocused ? Brand.pink : Color.clear)
                         .frame(height: 2)
@@ -354,11 +378,21 @@ public struct CourseResultView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(store.course.places.enumerated()), id: \.element.order) { index, place in
-                        timelineRow(place: place, index: index, isLast: index == store.course.places.count - 1)
+                        timelineRow(place: place, index: index)
+                            .padding(Spacing.md)
+                            .cardStyle()
+
+                        if index < store.course.places.count - 1 {
+                            HStack(spacing: 0) {
+                                Spacer().frame(width: Spacing.md + 16)
+                                Rectangle()
+                                    .fill(Color(.separator).opacity(0.6))
+                                    .frame(width: 2, height: 14)
+                                Spacer()
+                            }
+                        }
                     }
                 }
-                .padding(Spacing.md)
-                .cardStyle()
             }
         }
     }
@@ -405,33 +439,23 @@ public struct CourseResultView: View {
         .environment(\.locale, Locale(identifier: "ko_KR"))
     }
 
-    private func timelineRow(place: CoursePlace, index: Int, isLast: Bool) -> some View {
+    private func timelineRow(place: CoursePlace, index: Int) -> some View {
         let color = placeColors[index % placeColors.count]
         let isVisited = store.visitedOrders.contains(place.order)
 
         return HStack(alignment: .top, spacing: 14) {
-            // Timeline indicator
-            VStack(spacing: 0) {
-                ZStack {
-                    Circle()
-                        .fill(isVisited ? Color(.systemFill) : color)
-                        .frame(width: 32, height: 32)
-                    if isVisited {
-                        Image(systemName: "checkmark")
-                            .font(.system(.subheadline, design: .rounded, weight: .bold))
-                            .foregroundStyle(color)
-                    } else {
-                        Text("\(place.order)")
-                            .font(.system(.subheadline, design: .rounded, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-                }
-                if !isLast {
-                    Rectangle()
-                        .fill(Color(.separator))
-                        .frame(width: 1.5)
-                        .frame(minHeight: 24)
-                        .padding(.vertical, 4)
+            ZStack {
+                Circle()
+                    .fill(isVisited ? Color(.systemFill) : color)
+                    .frame(width: 32, height: 32)
+                if isVisited {
+                    Image(systemName: "checkmark")
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        .foregroundStyle(color)
+                } else {
+                    Text("\(place.order)")
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        .foregroundStyle(.white)
                 }
             }
 
@@ -529,7 +553,6 @@ public struct CourseResultView: View {
                     }
                 }
             }
-            .padding(.bottom, isLast ? 0 : 16)
             .opacity(isVisited && store.isPlaying ? 0.55 : 1)
             .animation(.easeInOut(duration: 0.2), value: isVisited)
         }
@@ -666,45 +689,9 @@ public struct CourseResultView: View {
     private var startButton: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                Button { store.send(.departureTapped) } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 11, weight: .medium))
-                        Text("출발 시각 계산")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .foregroundStyle(Brand.pink)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(Brand.softPink)
-                    .clipShape(Capsule())
-                }
-                Button { store.send(.budgetTapped) } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "wonsign.circle.fill")
-                            .font(.system(size: 11, weight: .medium))
-                        Text("예산 계산")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .foregroundStyle(Brand.pink)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(Brand.softPink)
-                    .clipShape(Capsule())
-                }
-                Button { store.send(.checklistTapped) } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "checklist")
-                            .font(.system(size: 11, weight: .medium))
-                        Text("체크리스트")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .foregroundStyle(Brand.pink)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(Brand.softPink)
-                    .clipShape(Capsule())
-                }
+                utilityButton(icon: "clock.fill", label: "출발 시각") { store.send(.departureTapped) }
+                utilityButton(icon: "wonsign.circle.fill", label: "예산 계산") { store.send(.budgetTapped) }
+                utilityButton(icon: "checklist", label: "체크리스트") { store.send(.checklistTapped) }
             }
             HStack(spacing: Spacing.md) {
                 Button { Haptics.impact(.medium); store.send(.likeTapped) } label: {
@@ -850,6 +837,47 @@ public struct CourseResultView: View {
 
     // MARK: - Kakao Map
 
+    @MainActor
+    private func renderShareCard() async -> UIImage? {
+        let size = CGSize(width: 390, height: 520)
+        let hosting = UIHostingController(rootView: CourseShareCard(course: store.course).ignoresSafeArea())
+        hosting.view.frame = CGRect(x: -size.width * 2, y: 0, width: size.width, height: size.height)
+        hosting.view.backgroundColor = .clear
+        hosting.additionalSafeAreaInsets = .zero
+
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else { return nil }
+        window.addSubview(hosting.view)
+        hosting.view.layoutIfNeeded()
+
+        // SwiftUI 첫 렌더링 완료 대기
+        try? await Task.sleep(nanoseconds: 150_000_000)
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 3.0
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            hosting.view.drawHierarchy(in: hosting.view.bounds, afterScreenUpdates: true)
+        }
+        hosting.view.removeFromSuperview()
+        return image
+    }
+
+    private func utilityButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .medium))
+                Text(label)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(Brand.pink)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(Brand.softPink)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+    }
+
     private func openKakaoMap(place: CoursePlace) {
         let placeName = place.placeName ?? place.keyword
         guard let encoded = placeName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
@@ -868,5 +896,139 @@ public struct CourseResultView: View {
                   let webURL = URL(string: "https://map.kakao.com/link/search/\(encoded2)") else { return }
             UIApplication.shared.open(webURL)
         }
+    }
+}
+
+// MARK: - Course Share Card
+
+private struct CourseShareCard: View {
+    let course: Course
+
+    private var dateText: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.dateFormat = "M월 d일 (E)"
+        return f.string(from: course.date)
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.88, green: 0.13, blue: 0.33),
+                    Color(red: 0.97, green: 0.33, blue: 0.48),
+                    Color(red: 1.0, green: 0.56, blue: 0.36).opacity(0.85)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(.white.opacity(0.07))
+                .frame(width: 320)
+                .blur(radius: 60)
+                .offset(x: -100, y: -280)
+
+            Circle()
+                .fill(.white.opacity(0.05))
+                .frame(width: 220)
+                .blur(radius: 40)
+                .offset(x: 160, y: 240)
+
+            VStack(alignment: .leading, spacing: 0) {
+                // Header
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("ForP")
+                            .font(.system(size: 22, weight: .black, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("AI 데이트 코스")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.65))
+                            .tracking(1.5)
+                    }
+                    Spacer()
+                    Text(dateText)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.white.opacity(0.18))
+                        .clipShape(Capsule())
+                }
+                .padding(.horizontal, 32)
+                .padding(.top, 48)
+
+                Spacer()
+
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(course.title)
+                            .font(.system(size: 30, weight: .bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+
+                        if let rating = course.rating {
+                            HStack(spacing: 3) {
+                                ForEach(1...5, id: \.self) { i in
+                                    Image(systemName: i <= rating ? "star.fill" : "star")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(i <= rating ? Color.yellow : .white.opacity(0.35))
+                                }
+                            }
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(Array(course.places.prefix(5).enumerated()), id: \.offset) { index, place in
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(.white.opacity(0.22))
+                                        .frame(width: 28, height: 28)
+                                    Text("\(place.order)")
+                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.white)
+                                }
+                                Text(place.placeName ?? place.keyword)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text(place.category)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.75))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(.white.opacity(0.18))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        if course.places.count > 5 {
+                            Text("외 \(course.places.count - 5)곳 더")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.white.opacity(0.55))
+                                .padding(.leading, 40)
+                        }
+                    }
+                }
+                .padding(.horizontal, 32)
+
+                Spacer()
+
+                HStack {
+                    Text("ForP로 만든 데이트 코스")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.55))
+                    Spacer()
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 44)
+            }
+        }
+        .frame(width: 390, height: 520)
     }
 }
