@@ -33,6 +33,38 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
         }
     }
 
+    public func fetchCoursesByMonth(userId: UUID, year: Int, month: Int) async throws -> [Course] {
+        let startDate = String(format: "%04d-%02d-01", year, month)
+        let endMonth = month == 12 ? 1 : month + 1
+        let endYear = month == 12 ? year + 1 : year
+        let endDate = String(format: "%04d-%02d-01", endYear, endMonth)
+        do {
+            let rows: [CourseFetchRow] = try await supabase
+                .from("courses")
+                .select()
+                .eq("user_id", value: userId)
+                .gte("date", value: startDate)
+                .lt("date", value: endDate)
+                .order("date", ascending: false)
+                .execute()
+                .value
+            return rows.map { $0.toDomain() }
+        } catch {
+            let descriptor = FetchDescriptor<CourseCache>(
+                predicate: #Predicate { $0.userId == userId },
+                sortBy: [SortDescriptor(\.date, order: .reverse)]
+            )
+            let cached = try modelContext.fetch(descriptor)
+            let cal = Calendar.current
+            return try cached.compactMap { cache -> Course? in
+                let course = try cache.toDomain()
+                let comps = cal.dateComponents([.year, .month], from: course.date)
+                guard comps.year == year, comps.month == month else { return nil }
+                return course
+            }
+        }
+    }
+
     public func saveCourse(_ course: Course) async throws {
         let row = CourseInsertRow(from: course)
         try await supabase
