@@ -2,7 +2,7 @@ import Foundation
 import Moya
 
 public enum KakaoTarget {
-    case searchKeyword(query: String, x: String? = nil, y: String? = nil, radius: Int? = nil)
+    case searchKeyword(query: String, x: String? = nil, y: String? = nil, radius: Int? = nil, size: Int = 5)
 }
 
 extension KakaoTarget: TargetType {
@@ -14,8 +14,8 @@ extension KakaoTarget: TargetType {
 
     public var task: Task {
         switch self {
-        case .searchKeyword(let query, let x, let y, let radius):
-            var params: [String: Any] = ["query": query]
+        case .searchKeyword(let query, let x, let y, let radius, let size):
+            var params: [String: Any] = ["query": query, "size": size]
             if let x { params["x"] = x }
             if let y { params["y"] = y }
             if let radius { params["radius"] = radius }

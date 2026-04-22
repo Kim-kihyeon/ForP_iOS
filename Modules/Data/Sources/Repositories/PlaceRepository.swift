@@ -16,19 +16,7 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
                 case .success(let response):
                     do {
                         let dto = try JSONDecoder().decode(KakaoSearchResponse.self, from: response.data)
-                        let places = dto.documents.map { doc in
-                            CoursePlace(
-                                order: 0,
-                                category: "",
-                                keyword: keyword,
-                                reason: "",
-                                placeName: doc.placeName,
-                                address: doc.addressName,
-                                latitude: Double(doc.y),
-                                longitude: Double(doc.x)
-                            )
-                        }
-                        continuation.resume(returning: places)
+                        continuation.resume(returning: Self.deduplicated(dto.documents, keyword: keyword))
                     } catch {
                         continuation.resume(throwing: error)
                     }
@@ -41,24 +29,12 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
 
     public func searchPlaces(keyword: String, latitude: Double, longitude: Double, radius: Int) async throws -> [CoursePlace] {
         try await withCheckedThrowingContinuation { continuation in
-            provider.request(.searchKeyword(query: keyword, x: "\(longitude)", y: "\(latitude)", radius: radius)) { result in
+            provider.request(.searchKeyword(query: keyword, x: "\(longitude)", y: "\(latitude)", radius: radius, size: 15)) { result in
                 switch result {
                 case .success(let response):
                     do {
                         let dto = try JSONDecoder().decode(KakaoSearchResponse.self, from: response.data)
-                        let places = dto.documents.map { doc in
-                            CoursePlace(
-                                order: 0,
-                                category: "",
-                                keyword: keyword,
-                                reason: "",
-                                placeName: doc.placeName,
-                                address: doc.addressName,
-                                latitude: Double(doc.y),
-                                longitude: Double(doc.x)
-                            )
-                        }
-                        continuation.resume(returning: places)
+                        continuation.resume(returning: Self.deduplicated(dto.documents, keyword: keyword))
                     } catch {
                         continuation.resume(throwing: error)
                     }
@@ -66,6 +42,24 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
                     continuation.resume(throwing: error)
                 }
             }
+        }
+    }
+
+    private static func deduplicated(_ documents: [KakaoPlaceDTO], keyword: String) -> [CoursePlace] {
+        var seen = Set<String>()
+        return documents.compactMap { doc in
+            guard !seen.contains(doc.id) else { return nil }
+            seen.insert(doc.id)
+            return CoursePlace(
+                order: 0,
+                category: "",
+                keyword: keyword,
+                reason: "",
+                placeName: doc.placeName,
+                address: doc.addressName,
+                latitude: Double(doc.y),
+                longitude: Double(doc.x)
+            )
         }
     }
 
