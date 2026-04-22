@@ -14,6 +14,7 @@ public struct PartnerFeature {
         public var preferredThemes: [String] = []
         public var notes = ""
         public var isLoading = false
+        public var showSaved = false
         public var mode: Mode = .create
         var existingPartnerId: UUID? = nil
         @Presents public var alert: AlertState<Action.Alert>?
@@ -85,7 +86,11 @@ public struct PartnerFeature {
                 }
             case .saveResponse(.success(let partner)):
                 state.isLoading = false
-                return .send(.delegate(.partnerSaved(partner)))
+                state.showSaved = true
+                return .run { send in
+                    try? await Task.sleep(for: .milliseconds(700))
+                    await send(.delegate(.partnerSaved(partner)))
+                }
             case .saveResponse(.failure(let error)):
                 state.isLoading = false
                 state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }

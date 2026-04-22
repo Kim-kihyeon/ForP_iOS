@@ -229,9 +229,29 @@ public struct OnboardingView: View {
     private var categoryPage: some View {
         pageContainer(icon: "heart.fill", title: "어떤 걸 좋아해요?", subtitle: "탭해서 선호 · 비선호를 표시해요") {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                Text("탭: 선호(핑크) → 비선호(빨강) → 해제")
-                    .font(.system(size: 10))
-                    .foregroundStyle(Color(.tertiaryLabel))
+                HStack(spacing: 6) {
+                    Label("선호", systemImage: "hand.tap.fill")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Brand.pink)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Brand.softPink)
+                        .clipShape(Capsule())
+                    Text("→")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("비선호")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Brand.iconRed)
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(Brand.iconRed.opacity(0.1))
+                        .clipShape(Capsule())
+                    Text("→")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("해제")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
                 categoryChipGrid
             }
         }

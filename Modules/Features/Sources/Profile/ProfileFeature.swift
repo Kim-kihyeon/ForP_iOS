@@ -11,6 +11,7 @@ public struct ProfileFeature {
         public var preferredCategories: [String]
         public var dislikedCategories: [String]
         public var isSaving = false
+        public var showSaved = false
         @Presents public var alert: AlertState<Action.Alert>?
 
         public init(user: User) {
@@ -63,7 +64,12 @@ public struct ProfileFeature {
 
             case .saveResponse(.success):
                 state.isSaving = false
-                return .send(.delegate(.saved(state.originalUser)))
+                state.showSaved = true
+                let user = state.originalUser
+                return .run { send in
+                    try? await Task.sleep(for: .milliseconds(700))
+                    await send(.delegate(.saved(user)))
+                }
 
             case .saveResponse(.failure(let error)):
                 state.isSaving = false

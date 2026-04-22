@@ -36,6 +36,22 @@ public struct PartnerView: View {
             }
 
             if store.isLoading { LoadingView() }
+
+            if store.showSaved {
+                VStack {
+                    Spacer()
+                    Label("저장됐어요", systemImage: "checkmark.circle.fill")
+                        .font(Typography.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, Spacing.lg)
+                        .padding(.vertical, Spacing.sm)
+                        .background(Color.green.opacity(0.9))
+                        .clipShape(Capsule())
+                        .padding(.bottom, 100)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                .animation(.spring(response: 0.3), value: store.showSaved)
+            }
         }
         .hideKeyboardOnTap()
         .navigationTitle(store.mode == .create ? "파트너 등록" : "파트너 수정")
@@ -70,9 +86,29 @@ public struct PartnerView: View {
                     Text("카테고리")
                         .font(Typography.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    Text("탭: 선호(핑크) → 비선호(빨강) → 해제")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color(.tertiaryLabel))
+                    HStack(spacing: 6) {
+                        Label("선호", systemImage: "hand.tap.fill")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Brand.pink)
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(Brand.softPink)
+                            .clipShape(Capsule())
+                        Text("→")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Text("비선호")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Brand.iconRed)
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(Brand.iconRed.opacity(0.1))
+                            .clipShape(Capsule())
+                        Text("→")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Text("해제")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             triStateChipGrid

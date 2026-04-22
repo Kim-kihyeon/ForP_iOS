@@ -33,6 +33,22 @@ public struct ProfileView: View {
             }
 
             if store.isSaving { LoadingView() }
+
+            if store.showSaved {
+                VStack {
+                    Spacer()
+                    Label("저장됐어요", systemImage: "checkmark.circle.fill")
+                        .font(Typography.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, Spacing.lg)
+                        .padding(.vertical, Spacing.sm)
+                        .background(Color.green.opacity(0.9))
+                        .clipShape(Capsule())
+                        .padding(.bottom, 100)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                .animation(.spring(response: 0.3), value: store.showSaved)
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             saveBar
@@ -101,28 +117,36 @@ public struct ProfileView: View {
                         selected.wrappedValue.append(name)
                     }
                 } label: {
-                    VStack(spacing: 3) {
-                        Text(emoji).font(.system(size: 20))
-                        Text(name)
-                            .font(.system(size: 10, weight: .medium))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(
-                        isExcluded ? Color(.tertiarySystemFill).opacity(0.4) :
-                        isSelected ? accentColor.opacity(0.12) : Color(.tertiarySystemFill)
-                    )
-                    .foregroundStyle(
-                        isExcluded ? Color(.tertiaryLabel) :
-                        isSelected ? accentColor : Color(.secondaryLabel)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay {
-                        if isSelected {
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(accentColor.opacity(0.5), lineWidth: 1.5)
+                    ZStack(alignment: .topTrailing) {
+                        VStack(spacing: 3) {
+                            Text(emoji).font(.system(size: 20))
+                            Text(name)
+                                .font(.system(size: 10, weight: .medium))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            isExcluded ? Color(.tertiarySystemFill).opacity(0.4) :
+                            isSelected ? accentColor.opacity(0.12) : Color(.tertiarySystemFill)
+                        )
+                        .foregroundStyle(
+                            isExcluded ? Color(.tertiaryLabel) :
+                            isSelected ? accentColor : Color(.secondaryLabel)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay {
+                            if isSelected {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(accentColor.opacity(0.5), lineWidth: 1.5)
+                            }
+                        }
+                        if isExcluded {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color(.tertiaryLabel))
+                                .padding(3)
                         }
                     }
                 }
