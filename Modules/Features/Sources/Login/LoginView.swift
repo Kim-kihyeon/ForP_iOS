@@ -3,12 +3,15 @@ import ComposableArchitecture
 import AuthenticationServices
 import CoreSharedUI
 import CryptoKit
+import UIKit
 
 public struct LoginView: View {
     @Bindable var store: StoreOf<LoginFeature>
-    @State private var nonce = ""
     @State private var logoRing: CGFloat = 1.0
     @State private var heartFloat: CGFloat = 0
+    @State private var coordinator = AppleSignInCoordinator()
+    @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("lastLoginMethod") private var lastLoginMethod = ""
 
     public init(store: StoreOf<LoginFeature>) {
         self.store = store
@@ -83,12 +86,17 @@ public struct LoginView: View {
                 Spacer()
 
                 VStack(spacing: Spacing.sm) {
-                    Button {
+                    loginButton(isRecent: lastLoginMethod == "kakao") {
                         store.send(.kakaoLoginTapped)
+                        lastLoginMethod = "kakao"
                     } label: {
                         HStack(spacing: Spacing.sm) {
-                            Image(systemName: "bubble.fill")
-                                .font(.system(size: 18))
+                            if let uiImage = kakaoIconImage {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 22, height: 22)
+                            }
                             Text("카카오로 시작하기")
                                 .font(Typography.body.weight(.semibold))
                         }
@@ -100,27 +108,21 @@ public struct LoginView: View {
                     }
                     .shadow(color: Brand.kakaoYellow.opacity(0.45), radius: 14, x: 0, y: 5)
 
-                    SignInWithAppleButton(.signIn) { request in
-                        let rawNonce = randomNonceString()
-                        nonce = rawNonce
-                        request.requestedScopes = [.fullName, .email]
-                        request.nonce = sha256(rawNonce)
-                    } onCompletion: { result in
-                        switch result {
-                        case .success(let auth):
-                            guard
-                                let credential = auth.credential as? ASAuthorizationAppleIDCredential,
-                                let tokenData = credential.identityToken,
-                                let idToken = String(data: tokenData, encoding: .utf8)
-                            else { return }
-                            store.send(.appleLoginCompleted(idToken: idToken, nonce: nonce))
-                        case .failure:
-                            break
+                    loginButton(isRecent: lastLoginMethod == "apple") {
+                        performAppleSignIn()
+                    } label: {
+                        HStack(spacing: Spacing.sm) {
+                            Image(systemName: "apple.logo")
+                                .font(.system(size: 18, weight: .medium))
+                            Text("Apple로 계속하기")
+                                .font(Typography.body.weight(.semibold))
                         }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(colorScheme == .dark ? Color.white : Color.black)
+                        .foregroundStyle(colorScheme == .dark ? Color.black : Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
-                    .signInWithAppleButtonStyle(.black)
-                    .frame(height: 54)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
                 .padding(.horizontal, Spacing.md)
                 .padding(.bottom, Spacing.xxl)
@@ -139,6 +141,50 @@ public struct LoginView: View {
             }
         }
         .alert($store.scope(state: \.alert, action: \.alert))
+        .onAppear {
+            coordinator.onCompleted = { idToken, nonce in
+                lastLoginMethod = "apple"
+                store.send(.appleLoginCompleted(idToken: idToken, nonce: nonce))
+            }
+        }
+    }
+
+    // MARK: - Private
+
+    @ViewBuilder
+    private func loginButton<Label: View>(
+        isRecent: Bool,
+        action: @escaping () -> Void,
+        @ViewBuilder label: () -> Label
+    ) -> some View {
+        ZStack(alignment: .topTrailing) {
+            Button(action: action, label: label)
+                .buttonStyle(LoginPressStyle())
+            if isRecent {
+                Text("최근 로그인")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Brand.pink)
+                    .clipShape(Capsule())
+                    .offset(x: -8, y: -8)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
+    private func performAppleSignIn() {
+        let rawNonce = randomNonceString()
+        coordinator.performSignIn(rawNonce: rawNonce, sha256Nonce: sha256(rawNonce))
+    }
+
+    private var kakaoIconImage: UIImage? {
+        guard
+            let bundlePath = Bundle.main.path(forResource: "KakaoOpenSDK_KakaoSDKUser", ofType: "bundle"),
+            let bundle = Bundle(path: bundlePath)
+        else { return nil }
+        return UIImage(named: "chat", in: bundle, compatibleWith: nil)
     }
 
     private func randomNonceString(length: Int = 32) -> String {
@@ -151,5 +197,71 @@ public struct LoginView: View {
         let inputData = Data(input.utf8)
         let hashed = SHA256.hash(data: inputData)
         return hashed.compactMap { String(format: "%02x", $0) }.joined()
+    }
+}
+
+// MARK: - Button Style
+
+private struct LoginPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.65 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Apple Sign In Coordinator
+
+@MainActor
+private class AppleSignInCoordinator: NSObject,
+    ASAuthorizationControllerDelegate,
+    ASAuthorizationControllerPresentationContextProviding
+{
+    var onCompleted: ((String, String) -> Void)?
+    private var activeController: ASAuthorizationController?
+    private var currentNonce = ""
+
+    func performSignIn(rawNonce: String, sha256Nonce: String) {
+        currentNonce = rawNonce
+        let provider = ASAuthorizationAppleIDProvider()
+        let request = provider.createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = sha256Nonce
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        activeController = controller
+        controller.performRequests()
+    }
+
+    nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        MainActor.assumeIsolated {
+            UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first(where: { $0.isKeyWindow }) ?? UIWindow()
+        }
+    }
+
+    func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithAuthorization authorization: ASAuthorization
+    ) {
+        defer { activeController = nil }
+        guard
+            let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+            let tokenData = credential.identityToken,
+            let idToken = String(data: tokenData, encoding: .utf8)
+        else { return }
+        onCompleted?(idToken, currentNonce)
+    }
+
+    func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithError error: Error
+    ) {
+        activeController = nil
     }
 }
