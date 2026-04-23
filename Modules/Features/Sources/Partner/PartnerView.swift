@@ -4,6 +4,8 @@ import CoreSharedUI
 
 public struct PartnerView: View {
     @Bindable var store: StoreOf<PartnerFeature>
+    @State private var showExitConfirm = false
+    @Environment(\.dismiss) private var dismiss
 
     private let categories: [(emoji: String, name: String)] = [
         ("☕", "카페"), ("🍳", "브런치"), ("🍽️", "음식점"), ("🍸", "술/바"),
@@ -56,6 +58,32 @@ public struct PartnerView: View {
         .hideKeyboardOnTap()
         .navigationTitle(store.mode == .create ? "파트너 등록" : "파트너 수정")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    if store.hasChanges {
+                        showExitConfirm = true
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("뒤로")
+                            .font(Typography.body)
+                    }
+                }
+                .tint(Brand.pink)
+            }
+        }
+        .alert("저장하지 않고 나갈까요?", isPresented: $showExitConfirm) {
+            Button("나가기", role: .destructive) { dismiss() }
+            Button("계속 수정", role: .cancel) {}
+        } message: {
+            Text("변경사항이 저장되지 않아요.")
+        }
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
         .alert($store.scope(state: \.alert, action: \.alert))

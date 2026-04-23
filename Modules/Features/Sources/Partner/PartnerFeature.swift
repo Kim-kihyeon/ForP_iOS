@@ -19,6 +19,18 @@ public struct PartnerFeature {
         var existingPartnerId: UUID? = nil
         @Presents public var alert: AlertState<Action.Alert>?
 
+        var originalNickname = ""
+        var originalPreferredCategories: [String] = []
+        var originalDislikedCategories: [String] = []
+        var originalNotes = ""
+
+        public var hasChanges: Bool {
+            nickname != originalNickname ||
+            preferredCategories != originalPreferredCategories ||
+            dislikedCategories != originalDislikedCategories ||
+            notes != originalNotes
+        }
+
         public init(mode: Mode = .create, existing: Partner? = nil) {
             self.mode = mode
             if let p = existing {
@@ -28,6 +40,10 @@ public struct PartnerFeature {
                 self.dislikedCategories = p.dislikedCategories
                 self.preferredThemes = p.preferredThemes
                 self.notes = p.notes
+                self.originalNickname = p.nickname
+                self.originalPreferredCategories = p.preferredCategories
+                self.originalDislikedCategories = p.dislikedCategories
+                self.originalNotes = p.notes
             }
         }
     }
