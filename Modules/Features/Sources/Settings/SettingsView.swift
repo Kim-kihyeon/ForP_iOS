@@ -99,7 +99,27 @@ public struct SettingsView: View {
             sectionLabel("COUPLE")
 
             FormCard {
-                if let partner = store.partner {
+                if store.isLoadingPartner {
+                    HStack(spacing: Spacing.md) {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Brand.softPink)
+                            .frame(width: 36, height: 36)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("파트너 닉네임")
+                                .font(Typography.body.weight(.semibold))
+                            Text("카테고리 · 카테고리")
+                                .font(Typography.caption2)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 2)
+                    .redacted(reason: .placeholder)
+
+                    Divider().padding(.leading, 52)
+
+                    settingRow(icon: "heart.fill", iconColor: Brand.pink, title: "기념일 관리") {}
+                        .redacted(reason: .placeholder)
+                } else if let partner = store.partner {
                     HStack(spacing: Spacing.md) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 10)

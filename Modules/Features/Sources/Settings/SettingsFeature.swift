@@ -8,6 +8,7 @@ public struct SettingsFeature {
         public var user: User?
         public var partner: Partner? = nil
         public var hasPartner: Bool { partner != nil }
+        public var isLoadingPartner = true
         public var isLoading = false
         @Presents public var alert: AlertState<Action.Alert>?
 
@@ -65,9 +66,11 @@ public struct SettingsFeature {
 
             case .loadPartnerResponse(.success(let partner)):
                 state.partner = partner
+                state.isLoadingPartner = false
                 return .none
 
             case .loadPartnerResponse(.failure):
+                state.isLoadingPartner = false
                 return .none
 
             case .profileTapped:
