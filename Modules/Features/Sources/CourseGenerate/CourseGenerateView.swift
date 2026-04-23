@@ -39,7 +39,22 @@ public struct CourseGenerateView: View {
             }
 
             if store.isGenerating {
-                CourseLoadingView()
+                ZStack(alignment: .bottom) {
+                    CourseLoadingView()
+                    Button {
+                        Haptics.impact(.light)
+                        store.send(.cancelGenerationTapped)
+                    } label: {
+                        Text("취소")
+                            .font(Typography.body.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, Spacing.xl)
+                            .padding(.vertical, Spacing.sm)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Capsule())
+                    }
+                    .padding(.bottom, 60)
+                }
             }
         }
         .hideKeyboardOnTap()
@@ -71,11 +86,12 @@ public struct CourseGenerateView: View {
         }
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
-        .alert("오류", isPresented: Binding(
+        .alert("코스 생성 실패", isPresented: Binding(
             get: { store.errorMessage != nil },
             set: { if !$0 { store.send(.binding(.set(\.errorMessage, nil))) } }
         )) {
-            Button("확인") { store.send(.binding(.set(\.errorMessage, nil))) }
+            Button("다시 시도") { store.send(.retryTapped) }
+            Button("취소", role: .cancel) { store.send(.binding(.set(\.errorMessage, nil))) }
         } message: {
             Text(store.errorMessage ?? "")
         }

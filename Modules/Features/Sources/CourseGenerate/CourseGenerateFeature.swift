@@ -39,6 +39,8 @@ public struct CourseGenerateFeature {
         case locationSuggestionsLoaded([CoursePlace])
         case locationSuggestionSelected(CoursePlace)
         case removeSelectedLocation(Int)
+        case retryTapped
+        case cancelGenerationTapped
 
         public enum Delegate: Equatable {
             case courseGenerated(CoursePlan, CourseOptions)
@@ -184,6 +186,7 @@ public struct CourseGenerateFeature {
                         Result { try await generateCourseUseCase.execute(user: user, partner: partner, options: options) }
                     ))
                 }
+                .cancellable(id: "courseGeneration", cancelInFlight: true)
 
             case .generateResponse(.success(let plan)):
                 state.isGenerating = false
@@ -217,6 +220,14 @@ public struct CourseGenerateFeature {
                 state.isGenerating = false
                 state.errorMessage = error.localizedDescription
                 return .none
+
+            case .retryTapped:
+                state.errorMessage = nil
+                return .send(.generateTapped)
+
+            case .cancelGenerationTapped:
+                state.isGenerating = false
+                return .cancel(id: "courseGeneration")
 
             case .delegate:
                 return .none
