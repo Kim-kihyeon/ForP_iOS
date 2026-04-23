@@ -72,7 +72,7 @@ public struct CourseResultFeature {
         case bookmarkPlace(CoursePlace)
         case bookmarksLoaded([WishlistPlace])
 
-        public enum Alert: Equatable { case confirmDelete }
+        public enum Alert: Equatable { case confirmDelete, retrySave }
         public enum Delegate: Equatable {
             case dismiss
             case deleted
@@ -120,7 +120,10 @@ public struct CourseResultFeature {
 
             case .saveResponse(.failure(let error)):
                 state.isSaving = false
-                state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
+                state.alert = AlertState { TextState("저장 실패") } actions: {
+                    ButtonState(action: .retrySave) { TextState("다시 시도") }
+                    ButtonState(role: .cancel) { TextState("취소") }
+                } message: { TextState(error.localizedDescription) }
                 return .none
 
             case .likeTapped:
@@ -156,6 +159,9 @@ public struct CourseResultFeature {
                     TextState("이 코스를 삭제할까요?")
                 }
                 return .none
+
+            case .alert(.presented(.retrySave)):
+                return .send(.saveTapped)
 
             case .alert(.presented(.confirmDelete)):
                 state.isDeleting = true

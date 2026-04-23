@@ -37,7 +37,7 @@ public struct ProfileFeature {
         case alert(PresentationAction<Alert>)
         case delegate(Delegate)
 
-        public enum Alert: Equatable {}
+        public enum Alert: Equatable { case retrySave }
         public enum Delegate: Equatable {
             case saved(User)
         }
@@ -80,8 +80,14 @@ public struct ProfileFeature {
 
             case .saveResponse(.failure(let error)):
                 state.isSaving = false
-                state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
+                state.alert = AlertState { TextState("저장 실패") } actions: {
+                    ButtonState(action: .retrySave) { TextState("다시 시도") }
+                    ButtonState(role: .cancel) { TextState("취소") }
+                } message: { TextState(error.localizedDescription) }
                 return .none
+
+            case .alert(.presented(.retrySave)):
+                return .send(.saveTapped)
 
             case .alert:
                 return .none
