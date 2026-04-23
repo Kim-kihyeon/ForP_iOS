@@ -424,12 +424,55 @@ public struct HomeView: View {
     // MARK: - Empty
 
     private var emptyState: some View {
-        EmptyStateView(
-            icon: "heart.text.square",
-            title: "첫 코스를 만들어봐요",
-            subtitle: "아래 버튼을 눌러\n설레는 데이트 코스를 완성해보세요"
-        )
-        .padding(.top, 60)
+        VStack(spacing: 0) {
+            // 일러스트 영역
+            ZStack {
+                Circle()
+                    .fill(Brand.softPink)
+                    .frame(width: 96, height: 96)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(Brand.pink)
+            }
+            .padding(.top, 56)
+            .padding(.bottom, 24)
+
+            VStack(spacing: 8) {
+                Text("첫 데이트 코스를 만들어봐요")
+                    .font(.system(size: 20, weight: .bold))
+                Text("AI가 날씨, 취향, 동선까지\n완벽한 코스를 짜드려요")
+                    .font(Typography.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.bottom, 32)
+
+            VStack(spacing: 14) {
+                emptyFeatureRow("location.fill", color: Brand.pink, text: "지역과 테마를 선택하면")
+                emptyFeatureRow("sparkles", color: Brand.iconOrange, text: "AI가 실제 장소를 추천해줘요")
+                emptyFeatureRow("map.fill", color: Brand.iconBlue, text: "동선까지 자동으로 최적화해줘요")
+            }
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func emptyFeatureRow(_ icon: String, color: Color, text: String) -> some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.12))
+                    .frame(width: 34, height: 34)
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(color)
+            }
+            Text(text)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.primary)
+            Spacer()
+        }
     }
 
     // MARK: - Generate Button
