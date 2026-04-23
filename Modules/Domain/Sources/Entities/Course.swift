@@ -110,8 +110,9 @@ public struct CourseOptions: Equatable {
     public var wishlistPlaces: [WishlistPlace]
     public var baseLatitude: Double?
     public var baseLongitude: Double?
+    public var searchRadius: Int
 
-    public init(location: String, themes: [String], placeCount: Int, mode: CourseMode, memo: String = "", date: Date = Date(), wishlistPlaces: [WishlistPlace] = [], baseLatitude: Double? = nil, baseLongitude: Double? = nil) {
+    public init(location: String, themes: [String], placeCount: Int, mode: CourseMode, memo: String = "", date: Date = Date(), wishlistPlaces: [WishlistPlace] = [], baseLatitude: Double? = nil, baseLongitude: Double? = nil, searchRadius: Int = 2000) {
         self.location = location
         self.themes = themes
         self.placeCount = placeCount
@@ -121,5 +122,6 @@ public struct CourseOptions: Equatable {
         self.wishlistPlaces = wishlistPlaces
         self.baseLatitude = baseLatitude
         self.baseLongitude = baseLongitude
+        self.searchRadius = searchRadius
     }
 }

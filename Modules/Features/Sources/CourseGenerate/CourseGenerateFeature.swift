@@ -153,6 +153,18 @@ public struct CourseGenerateFeature {
                 let lons = state.selectedLocations.compactMap { $0.longitude }
                 let baseLat = lats.isEmpty ? nil : lats.reduce(0, +) / Double(lats.count)
                 let baseLon = lons.isEmpty ? nil : lons.reduce(0, +) / Double(lons.count)
+
+                // 선택 위치 스프레드 기반 동적 반경 계산
+                let searchRadius: Int = {
+                    guard let bl = baseLat, let bln = baseLon, lats.count > 1 else { return 2000 }
+                    let maxSpreadMeters = zip(lats, lons).map { lat, lon -> Double in
+                        let dlat = lat - bl
+                        let dlon = (lon - bln) * cos(bl * .pi / 180)
+                        return sqrt(dlat * dlat + dlon * dlon) * 111_000
+                    }.max() ?? 0
+                    return min(max(Int(maxSpreadMeters) + 1_000, 1_500), 3_000)
+                }()
+
                 let selectedWishlist = state.wishlistPlaces.filter { state.selectedWishlistIds.contains($0.id) }
                 let options = CourseOptions(
                     location: locationStr,
@@ -163,7 +175,8 @@ public struct CourseGenerateFeature {
                     date: state.date,
                     wishlistPlaces: selectedWishlist,
                     baseLatitude: baseLat,
-                    baseLongitude: baseLon
+                    baseLongitude: baseLon,
+                    searchRadius: searchRadius
                 )
                 return .run { [options, user = state.user] send in
                     let partner = currentPartner()

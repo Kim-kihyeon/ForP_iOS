@@ -50,7 +50,7 @@ public struct GenerateCourseUseCase {
         var enrichedSelected: [CoursePlace] = []
         var usedPlaceNames: Set<String> = []
         for place in plan.places {
-            let results = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: resolvedCoord.lat, longitude: resolvedCoord.lon, radius: 5000)) ?? []
+            let results = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: resolvedCoord.lat, longitude: resolvedCoord.lon, radius: options.searchRadius)) ?? []
             if let first = results.first, let name = first.placeName, !usedPlaceNames.contains(name) {
                 var updated = place
                 updated.placeName = name
@@ -66,7 +66,7 @@ public struct GenerateCourseUseCase {
         // 후보 장소 검증
         var enrichedCandidates: [CoursePlace] = []
         for place in plan.candidates {
-            let results = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: resolvedCoord.lat, longitude: resolvedCoord.lon, radius: 5000)) ?? []
+            let results = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: resolvedCoord.lat, longitude: resolvedCoord.lon, radius: options.searchRadius)) ?? []
             if let first = results.first, let name = first.placeName, !usedPlaceNames.contains(name) {
                 var updated = place
                 updated.placeName = name
