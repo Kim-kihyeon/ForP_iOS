@@ -36,7 +36,7 @@ public final class AuthRepository: AuthRepositoryProtocol {
                 email: email.isEmpty ? response.email : email,
                 nickname: nickname
             )
-            try? await supabase.from("users").upsert(UserRow(from: user), ignoreDuplicates: true).execute()
+            _ = try? await supabase.from("users").upsert(UserRow(from: user), ignoreDuplicates: true).execute()
             return user
         } catch {
             throw error

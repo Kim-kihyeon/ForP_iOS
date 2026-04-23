@@ -274,3 +274,12 @@ public struct HomeFeature {
 }
 
 extension HomeFeature.Path.State: Equatable {}
+extension HomeFeature: @unchecked Sendable {}
+extension HomeFeature.Path: @unchecked Sendable {}
+extension CourseGenerateFeature: @unchecked Sendable {}
+extension CourseResultFeature: @unchecked Sendable {}
+extension SettingsFeature: @unchecked Sendable {}
+extension PartnerFeature: @unchecked Sendable {}
+extension AnniversaryFeature: @unchecked Sendable {}
+extension ProfileFeature: @unchecked Sendable {}
+extension WishlistManageFeature: @unchecked Sendable {}

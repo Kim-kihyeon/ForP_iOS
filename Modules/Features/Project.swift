@@ -14,7 +14,10 @@ let project = Project(
                 .project(target: "Domain", path: "../Domain"),
                 .project(target: "CoreSharedUI", path: "../Core/SharedUI"),
                 .external(name: "ComposableArchitecture"),
-            ]
+            ],
+            settings: .settings(base: [
+                "SWIFT_STRICT_CONCURRENCY": "minimal",
+            ])
         ),
     ]
 )

@@ -136,9 +136,10 @@ struct ChecklistView: View {
 
     // MARK: - Check Row
 
+    @ViewBuilder
     private func checkRow(_ item: String, isLast: Bool, isDeletable: Bool = false) -> some View {
         let isChecked = checked.contains(item)
-        return HStack(spacing: 12) {
+        HStack(spacing: 12) {
             Button {
                 Haptics.impact(.light)
                 if isChecked { checked.remove(item) }
