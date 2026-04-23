@@ -12,6 +12,13 @@ public struct ProfileFeature {
         public var dislikedCategories: [String]
         public var isSaving = false
         public var showSaved = false
+
+        public var hasChanges: Bool {
+            nickname != originalUser.nickname ||
+            location != originalUser.location ||
+            preferredCategories != originalUser.preferredCategories ||
+            dislikedCategories != originalUser.dislikedCategories
+        }
         @Presents public var alert: AlertState<Action.Alert>?
 
         public init(user: User) {
