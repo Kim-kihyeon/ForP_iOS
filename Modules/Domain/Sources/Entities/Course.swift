@@ -53,13 +53,18 @@ public struct Course: Identifiable, Codable, Equatable {
     public var promptSummary: String
     public var outfitSuggestion: String?
     public var courseReason: String
+    public var partnerId: UUID?
     public var isLiked: Bool
     public var rating: Int?
     public var review: String?
+    public var partnerRating: Int?
+    public var partnerReview: String?
+    public var isEnded: Bool
 
     public init(
         id: UUID = UUID(),
         userId: UUID,
+        partnerId: UUID? = nil,
         title: String,
         date: Date = Date(),
         mode: CourseMode,
@@ -70,10 +75,14 @@ public struct Course: Identifiable, Codable, Equatable {
         courseReason: String = "",
         isLiked: Bool = false,
         rating: Int? = nil,
-        review: String? = nil
+        review: String? = nil,
+        partnerRating: Int? = nil,
+        partnerReview: String? = nil,
+        isEnded: Bool = false
     ) {
         self.id = id
         self.userId = userId
+        self.partnerId = partnerId
         self.title = title
         self.date = date
         self.mode = mode
@@ -85,6 +94,20 @@ public struct Course: Identifiable, Codable, Equatable {
         self.isLiked = isLiked
         self.rating = rating
         self.review = review
+        self.partnerRating = partnerRating
+        self.partnerReview = partnerReview
+        self.isEnded = isEnded
+    }
+}
+
+extension Course {
+    public var averageRating: Double? {
+        switch (rating, partnerRating) {
+        case let (r?, p?): return Double(r + p) / 2.0
+        case let (r?, nil): return Double(r)
+        case let (nil, p?): return Double(p)
+        case (nil, nil): return nil
+        }
     }
 }
 

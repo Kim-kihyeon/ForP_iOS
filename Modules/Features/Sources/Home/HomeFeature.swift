@@ -49,6 +49,8 @@ public struct HomeFeature {
         case loadAnniversariesResponse(Result<[Anniversary], Error>)
         case loadWeatherResponse(Result<WeatherInfo, Error>)
         case generateCourseTapped
+        case courseReadyToShow(Course, String?)
+        case redateCourseReady(Course)
         case courseSelected(Course)
         case settingsTapped
         case monthlyReportTapped
@@ -136,7 +138,8 @@ public struct HomeFeature {
                 state.partner = partner
                 return .none
 
-            case .loadPartnerResponse(.failure):
+            case .loadPartnerResponse(.failure(let error)):
+                print("[HomeFeature] loadPartnerResponse failed: \(error)")
                 return .none
 
             case .loadAnniversariesResponse(.success(let anniversaries)):
@@ -222,16 +225,44 @@ public struct HomeFeature {
                 return .none
 
             case .path(.element(_, action: .courseGenerate(.delegate(.courseGenerated(let plan, let options))))):
-                let course = Course(
-                    userId: state.user.id,
-                    title: "\(options.location) 데이트",
-                    mode: options.mode,
-                    places: plan.places,
-                    candidates: plan.candidates,
-                    outfitSuggestion: plan.outfitSuggestion,
-                    courseReason: plan.courseReason
-                )
+                let userId = state.user.id
+                let existingPartnerId = state.partner?.userId
+                return .run { send in
+                    let partnerId: UUID?
+                    if let existing = existingPartnerId {
+                        partnerId = existing
+                    } else if let conn = try? await partnerConnectionRepository.fetchConnection(userId: userId) {
+                        partnerId = conn.partnerId(myUserId: userId)
+                    } else {
+                        partnerId = nil
+                    }
+                    let course = Course(
+                        userId: userId,
+                        partnerId: partnerId,
+                        title: "\(options.location) 데이트",
+                        mode: options.mode,
+                        places: plan.places,
+                        candidates: plan.candidates,
+                        outfitSuggestion: plan.outfitSuggestion,
+                        courseReason: plan.courseReason
+                    )
+                    let note: String? = plan.places.count < options.placeCount
+                        ? plan.candidates.isEmpty
+                            ? "요청한 \(options.placeCount)곳 중 \(plan.places.count)곳만 찾았어요. 해당 지역에서 장소를 충분히 찾지 못했어요."
+                            : "요청한 \(options.placeCount)곳 중 \(plan.places.count)곳만 찾았어요. 후보 장소에서 추가할 수 있어요."
+                        : nil
+                    await send(.courseReadyToShow(course, note))
+                }
+
+            case .courseReadyToShow(let course, let note):
                 state.path.removeLast()
+                var resultState = CourseResultFeature.State(course: course)
+                resultState.placeCountNote = note
+                state.path.append(.courseResult(resultState))
+                return .none
+
+            case .redateCourseReady(let course):
+                state.path.removeAll()
                 state.path.append(.courseResult(CourseResultFeature.State(course: course)))
                 return .none
 
@@ -254,6 +285,32 @@ public struct HomeFeature {
                     state.recentCourses.insert(course, at: 0)
                 }
                 return .none
+
+            case .path(.element(_, action: .courseResult(.delegate(.redate(let original))))):
+                let userId = state.user.id
+                let existingPartnerId = state.partner?.userId
+                return .run { send in
+                    let partnerId: UUID?
+                    if let existing = existingPartnerId {
+                        partnerId = existing
+                    } else if let conn = try? await partnerConnectionRepository.fetchConnection(userId: userId) {
+                        partnerId = conn.partnerId(myUserId: userId)
+                    } else {
+                        partnerId = nil
+                    }
+                    let newCourse = Course(
+                        userId: userId,
+                        partnerId: partnerId,
+                        title: original.title,
+                        date: Date(),
+                        mode: original.mode,
+                        places: original.places,
+                        candidates: original.candidates,
+                        outfitSuggestion: original.outfitSuggestion,
+                        courseReason: original.courseReason
+                    )
+                    await send(.redateCourseReady(newCourse))
+                }
 
             case .path(.element(_, action: .courseResult(.delegate(.dismiss)))),
                  .path(.element(_, action: .courseResult(.delegate(.deleted)))):

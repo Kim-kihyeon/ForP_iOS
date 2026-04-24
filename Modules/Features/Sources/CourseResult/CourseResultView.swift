@@ -99,7 +99,7 @@ public struct CourseResultView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !store.isSaved { saveButton }
-            else if !store.isPlaying { startButton }
+            else if !store.isPlaying && !store.course.isEnded { startButton }
         }
         .navigationTitle(store.course.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -205,17 +205,81 @@ public struct CourseResultView: View {
     private var mainContent: some View {
         VStack(spacing: 16) {
             headerCard
+            if store.course.isEnded && !store.isPlaying { endedBanner }
             if store.isPlaying { progressBar }
             timelinePlaces
-            if let rating = store.course.rating, !store.isPlaying {
-                ratingCard(rating: rating, review: store.course.review)
-            }
+            if !store.isPlaying { ratingsSection }
             if !store.course.candidates.isEmpty, !store.isPlaying {
                 candidatesAccordion
             }
         }
         .padding(.horizontal, Spacing.md)
         .padding(.top, 16)
+    }
+
+    private var endedBanner: some View {
+        let myRating = store.isCreator ? store.course.rating : store.course.partnerRating
+        let hasMyReview = myRating != nil
+
+        return HStack(spacing: 10) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 16))
+                .foregroundStyle(Brand.pink)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("종료된 데이트")
+                    .font(.system(size: 13, weight: .semibold))
+                Text(hasMyReview ? "이 코스로 다시 데이트하시겠어요?" : "후기를 남겨보세요")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if hasMyReview {
+                Button {
+                    Haptics.impact(.medium)
+                    store.send(.redateTapped)
+                } label: {
+                    Text("다시 데이트")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Brand.pink)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button {
+                    Haptics.impact(.medium)
+                    store.send(.leaveReviewTapped)
+                } label: {
+                    Text("리뷰 남기기")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Brand.pink)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Brand.softPink)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(Spacing.md)
+        .cardStyle()
+    }
+
+    @ViewBuilder
+    private var ratingsSection: some View {
+        let myRating = store.isCreator ? store.course.rating : store.course.partnerRating
+        let myReview = store.isCreator ? store.course.review : store.course.partnerReview
+        let partnerRating = store.isCreator ? store.course.partnerRating : store.course.rating
+        let partnerReview = store.isCreator ? store.course.partnerReview : store.course.review
+
+        if let r = myRating {
+            ratingCard(label: "내 후기", rating: r, review: myReview)
+        }
+        if let r = partnerRating {
+            ratingCard(label: "파트너 후기", rating: r, review: partnerReview)
+        }
     }
 
     // MARK: - Header Card
@@ -257,6 +321,19 @@ public struct CourseResultView: View {
                     .font(Typography.caption.weight(.semibold))
                     .foregroundStyle(Brand.pink)
                     .padding(.top, 20)
+                }
+            }
+
+            if let note = store.placeCountNote {
+                Divider()
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.orange)
+                    Text(note)
+                        .font(Typography.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
@@ -569,7 +646,7 @@ public struct CourseResultView: View {
 
     // MARK: - Rating Card
 
-    private func ratingCard(rating: Int, review: String?) -> some View {
+    private func ratingCard(label: String, rating: Int, review: String?) -> some View {
         HStack(spacing: Spacing.md) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
@@ -580,6 +657,9 @@ public struct CourseResultView: View {
                     .foregroundStyle(.yellow)
             }
             VStack(alignment: .leading, spacing: 3) {
+                Text(label)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
                 HStack(spacing: 2) {
                     ForEach(1...5, id: \.self) { star in
                         Image(systemName: star <= rating ? "star.fill" : "star")

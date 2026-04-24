@@ -26,6 +26,8 @@ public struct CourseResultFeature {
         }
 
         public var bookmarkedKeywords: Set<String> = []
+        public var isCreator: Bool = true
+        public var placeCountNote: String? = nil
 
         @Presents public var alert: AlertState<Action.Alert>?
 
@@ -61,6 +63,10 @@ public struct CourseResultFeature {
         case saveReviewTapped
         case skipReviewTapped
         case updateRatingResponse(Result<Void, Error>)
+        case endDateResponse(Result<Void, Error>)
+        case redateTapped
+        case leaveReviewTapped
+        case courseEndedRemotely
         case titleCommitted
         case updateTitleResponse(Result<Void, Error>)
         case viewDisappeared
@@ -72,11 +78,12 @@ public struct CourseResultFeature {
         case bookmarkPlace(CoursePlace)
         case bookmarksLoaded([WishlistPlace])
 
-        public enum Alert: Equatable { case confirmDelete, retrySave }
+        public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate }
         public enum Delegate: Equatable {
             case dismiss
             case deleted
             case courseUpdated(Course)
+            case redate(Course)
         }
     }
 
@@ -85,6 +92,8 @@ public struct CourseResultFeature {
     @Dependency(\.wishlistRepository) var wishlistRepository
     @Dependency(\.currentUserId) var currentUserId
     @Dependency(\.notificationService) var notificationService
+
+    private enum CancelID { case realtime }
 
     public init() {}
 
@@ -163,6 +172,11 @@ public struct CourseResultFeature {
             case .alert(.presented(.retrySave)):
                 return .send(.saveTapped)
 
+            case .alert(.presented(.confirmEndDate)):
+                state.showLiveMap = false
+                state.showCompletion = true
+                return .none
+
             case .alert(.presented(.confirmDelete)):
                 state.isDeleting = true
                 let id = state.course.id
@@ -195,9 +209,10 @@ public struct CourseResultFeature {
                 guard state.isSaved else { return .none }
                 let id = state.course.id
                 let title = state.course.title
-                return .run { _ in
-                    try? await courseRepository.updateTitle(id: id, title: title)
-                }
+                return .merge(
+                    .cancel(id: CancelID.realtime),
+                    .run { _ in try? await courseRepository.updateTitle(id: id, title: title) }
+                )
 
             case .startPlayTapped:
                 state.isPlaying = true
@@ -208,10 +223,20 @@ public struct CourseResultFeature {
                 return .none
 
             case .stopPlayTapped:
-                state.isPlaying = false
-                state.showLiveMap = false
-                state.visitedOrders = []
-                state.showCompletion = false
+                if state.course.isEnded {
+                    state.isPlaying = false
+                    state.showLiveMap = false
+                    state.visitedOrders = []
+                    return .none
+                }
+                state.alert = AlertState {
+                    TextState("데이트 종료")
+                } actions: {
+                    ButtonState(action: .confirmEndDate) { TextState("종료하기") }
+                    ButtonState(role: .cancel) { TextState("계속하기") }
+                } message: {
+                    TextState("데이트를 종료할까요? 평점과 후기를 남길 수 있어요.")
+                }
                 return .none
 
             case .departureTapped:
@@ -251,7 +276,7 @@ public struct CourseResultFeature {
                     state.visitedOrders.remove(order)
                 } else {
                     state.visitedOrders.insert(order)
-                    if state.allVisited {
+                    if state.allVisited && !state.course.isEnded {
                         state.showCompletion = true
                     }
                 }
@@ -260,24 +285,59 @@ public struct CourseResultFeature {
             case .saveReviewTapped:
                 state.showCompletion = false
                 state.isPlaying = false
+                state.showLiveMap = false
+                state.visitedOrders = []
                 let rating = state.completionRating
                 let review = state.completionReview
-                state.course.rating = rating > 0 ? rating : nil
-                state.course.review = review.isEmpty ? nil : review
-                guard rating > 0 else { return .none }
+                let isCreator = state.isCreator
                 let id = state.course.id
+                if isCreator {
+                    state.course.rating = rating > 0 ? rating : nil
+                    state.course.review = review.isEmpty ? nil : review
+                } else {
+                    state.course.partnerRating = rating > 0 ? rating : nil
+                    state.course.partnerReview = review.isEmpty ? nil : review
+                }
+                state.course.isEnded = true
                 return .run { send in
-                    await send(.updateRatingResponse(Result {
-                        try await courseRepository.updateRating(id: id, rating: rating, review: review)
+                    if rating > 0 {
+                        if isCreator {
+                            try? await courseRepository.updateRating(id: id, rating: rating, review: review)
+                        } else {
+                            try? await courseRepository.updatePartnerRating(id: id, rating: rating, review: review)
+                        }
+                    }
+                    await send(.endDateResponse(Result {
+                        try await courseRepository.endCourse(id: id)
                     }))
                 }
 
             case .skipReviewTapped:
                 state.showCompletion = false
                 state.isPlaying = false
-                return .none
+                state.showLiveMap = false
+                state.visitedOrders = []
+                state.course.isEnded = true
+                let id = state.course.id
+                return .run { send in
+                    await send(.endDateResponse(Result {
+                        try await courseRepository.endCourse(id: id)
+                    }))
+                }
 
             case .updateRatingResponse:
+                return .none
+
+            case .endDateResponse:
+                return .none
+
+            case .redateTapped:
+                return .send(.delegate(.redate(state.course)))
+
+            case .leaveReviewTapped:
+                state.completionRating = 0
+                state.completionReview = ""
+                state.showCompletion = true
                 return .none
 
             case .titleCommitted:
@@ -323,10 +383,26 @@ public struct CourseResultFeature {
 
             case .onAppear:
                 let userId = currentUserId()
-                return .run { [wishlistRepository] send in
-                    let all = (try? await wishlistRepository.fetchAll(userId: userId)) ?? []
-                    await send(.bookmarksLoaded(all))
-                }
+                state.isCreator = state.course.userId == userId
+                let courseId = state.course.id
+                let shouldSubscribe = state.isSaved && !state.course.isEnded
+                return .merge(
+                    .run { [wishlistRepository] send in
+                        let all = (try? await wishlistRepository.fetchAll(userId: userId)) ?? []
+                        await send(.bookmarksLoaded(all))
+                    },
+                    shouldSubscribe ? .run { [courseRepository] send in
+                        for await _ in courseRepository.observeIsEnded(courseId: courseId) {
+                            await send(.courseEndedRemotely)
+                        }
+                    }.cancellable(id: CancelID.realtime) : .none
+                )
+
+            case .courseEndedRemotely:
+                state.course.isEnded = true
+                state.isPlaying = false
+                state.showLiveMap = false
+                return .cancel(id: CancelID.realtime)
 
             case .bookmarksLoaded(let places):
                 state.bookmarkedKeywords = Set(places.map { $0.keyword })

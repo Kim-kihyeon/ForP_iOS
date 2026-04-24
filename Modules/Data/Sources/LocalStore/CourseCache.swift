@@ -16,6 +16,7 @@ final class CourseCache {
     var isLiked: Bool = false
     var rating: Int?
     var review: String?
+    var isEnded: Bool = false
 
     init(from course: Course) throws {
         self.id = course.id
@@ -30,6 +31,7 @@ final class CourseCache {
         self.isLiked = course.isLiked
         self.rating = course.rating
         self.review = course.review
+        self.isEnded = course.isEnded
     }
 
     func toDomain() throws -> Course {
@@ -46,7 +48,8 @@ final class CourseCache {
             courseReason: courseReason,
             isLiked: isLiked,
             rating: rating,
-            review: review
+            review: review,
+            isEnded: isEnded
         )
     }
 }

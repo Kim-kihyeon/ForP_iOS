@@ -347,12 +347,12 @@ public struct HomeView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                if let rating = course.rating {
+                if let displayRating = course.averageRating {
                     HStack(spacing: 2) {
                         ForEach(1...5, id: \.self) { i in
-                            Image(systemName: i <= rating ? "star.fill" : "star")
+                            Image(systemName: Double(i) <= displayRating + 0.5 ? (Double(i) <= displayRating ? "star.fill" : "star.leadinghalf.filled") : "star")
                                 .font(.system(size: 8))
-                                .foregroundStyle(i <= rating ? Color.yellow : Color(.tertiaryLabel))
+                                .foregroundStyle(Double(i) <= displayRating + 0.5 ? Color.yellow : Color(.tertiaryLabel))
                         }
                     }
                     .padding(.top, 1)
@@ -412,6 +412,24 @@ public struct HomeView: View {
                             .font(.system(size: 10))
                             .foregroundStyle(Brand.pink)
                     }
+                    if course.isEnded {
+                        Text("종료")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color(.systemFill))
+                            .clipShape(Capsule())
+                    }
+                    if course.userId != store.user.id {
+                        Text("파트너")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Brand.iconBlue)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Brand.iconBlue.opacity(0.1))
+                            .clipShape(Capsule())
+                    }
                 }
 
                 Text(course.places.compactMap { $0.placeName ?? $0.keyword }.prefix(3).joined(separator: " · "))
@@ -419,12 +437,12 @@ public struct HomeView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                if let rating = course.rating {
+                if let displayRating = course.averageRating {
                     HStack(spacing: 2) {
                         ForEach(1...5, id: \.self) { i in
-                            Image(systemName: i <= rating ? "star.fill" : "star")
+                            Image(systemName: Double(i) <= displayRating + 0.5 ? (Double(i) <= displayRating ? "star.fill" : "star.leadinghalf.filled") : "star")
                                 .font(.system(size: 9))
-                                .foregroundStyle(i <= rating ? Color.yellow : Color(.tertiaryLabel))
+                                .foregroundStyle(Double(i) <= displayRating + 0.5 ? Color.yellow : Color(.tertiaryLabel))
                         }
                     }
                 }
