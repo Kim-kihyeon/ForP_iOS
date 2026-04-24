@@ -10,6 +10,7 @@ public struct ProfileFeature {
         public var location: String
         public var preferredCategories: [String]
         public var dislikedCategories: [String]
+        public var foodBlacklist: [String]
         public var isSaving = false
         public var showSaved = false
 
@@ -17,7 +18,8 @@ public struct ProfileFeature {
             nickname != originalUser.nickname ||
             location != originalUser.location ||
             preferredCategories != originalUser.preferredCategories ||
-            dislikedCategories != originalUser.dislikedCategories
+            dislikedCategories != originalUser.dislikedCategories ||
+            foodBlacklist != originalUser.foodBlacklist
         }
         @Presents public var alert: AlertState<Action.Alert>?
 
@@ -27,6 +29,7 @@ public struct ProfileFeature {
             self.location = user.location
             self.preferredCategories = user.preferredCategories
             self.dislikedCategories = user.dislikedCategories
+            self.foodBlacklist = user.foodBlacklist
         }
     }
 
@@ -61,6 +64,7 @@ public struct ProfileFeature {
                 user.location = state.location
                 user.preferredCategories = state.preferredCategories
                 user.dislikedCategories = state.dislikedCategories
+                user.foodBlacklist = state.foodBlacklist
                 state.isSaving = true
                 state.originalUser = user
                 return .run { [user] send in

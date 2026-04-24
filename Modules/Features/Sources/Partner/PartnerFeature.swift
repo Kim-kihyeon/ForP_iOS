@@ -13,6 +13,7 @@ public struct PartnerFeature {
         public var dislikedCategories: [String] = []
         public var preferredThemes: [String] = []
         public var notes = ""
+        public var foodBlacklist: [String] = []
         public var isLoading = false
         public var showSaved = false
         public var mode: Mode = .create
@@ -23,12 +24,14 @@ public struct PartnerFeature {
         var originalPreferredCategories: [String] = []
         var originalDislikedCategories: [String] = []
         var originalNotes = ""
+        var originalFoodBlacklist: [String] = []
 
         public var hasChanges: Bool {
             nickname != originalNickname ||
             preferredCategories != originalPreferredCategories ||
             dislikedCategories != originalDislikedCategories ||
-            notes != originalNotes
+            notes != originalNotes ||
+            foodBlacklist != originalFoodBlacklist
         }
 
         public init(mode: Mode = .create, existing: Partner? = nil) {
@@ -40,10 +43,12 @@ public struct PartnerFeature {
                 self.dislikedCategories = p.dislikedCategories
                 self.preferredThemes = p.preferredThemes
                 self.notes = p.notes
+                self.foodBlacklist = p.foodBlacklist
                 self.originalNickname = p.nickname
                 self.originalPreferredCategories = p.preferredCategories
                 self.originalDislikedCategories = p.dislikedCategories
                 self.originalNotes = p.notes
+                self.originalFoodBlacklist = p.foodBlacklist
             }
         }
     }
@@ -92,7 +97,8 @@ public struct PartnerFeature {
                     preferredCategories: state.preferredCategories,
                     dislikedCategories: state.dislikedCategories,
                     preferredThemes: state.preferredThemes,
-                    notes: state.notes
+                    notes: state.notes,
+                    foodBlacklist: state.foodBlacklist
                 )
                 return .run { send in
                     await send(.saveResponse(Result {
