@@ -58,7 +58,8 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
                 placeName: doc.placeName,
                 address: doc.addressName,
                 latitude: Double(doc.y),
-                longitude: Double(doc.x)
+                longitude: Double(doc.x),
+                kakaoPlaceId: doc.id
             )
         }
     }
