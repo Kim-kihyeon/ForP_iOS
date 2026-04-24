@@ -23,12 +23,14 @@ public struct HomeFeature {
         public var recentCourses: [Course] = []
         public var likedCourses: [Course] { recentCourses.filter { $0.isLiked } }
         public var upcomingAnniversary: Anniversary? = nil
+        public var allAnniversaries: [Anniversary] = []
         public var weather: WeatherInfo? = nil
         public var isLoading = false
         public var showMonthlyReport = false
         public var monthlyCourses: [Course] = []
         public var isLoadingMonthly = false
         public var showTasteMap = false
+        public var showCalendar = false
         @Presents public var alert: AlertState<Action.Alert>?
 
         public init(user: User) {
@@ -50,6 +52,9 @@ public struct HomeFeature {
         case monthlyReportDismissed
         case loadMonthlyCoursesResponse(Result<[Course], Error>)
         case tasteMapDismissed
+        case calendarTapped
+        case calendarDismissed
+        case calendarCourseSelected(Course)
         case alert(PresentationAction<Alert>)
         case delegate(Delegate)
 
@@ -110,6 +115,7 @@ public struct HomeFeature {
                 return .none
 
             case .loadAnniversariesResponse(.success(let anniversaries)):
+                state.allAnniversaries = anniversaries
                 state.upcomingAnniversary = anniversaries.sorted { $0.daysUntilThisYear < $1.daysUntilThisYear }.first
                 let anniversariesCopy = anniversaries
                 _Concurrency.Task.detached {
@@ -160,6 +166,19 @@ public struct HomeFeature {
 
             case .tasteMapDismissed:
                 state.showTasteMap = false
+                return .none
+
+            case .calendarTapped:
+                state.showCalendar = true
+                return .none
+
+            case .calendarDismissed:
+                state.showCalendar = false
+                return .none
+
+            case .calendarCourseSelected(let course):
+                state.showCalendar = false
+                state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true)))
                 return .none
 
             case .alert:
