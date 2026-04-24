@@ -161,6 +161,12 @@ public struct SettingsView: View {
 
                     Divider().padding(.leading, 52)
 
+                    settingRow(icon: "link", iconColor: Brand.iconBlue, title: "파트너 연동") {
+                        store.send(.partnerConnectTapped)
+                    }
+
+                    Divider().padding(.leading, 52)
+
                     Button {
                         store.send(.resetPartnerTapped)
                     } label: {
@@ -190,6 +196,12 @@ public struct SettingsView: View {
 
                     settingRow(icon: "heart.fill", iconColor: Brand.pink, title: "기념일 관리") {
                         store.send(.anniversaryTapped)
+                    }
+
+                    Divider().padding(.leading, 52)
+
+                    settingRow(icon: "link", iconColor: Brand.iconBlue, title: "파트너 연동") {
+                        store.send(.partnerConnectTapped)
                     }
                 }
             }

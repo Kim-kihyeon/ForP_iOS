@@ -24,6 +24,7 @@ public struct SettingsFeature {
         case wishlistTapped
         case checklistTapped
         case tasteMapTapped
+        case partnerConnectTapped
         case resetPartnerTapped
         case resetPartnerResponse(Result<Void, Error>)
         case logoutTapped
@@ -43,12 +44,14 @@ public struct SettingsFeature {
             case openWishlist
             case openChecklist
             case openTasteMap
+            case openPartnerConnect
             case loggedOut
         }
     }
 
     @Dependency(\.authRepository) var authRepository
     @Dependency(\.partnerRepository) var partnerRepository
+    @Dependency(\.partnerConnectionRepository) var partnerConnectionRepository
     @Dependency(\.currentUserId) var currentUserId
 
     public init() {}
@@ -60,7 +63,18 @@ public struct SettingsFeature {
                 let userId = currentUserId()
                 return .run { send in
                     await send(.loadPartnerResponse(Result {
-                        try await partnerRepository.fetchPartner(for: userId)
+                        if let conn = try await partnerConnectionRepository.fetchConnection(userId: userId) {
+                            let connectedUser = try await partnerConnectionRepository.fetchUser(id: conn.partnerId(myUserId: userId))
+                            return Partner(
+                                userId: connectedUser.id,
+                                nickname: connectedUser.nickname,
+                                preferredCategories: connectedUser.preferredCategories,
+                                dislikedCategories: connectedUser.dislikedCategories,
+                                preferredThemes: connectedUser.preferredThemes,
+                                foodBlacklist: connectedUser.foodBlacklist
+                            )
+                        }
+                        return try await partnerRepository.fetchPartner(for: userId)
                     }))
                 }
 
@@ -90,6 +104,9 @@ public struct SettingsFeature {
 
             case .tasteMapTapped:
                 return .send(.delegate(.openTasteMap))
+
+            case .partnerConnectTapped:
+                return .send(.delegate(.openPartnerConnect))
 
             case .resetPartnerTapped:
                 state.alert = AlertState {
