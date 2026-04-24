@@ -18,6 +18,14 @@ private enum UserRepositoryKey: DependencyKey {
     }
 }
 
+// MARK: - PartnerConnection
+
+private enum PartnerConnectionRepositoryKey: DependencyKey {
+    static var liveValue: any PartnerConnectionRepositoryProtocol {
+        fatalError("partnerConnectionRepository: configure via withDependencies in ForPApp")
+    }
+}
+
 // MARK: - Partner
 
 private enum PartnerRepositoryKey: DependencyKey {
@@ -127,6 +135,11 @@ extension DependencyValues {
     public var userRepository: any UserRepositoryProtocol {
         get { self[UserRepositoryKey.self] }
         set { self[UserRepositoryKey.self] = newValue }
+    }
+
+    public var partnerConnectionRepository: any PartnerConnectionRepositoryProtocol {
+        get { self[PartnerConnectionRepositoryKey.self] }
+        set { self[PartnerConnectionRepositoryKey.self] = newValue }
     }
 
     public var partnerRepository: any PartnerRepositoryProtocol {

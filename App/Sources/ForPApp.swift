@@ -43,6 +43,7 @@ struct ForPApp: App {
         let authRepo = AuthRepository(supabase: supabase, anonKey: Secrets.supabaseAnonKey)
         let userRepo = UserRepository(supabase: supabase)
         let partnerRepo = PartnerRepository(supabase: supabase)
+        let partnerConnectionRepo = PartnerConnectionRepository(supabase: supabase)
         let anniversaryRepo = AnniversaryRepository(supabase: supabase)
         let courseRepo = CourseRepository(supabase: supabase, modelContext: modelContext)
         let placeRepo = PlaceRepository(provider: kakaoProvider)
@@ -58,6 +59,7 @@ struct ForPApp: App {
             $0.authRepository = authRepo
             $0.userRepository = userRepo
             $0.partnerRepository = partnerRepo
+            $0.partnerConnectionRepository = partnerConnectionRepo
             $0.anniversaryRepository = anniversaryRepo
             $0.notificationService = NotificationService()
             $0.courseRepository = courseRepo
