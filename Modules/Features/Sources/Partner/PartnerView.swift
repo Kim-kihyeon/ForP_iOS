@@ -5,6 +5,7 @@ import CoreSharedUI
 public struct PartnerView: View {
     @Bindable var store: StoreOf<PartnerFeature>
     @State private var showExitConfirm = false
+    @State private var customBlacklistInput = ""
     @Environment(\.dismiss) private var dismiss
 
     private let categories: [(emoji: String, name: String)] = [
@@ -27,6 +28,7 @@ public struct PartnerView: View {
                     VStack(spacing: 12) {
                         nicknameSection
                         categorySection
+                        blacklistSection
                         notesSection
                     }
                     .padding(.horizontal, Spacing.md)
@@ -171,6 +173,90 @@ public struct PartnerView: View {
                 .onTapGesture { store.send(.categoryTapped(item.name)) }
             }
         }
+    }
+
+    private let blacklistPresets: [(String, String)] = [
+        ("🥜", "견과류"), ("🦐", "해산물"), ("🥛", "유제품"), ("🌾", "글루텐"),
+        ("🌶️", "매운 음식"), ("🍺", "알코올"), ("🥩", "육류"), ("🐷", "돼지고기"),
+        ("🐟", "날음식/회"), ("☕", "카페인")
+    ]
+
+    private var blacklistSection: some View {
+        FormCard {
+            HStack(alignment: .top, spacing: Spacing.md) {
+                iconBadge("nosign", color: Color(.systemRed))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("절대 제외 음식/장소")
+                        .font(Typography.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    FlowLayout(spacing: 8) {
+                        ForEach(blacklistPresets, id: \.1) { emoji, name in
+                            let isSelected = store.foodBlacklist.contains(name)
+                            Button {
+                                if isSelected {
+                                    store.foodBlacklist.removeAll { $0 == name }
+                                } else {
+                                    store.foodBlacklist.append(name)
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text(emoji).font(.system(size: 13))
+                                    Text(name).font(.system(size: 12, weight: .medium))
+                                    if isSelected {
+                                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                                    }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(isSelected ? Color(.systemRed).opacity(0.12) : Color(.tertiarySystemFill))
+                                .foregroundStyle(isSelected ? Color(.systemRed) : Color(.secondaryLabel))
+                                .clipShape(Capsule())
+                                .overlay {
+                                    if isSelected {
+                                        Capsule().stroke(Color(.systemRed).opacity(0.4), lineWidth: 1)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        ForEach(store.foodBlacklist.filter { item in !blacklistPresets.map(\.1).contains(item) }, id: \.self) { item in
+                            HStack(spacing: 4) {
+                                Text(item).font(.system(size: 12, weight: .medium))
+                                Button {
+                                    store.foodBlacklist.removeAll { $0 == item }
+                                } label: {
+                                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color(.systemRed).opacity(0.12))
+                            .foregroundStyle(Color(.systemRed))
+                            .clipShape(Capsule())
+                            .overlay { Capsule().stroke(Color(.systemRed).opacity(0.4), lineWidth: 1) }
+                        }
+                    }
+                    HStack(spacing: 8) {
+                        TextField("직접 입력 (예: 고수, 오이)", text: $customBlacklistInput)
+                            .font(.system(size: 14))
+                            .onSubmit { addCustomBlacklist() }
+                        Button(action: addCustomBlacklist) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(customBlacklistInput.isEmpty ? Color(.tertiaryLabel) : Color(.systemRed))
+                        }
+                        .disabled(customBlacklistInput.isEmpty)
+                    }
+                }
+            }
+        }
+    }
+
+    private func addCustomBlacklist() {
+        let trimmed = customBlacklistInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !store.foodBlacklist.contains(trimmed) else { return }
+        store.foodBlacklist.append(trimmed)
+        customBlacklistInput = ""
     }
 
     private var notesSection: some View {
