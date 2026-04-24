@@ -63,6 +63,7 @@ public struct GPTAIService: AIServiceProtocol {
         선호 테마: \(user.preferredThemes.isEmpty ? "없음" : user.preferredThemes.joined(separator: ", "))
         내 선호: \(user.preferredCategories.isEmpty ? "없음" : user.preferredCategories.joined(separator: ", "))
         내 비선호: \(user.dislikedCategories.isEmpty ? "없음" : user.dislikedCategories.joined(separator: ", "))
+        절대 제외 (내): \(user.foodBlacklist.isEmpty ? "없음" : user.foodBlacklist.joined(separator: ", "))
         """
         if !options.memo.isEmpty {
             prompt += "\n요청사항 (최우선 반영): \(options.memo)"
@@ -76,6 +77,7 @@ public struct GPTAIService: AIServiceProtocol {
 
             파트너(\(partner.nickname)) 선호: \(partner.preferredCategories.isEmpty ? "없음" : partner.preferredCategories.joined(separator: ", "))
             파트너 비선호: \(partner.dislikedCategories.isEmpty ? "없음" : partner.dislikedCategories.joined(separator: ", "))
+            절대 제외 (파트너): \(partner.foodBlacklist.isEmpty ? "없음" : partner.foodBlacklist.joined(separator: ", "))
             """
             if !partner.notes.isEmpty {
                 prompt += "\n파트너 특이사항: \(partner.notes)"
