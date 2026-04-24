@@ -7,6 +7,7 @@ public struct CourseGenerateFeature {
     @ObservableState
     public struct State: Equatable {
         public var user: User
+        public var partner: Partner?
         public var locationQuery = ""
         public var selectedLocations: [CoursePlace] = []
         public var locationSuggestions: [CoursePlace] = []
@@ -20,8 +21,9 @@ public struct CourseGenerateFeature {
         public var wishlistPlaces: [WishlistPlace] = []
         public var selectedWishlistIds: Set<UUID> = []
 
-        public init(user: User) {
+        public init(user: User, partner: Partner? = nil) {
             self.user = user
+            self.partner = partner
             self.selectedThemes = user.preferredThemes
         }
     }
@@ -49,7 +51,6 @@ public struct CourseGenerateFeature {
     }
 
     @Dependency(\.generateCourseUseCase) var generateCourseUseCase
-    @Dependency(\.currentPartner) var currentPartner
     @Dependency(\.wishlistRepository) var wishlistRepository
     @Dependency(\.currentUserId) var currentUserId
     @Dependency(\.userRepository) var userRepository
@@ -180,8 +181,7 @@ public struct CourseGenerateFeature {
                     baseLongitude: baseLon,
                     searchRadius: searchRadius
                 )
-                return .run { [options, user = state.user] send in
-                    let partner = currentPartner()
+                return .run { [options, user = state.user, partner = state.partner] send in
                     await send(.generateResponse(
                         Result { try await generateCourseUseCase.execute(user: user, partner: partner, options: options) }
                     ))

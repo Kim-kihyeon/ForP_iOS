@@ -37,6 +37,7 @@ public struct HomeView: View {
             case .profile(let store): ProfileView(store: store)
             case .wishlist(let store): WishlistManageView(store: store)
             case .defaultChecklist: DefaultChecklistManageView()
+            case .partnerConnection(let store): PartnerConnectionView(store: store)
             }
         }
         .onAppear { store.send(.onAppear) }

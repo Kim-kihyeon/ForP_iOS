@@ -14,12 +14,14 @@ public struct HomeFeature {
         case profile(ProfileFeature)
         case wishlist(WishlistManageFeature)
         case defaultChecklist
+        case partnerConnection(PartnerConnectionFeature)
     }
 
     @ObservableState
     public struct State: Equatable {
         public var user: User
         public var path = StackState<Path.State>()
+        public var partner: Partner? = nil
         public var recentCourses: [Course] = []
         public var likedCourses: [Course] { recentCourses.filter { $0.isLiked } }
         public var upcomingAnniversary: Anniversary? = nil
@@ -43,6 +45,7 @@ public struct HomeFeature {
         case onAppear
         case refresh
         case loadCoursesResponse(Result<[Course], Error>)
+        case loadPartnerResponse(Result<Partner?, Error>)
         case loadAnniversariesResponse(Result<[Anniversary], Error>)
         case loadWeatherResponse(Result<WeatherInfo, Error>)
         case generateCourseTapped
@@ -65,7 +68,8 @@ public struct HomeFeature {
     }
 
     @Dependency(\.fetchRecentCoursesUseCase) var fetchRecentCoursesUseCase
-    @Dependency(\.currentPartner) var currentPartner
+    @Dependency(\.partnerRepository) var partnerRepository
+    @Dependency(\.partnerConnectionRepository) var partnerConnectionRepository
     @Dependency(\.anniversaryRepository) var anniversaryRepository
     @Dependency(\.notificationService) var notificationService: any NotificationServiceProtocol
     @Dependency(\.weatherService) var weatherService: any WeatherServiceProtocol
@@ -84,6 +88,20 @@ public struct HomeFeature {
                     await send(.loadCoursesResponse(
                         Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
                     ))
+                    await send(.loadPartnerResponse(Result {
+                        if let conn = try await partnerConnectionRepository.fetchConnection(userId: userId) {
+                            let connectedUser = try await partnerConnectionRepository.fetchUser(id: conn.partnerId(myUserId: userId))
+                            return Partner(
+                                userId: connectedUser.id,
+                                nickname: connectedUser.nickname,
+                                preferredCategories: connectedUser.preferredCategories,
+                                dislikedCategories: connectedUser.dislikedCategories,
+                                preferredThemes: connectedUser.preferredThemes,
+                                foodBlacklist: connectedUser.foodBlacklist
+                            )
+                        }
+                        return try await partnerRepository.fetchPartner(for: userId)
+                    }))
                     await send(.loadAnniversariesResponse(
                         Result { try await anniversaryRepository.fetchAnniversaries(userId: userId) }
                     ))
@@ -112,6 +130,13 @@ public struct HomeFeature {
             case .loadCoursesResponse(.success(let courses)):
                 state.isLoading = false
                 state.recentCourses = courses
+                return .none
+
+            case .loadPartnerResponse(.success(let partner)):
+                state.partner = partner
+                return .none
+
+            case .loadPartnerResponse(.failure):
                 return .none
 
             case .loadAnniversariesResponse(.success(let anniversaries)):
@@ -185,7 +210,7 @@ public struct HomeFeature {
                 return .none
 
             case .generateCourseTapped:
-                state.path.append(.courseGenerate(CourseGenerateFeature.State(user: state.user)))
+                state.path.append(.courseGenerate(CourseGenerateFeature.State(user: state.user, partner: state.partner)))
                 return .none
 
             case .courseSelected(let course):
@@ -267,6 +292,10 @@ public struct HomeFeature {
 
             case .path(.element(_, action: .settings(.delegate(.openChecklist)))):
                 state.path.append(.defaultChecklist)
+                return .none
+
+            case .path(.element(_, action: .settings(.delegate(.openPartnerConnect)))):
+                state.path.append(.partnerConnection(PartnerConnectionFeature.State()))
                 return .none
 
             case .path(.element(_, action: .settings(.delegate(.openTasteMap)))):
