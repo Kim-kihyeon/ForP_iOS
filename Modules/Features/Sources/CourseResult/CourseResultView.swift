@@ -880,22 +880,33 @@ public struct CourseResultView: View {
 
     private func openKakaoMap(place: CoursePlace) {
         let placeName = place.placeName ?? place.keyword
-        guard let encoded = placeName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
 
-        let appURLString: String
-        if let lat = place.latitude, let lon = place.longitude {
-            appURLString = "kakaomap://search?q=\(encoded)&p=\(lat),\(lon)"
-        } else {
-            appURLString = "kakaomap://search?q=\(encoded)"
+        // 1순위: 카카오 장소 ID로 정확한 장소 페이지 오픈
+        if let placeId = place.kakaoPlaceId {
+            let appURLString = "kakaomap://place?id=\(placeId)"
+            if let appURL = URL(string: appURLString), UIApplication.shared.canOpenURL(appURL) {
+                UIApplication.shared.open(appURL)
+                return
+            }
+            if let webURL = URL(string: "https://place.map.kakao.com/\(placeId)") {
+                UIApplication.shared.open(webURL)
+                return
+            }
         }
 
-        guard let appURL = URL(string: appURLString) else { return }
-        UIApplication.shared.open(appURL) { success in
-            guard !success else { return }
-            guard let encoded2 = placeName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
-                  let webURL = URL(string: "https://map.kakao.com/link/search/\(encoded2)") else { return }
-            UIApplication.shared.open(webURL)
+        // 2순위: 좌표 + 이름으로 검색 (placeId 없는 경우)
+        if let lat = place.latitude, let lon = place.longitude,
+           let encoded = placeName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+           let appURL = URL(string: "kakaomap://search?q=\(encoded)&p=\(lat),\(lon)"),
+           UIApplication.shared.canOpenURL(appURL) {
+            UIApplication.shared.open(appURL)
+            return
         }
+
+        // 3순위: 웹 fallback
+        guard let encoded = placeName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let webURL = URL(string: "https://map.kakao.com/link/search/\(encoded)") else { return }
+        UIApplication.shared.open(webURL)
     }
 }
 
