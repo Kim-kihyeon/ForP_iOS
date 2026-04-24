@@ -61,6 +61,17 @@ public struct HomeView: View {
                 onDismiss: { store.send(.tasteMapDismissed) }
             )
         }
+        .sheet(isPresented: Binding(
+            get: { store.showCalendar },
+            set: { if !$0 { store.send(.calendarDismissed) } }
+        )) {
+            CourseCalendarView(
+                courses: store.recentCourses,
+                anniversaries: store.allAnniversaries,
+                onSelectCourse: { store.send(.calendarCourseSelected($0)) },
+                onDismiss: { store.send(.calendarDismissed) }
+            )
+        }
     }
 
     // MARK: - Header
@@ -76,6 +87,16 @@ public struct HomeView: View {
                         .font(.system(size: 26, weight: .bold, design: .default))
                 }
                 Spacer()
+                Button {
+                    store.send(.calendarTapped)
+                } label: {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 38, height: 38)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(Circle())
+                }
                 Button {
                     store.send(.settingsTapped)
                 } label: {
