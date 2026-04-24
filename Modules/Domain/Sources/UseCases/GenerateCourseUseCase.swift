@@ -57,6 +57,7 @@ public struct GenerateCourseUseCase {
                 updated.address = first.address
                 updated.latitude = first.latitude
                 updated.longitude = first.longitude
+                updated.kakaoPlaceId = first.kakaoPlaceId
                 enrichedSelected.append(updated)
                 usedPlaceNames.insert(name)
             }
@@ -73,6 +74,7 @@ public struct GenerateCourseUseCase {
                 updated.address = first.address
                 updated.latitude = first.latitude
                 updated.longitude = first.longitude
+                updated.kakaoPlaceId = first.kakaoPlaceId
                 enrichedCandidates.append(updated)
                 usedPlaceNames.insert(name)
             }
