@@ -8,6 +8,7 @@ public struct User: Identifiable, Codable, Equatable {
     public var dislikedCategories: [String]
     public var preferredThemes: [String]
     public var location: String
+    public var foodBlacklist: [String]
 
     public static let placeholder = User(email: "", nickname: "")
 
@@ -18,7 +19,8 @@ public struct User: Identifiable, Codable, Equatable {
         preferredCategories: [String] = [],
         dislikedCategories: [String] = [],
         preferredThemes: [String] = [],
-        location: String = ""
+        location: String = "",
+        foodBlacklist: [String] = []
     ) {
         self.id = id
         self.email = email
@@ -27,5 +29,6 @@ public struct User: Identifiable, Codable, Equatable {
         self.dislikedCategories = dislikedCategories
         self.preferredThemes = preferredThemes
         self.location = location
+        self.foodBlacklist = foodBlacklist
     }
 }

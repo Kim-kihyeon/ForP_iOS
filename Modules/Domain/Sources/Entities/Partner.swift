@@ -8,6 +8,7 @@ public struct Partner: Identifiable, Codable, Equatable {
     public var dislikedCategories: [String]
     public var preferredThemes: [String]
     public var notes: String
+    public var foodBlacklist: [String]
 
     public init(
         id: UUID = UUID(),
@@ -16,7 +17,8 @@ public struct Partner: Identifiable, Codable, Equatable {
         preferredCategories: [String] = [],
         dislikedCategories: [String] = [],
         preferredThemes: [String] = [],
-        notes: String = ""
+        notes: String = "",
+        foodBlacklist: [String] = []
     ) {
         self.id = id
         self.userId = userId
@@ -25,5 +27,6 @@ public struct Partner: Identifiable, Codable, Equatable {
         self.dislikedCategories = dislikedCategories
         self.preferredThemes = preferredThemes
         self.notes = notes
+        self.foodBlacklist = foodBlacklist
     }
 }

@@ -9,12 +9,14 @@ struct UserRow: Codable {
     let dislikedCategories: [String]
     let preferredThemes: [String]
     let location: String
+    let foodBlacklist: [String]
 
     enum CodingKeys: String, CodingKey {
         case id, email, nickname, location
         case preferredCategories = "preferred_categories"
         case dislikedCategories = "disliked_categories"
         case preferredThemes = "preferred_themes"
+        case foodBlacklist = "food_blacklist"
     }
 
     init(from user: Domain.User) {
@@ -25,6 +27,7 @@ struct UserRow: Codable {
         dislikedCategories = user.dislikedCategories
         preferredThemes = user.preferredThemes
         location = user.location
+        foodBlacklist = user.foodBlacklist
     }
 
     func toDomain() -> Domain.User {
@@ -35,7 +38,8 @@ struct UserRow: Codable {
             preferredCategories: preferredCategories,
             dislikedCategories: dislikedCategories,
             preferredThemes: preferredThemes,
-            location: location
+            location: location,
+            foodBlacklist: foodBlacklist
         )
     }
 }
