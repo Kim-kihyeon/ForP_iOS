@@ -80,6 +80,10 @@ public final class AuthRepository: AuthRepositoryProtocol {
         )
     }
 
+    public func hasActiveSession() -> Bool {
+        supabase.auth.currentSession != nil
+    }
+
     // MARK: - Private
 
     private struct KakaoAuthResponse: Decodable {

@@ -42,12 +42,10 @@ public struct AppFeature {
             switch action {
             case .onAppear:
                 return .run { send in
-                    await send(.sessionChecked(
-                        Result {
-                            guard try await authRepository.fetchCurrentUser() != nil else { return nil }
-                            return try? await userRepository.fetchCurrentUser()
-                        }
-                    ))
+                    await send(.sessionChecked(Result {
+                        guard authRepository.hasActiveSession() else { return nil }
+                        return try? await userRepository.fetchCurrentUser()
+                    }))
                 }
 
             case .sessionChecked(.success(let user)):

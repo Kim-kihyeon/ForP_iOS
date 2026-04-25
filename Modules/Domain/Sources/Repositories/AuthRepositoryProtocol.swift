@@ -5,4 +5,5 @@ public protocol AuthRepositoryProtocol: Sendable {
     func loginWithApple(idToken: String, nonce: String) async throws -> User
     func logout() async throws
     func fetchCurrentUser() async throws -> User?
+    func hasActiveSession() -> Bool
 }
