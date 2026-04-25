@@ -8,6 +8,11 @@ let packageSettings = PackageSettings(
     productTypes: [
         "Moya": .staticFramework,
         "Supabase": .staticFramework,
+        "FirebaseMessaging": .staticFramework,
+        "FirebaseCore": .staticFramework,
+        "FirebaseCoreInternal": .staticFramework,
+        "FirebaseInstallations": .staticFramework,
+        "GoogleUtilities": .staticFramework,
     ]
 )
 #endif
@@ -30,6 +35,10 @@ let package = Package(
         .package(
             url: "https://github.com/kakao/kakao-ios-sdk",
             from: "2.20.0"
+        ),
+        .package(
+            url: "https://github.com/firebase/firebase-ios-sdk",
+            from: "11.0.0"
         ),
     ]
 )

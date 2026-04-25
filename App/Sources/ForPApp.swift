@@ -12,6 +12,7 @@ import KakaoSDKAuth
 
 @main
 struct ForPApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     let store: StoreOf<AppFeature>
     let modelContainer: ModelContainer
     let notificationService: NotificationService
@@ -83,6 +84,9 @@ struct ForPApp: App {
             AppView(store: store)
                 .modelContainer(modelContainer)
                 .onAppear {
+                    appDelegate.onFCMToken = { token in
+                        store.send(.fcmTokenReceived(token))
+                    }
                     store.send(.onAppear)
                     _Concurrency.Task { await notificationService.requestPermission() }
                 }

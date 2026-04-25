@@ -51,6 +51,7 @@ let project = Project(
                 .external(name: "KakaoSDKCommon"),
                 .external(name: "KakaoSDKAuth"),
                 .external(name: "KakaoSDKUser"),
+                .external(name: "FirebaseMessaging"),
             ],
             settings: .settings(base: [
                 "CODE_SIGN_STYLE": "Automatic",
