@@ -11,4 +11,5 @@ public protocol CourseRepositoryProtocol: Sendable {
     func updateTitle(id: UUID, title: String) async throws
     func endCourse(id: UUID) async throws
     func observeIsEnded(courseId: UUID) -> AsyncStream<Void>
+    func notifyPartner(courseId: UUID) async
 }

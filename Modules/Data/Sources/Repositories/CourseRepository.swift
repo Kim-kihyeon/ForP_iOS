@@ -176,6 +176,11 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
         }
     }
 
+    public func notifyPartner(courseId: UUID) async {
+        try? await supabase.functions
+            .invoke("notify-partner", options: .init(body: ["course_id": courseId.uuidString]))
+    }
+
     public func deleteCourse(id: UUID) async throws {
         try await supabase
             .from("courses")

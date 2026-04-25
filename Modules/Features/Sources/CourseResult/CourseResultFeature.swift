@@ -123,8 +123,11 @@ public struct CourseResultFeature {
                 state.isSaving = false
                 state.isSaved = true
                 let course = state.course
-                return .run { [notificationService] _ in
+                return .run { [notificationService, courseRepository] _ in
                     await notificationService.scheduleCourseNotification(for: course)
+                    if course.partnerId != nil {
+                        await courseRepository.notifyPartner(courseId: course.id)
+                    }
                 }
 
             case .saveResponse(.failure(let error)):
