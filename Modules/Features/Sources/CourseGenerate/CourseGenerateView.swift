@@ -438,6 +438,7 @@ public struct CourseGenerateView: View {
         VStack(spacing: 0) {
             Divider().opacity(0.5)
             Button {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 Haptics.impact(.medium)
                 store.send(.generateTapped)
             } label: {
