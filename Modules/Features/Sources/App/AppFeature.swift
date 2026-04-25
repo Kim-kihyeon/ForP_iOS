@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Domain
+import Foundation
 
 @Reducer
 public struct AppFeature {
@@ -9,6 +10,8 @@ public struct AppFeature {
         public var login = LoginFeature.State()
         public var onboarding = OnboardingFeature.State(user: .placeholder)
         public var home = HomeFeature.State(user: .placeholder)
+        public var pendingFCMToken: String? = nil
+        public var authenticatedUserId: UUID? = nil
 
         public enum Route: Equatable {
             case splash
@@ -23,6 +26,7 @@ public struct AppFeature {
     public enum Action {
         case onAppear
         case sessionChecked(Result<User?, Error>)
+        case fcmTokenReceived(String)
         case login(LoginFeature.Action)
         case onboarding(OnboardingFeature.Action)
         case home(HomeFeature.Action)
@@ -50,6 +54,7 @@ public struct AppFeature {
 
             case .sessionChecked(.success(let user)):
                 if let user {
+                    state.authenticatedUserId = user.id
                     if user.preferredCategories.isEmpty {
                         state.onboarding = OnboardingFeature.State(user: user)
                         state.route = .onboarding
@@ -57,16 +62,33 @@ public struct AppFeature {
                         state.home = HomeFeature.State(user: user)
                         state.route = .main
                     }
+                    if let token = state.pendingFCMToken {
+                        state.pendingFCMToken = nil
+                        return .run { _ in
+                            try? await userRepository.saveFCMToken(userId: user.id, token: token)
+                        }
+                    }
                 } else {
                     state.route = .login
                 }
                 return .none
+
+            case .fcmTokenReceived(let token):
+                if let userId = state.authenticatedUserId {
+                    return .run { _ in
+                        try? await userRepository.saveFCMToken(userId: userId, token: token)
+                    }
+                } else {
+                    state.pendingFCMToken = token
+                    return .none
+                }
 
             case .sessionChecked(.failure):
                 state.route = .login
                 return .none
 
             case .login(.delegate(.loginSucceeded(let user))):
+                state.authenticatedUserId = user.id
                 if user.preferredCategories.isEmpty {
                     state.onboarding = OnboardingFeature.State(user: user)
                     state.route = .onboarding
@@ -74,16 +96,30 @@ public struct AppFeature {
                     state.home = HomeFeature.State(user: user)
                     state.route = .main
                 }
+                if let token = state.pendingFCMToken {
+                    state.pendingFCMToken = nil
+                    return .run { _ in
+                        try? await userRepository.saveFCMToken(userId: user.id, token: token)
+                    }
+                }
                 return .none
 
             case .onboarding(.delegate(.onboardingCompleted(let user))):
+                state.authenticatedUserId = user.id
                 state.home = HomeFeature.State(user: user)
                 state.route = .main
+                if let token = state.pendingFCMToken {
+                    state.pendingFCMToken = nil
+                    return .run { _ in
+                        try? await userRepository.saveFCMToken(userId: user.id, token: token)
+                    }
+                }
                 return .none
 
             case .home(.delegate(.loggedOut)):
                 state.route = .login
                 state.login = LoginFeature.State()
+                state.authenticatedUserId = nil
                 return .none
 
             case .login, .onboarding, .home:

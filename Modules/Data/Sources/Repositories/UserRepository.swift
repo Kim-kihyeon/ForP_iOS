@@ -27,5 +27,13 @@ public final class UserRepository: UserRepositoryProtocol {
             .upsert(row)
             .execute()
     }
+
+    public func saveFCMToken(userId: UUID, token: String) async throws {
+        try await supabase
+            .from("users")
+            .update(["fcm_token": token])
+            .eq("id", value: userId)
+            .execute()
+    }
 }
 
