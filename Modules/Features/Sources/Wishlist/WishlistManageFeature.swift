@@ -10,6 +10,7 @@ public struct WishlistManageFeature {
         public var isLoading = false
         public var loadFailed = false
         public var pendingDeleteOffsets: IndexSet? = nil
+        var pendingDeletePlaces: [WishlistPlace] = []
 
         public init() {}
     }
@@ -58,6 +59,8 @@ public struct WishlistManageFeature {
             case .deleteConfirmed:
                 guard let offsets = state.pendingDeleteOffsets else { return .none }
                 let ids = offsets.map { state.places[$0].id }
+                let removed = offsets.map { state.places[$0] }
+                state.pendingDeletePlaces = removed
                 state.places.remove(atOffsets: offsets)
                 state.pendingDeleteOffsets = nil
                 return .run { send in
@@ -72,7 +75,14 @@ public struct WishlistManageFeature {
                 state.pendingDeleteOffsets = nil
                 return .none
 
-            case .deleteResponse:
+            case .deleteResponse(.success):
+                state.pendingDeletePlaces = []
+                return .none
+
+            case .deleteResponse(.failure):
+                state.places.append(contentsOf: state.pendingDeletePlaces)
+                state.places.sort { $0.savedAt > $1.savedAt }
+                state.pendingDeletePlaces = []
                 return .none
             }
         }
