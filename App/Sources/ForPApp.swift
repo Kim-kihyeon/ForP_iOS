@@ -52,6 +52,7 @@ struct ForPApp: App {
         let generateUseCase = GenerateCourseUseCase(aiService: aiService, placeRepository: placeRepo, weatherService: weatherService)
         let saveUseCase = SaveCourseUseCase(courseRepository: courseRepo)
         let fetchCoursesUseCase = FetchRecentCoursesUseCase(courseRepository: courseRepo)
+        let fetchEffectivePartnerUseCase = FetchEffectivePartnerUseCase(partnerConnectionRepository: partnerConnectionRepo, partnerRepository: partnerRepo)
 
         self.store = Store(initialState: AppFeature.State()) {
             AppFeature()
@@ -68,6 +69,7 @@ struct ForPApp: App {
             $0.generateCourseUseCase = generateUseCase
             $0.saveCourseUseCase = saveUseCase
             $0.fetchRecentCoursesUseCase = fetchCoursesUseCase
+            $0.fetchEffectivePartnerUseCase = fetchEffectivePartnerUseCase
             $0.weatherService = weatherService
             $0.currentUserId = { supabase.auth.currentUser?.id ?? UUID() }
         }

@@ -50,8 +50,8 @@ public struct SettingsFeature {
     }
 
     @Dependency(\.authRepository) var authRepository
+    @Dependency(\.fetchEffectivePartnerUseCase) var fetchEffectivePartnerUseCase
     @Dependency(\.partnerRepository) var partnerRepository
-    @Dependency(\.partnerConnectionRepository) var partnerConnectionRepository
     @Dependency(\.currentUserId) var currentUserId
 
     public init() {}
@@ -63,18 +63,7 @@ public struct SettingsFeature {
                 let userId = currentUserId()
                 return .run { send in
                     await send(.loadPartnerResponse(Result {
-                        if let conn = try await partnerConnectionRepository.fetchConnection(userId: userId) {
-                            let connectedUser = try await partnerConnectionRepository.fetchUser(id: conn.partnerId(myUserId: userId))
-                            return Partner(
-                                userId: connectedUser.id,
-                                nickname: connectedUser.nickname,
-                                preferredCategories: connectedUser.preferredCategories,
-                                dislikedCategories: connectedUser.dislikedCategories,
-                                preferredThemes: connectedUser.preferredThemes,
-                                foodBlacklist: connectedUser.foodBlacklist
-                            )
-                        }
-                        return try await partnerRepository.fetchPartner(for: userId)
+                        try await fetchEffectivePartnerUseCase.execute(userId: userId)
                     }))
                 }
 

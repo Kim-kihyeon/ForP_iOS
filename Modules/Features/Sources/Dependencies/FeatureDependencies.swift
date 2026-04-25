@@ -102,12 +102,10 @@ private enum WeatherServiceKey: DependencyKey {
 
 // MARK: - Session
 
-private enum CurrentUserKey: DependencyKey {
-    static var liveValue: @Sendable () -> User? { { nil } }
-}
-
-private enum CurrentPartnerKey: DependencyKey {
-    static var liveValue: @Sendable () -> Partner? { { nil } }
+private enum FetchEffectivePartnerUseCaseKey: DependencyKey {
+    static var liveValue: FetchEffectivePartnerUseCase {
+        fatalError("fetchEffectivePartnerUseCase: configure via withDependencies in ForPApp")
+    }
 }
 
 private enum CurrentUserIdKey: DependencyKey {
@@ -182,14 +180,9 @@ extension DependencyValues {
         set { self[WeatherServiceKey.self] = newValue }
     }
 
-    public var currentUser: @Sendable () -> User? {
-        get { self[CurrentUserKey.self] }
-        set { self[CurrentUserKey.self] = newValue }
-    }
-
-    public var currentPartner: @Sendable () -> Partner? {
-        get { self[CurrentPartnerKey.self] }
-        set { self[CurrentPartnerKey.self] = newValue }
+    public var fetchEffectivePartnerUseCase: FetchEffectivePartnerUseCase {
+        get { self[FetchEffectivePartnerUseCaseKey.self] }
+        set { self[FetchEffectivePartnerUseCaseKey.self] = newValue }
     }
 
     public var currentUserId: @Sendable () -> UUID {

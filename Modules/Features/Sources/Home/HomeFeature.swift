@@ -70,7 +70,7 @@ public struct HomeFeature {
     }
 
     @Dependency(\.fetchRecentCoursesUseCase) var fetchRecentCoursesUseCase
-    @Dependency(\.partnerRepository) var partnerRepository
+    @Dependency(\.fetchEffectivePartnerUseCase) var fetchEffectivePartnerUseCase
     @Dependency(\.partnerConnectionRepository) var partnerConnectionRepository
     @Dependency(\.anniversaryRepository) var anniversaryRepository
     @Dependency(\.notificationService) var notificationService: any NotificationServiceProtocol
@@ -91,18 +91,7 @@ public struct HomeFeature {
                         Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
                     ))
                     await send(.loadPartnerResponse(Result {
-                        if let conn = try await partnerConnectionRepository.fetchConnection(userId: userId) {
-                            let connectedUser = try await partnerConnectionRepository.fetchUser(id: conn.partnerId(myUserId: userId))
-                            return Partner(
-                                userId: connectedUser.id,
-                                nickname: connectedUser.nickname,
-                                preferredCategories: connectedUser.preferredCategories,
-                                dislikedCategories: connectedUser.dislikedCategories,
-                                preferredThemes: connectedUser.preferredThemes,
-                                foodBlacklist: connectedUser.foodBlacklist
-                            )
-                        }
-                        return try await partnerRepository.fetchPartner(for: userId)
+                        try await fetchEffectivePartnerUseCase.execute(userId: userId)
                     }))
                     await send(.loadAnniversariesResponse(
                         Result { try await anniversaryRepository.fetchAnniversaries(userId: userId) }
@@ -146,10 +135,9 @@ public struct HomeFeature {
                 state.allAnniversaries = anniversaries
                 state.upcomingAnniversary = anniversaries.sorted { $0.daysUntilThisYear < $1.daysUntilThisYear }.first
                 let anniversariesCopy = anniversaries
-                _Concurrency.Task.detached {
+                return .run { _ in
                     await notificationService.scheduleAnniversaryNotifications(for: anniversariesCopy)
                 }
-                return .none
 
             case .loadWeatherResponse(.success(let weather)):
                 state.weather = weather
@@ -364,7 +352,12 @@ public struct HomeFeature {
 
             case .path(.element(_, action: .partner(.delegate(.partnerSaved)))):
                 state.path.removeLast()
-                return .none
+                let userId = state.user.id
+                return .run { send in
+                    await send(.loadPartnerResponse(Result {
+                        try await fetchEffectivePartnerUseCase.execute(userId: userId)
+                    }))
+                }
 
             case .path:
                 return .none
