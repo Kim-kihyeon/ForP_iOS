@@ -189,7 +189,7 @@ public struct CourseGenerateFeature {
                 .cancellable(id: "courseGeneration", cancelInFlight: true)
 
             case .generateResponse(.success(let plan)):
-                state.isGenerating = false
+                // isGenerating을 false로 하지 않아야 navigation 전 깜빡임 방지
                 let locationStr = state.selectedLocations.map { $0.placeName ?? $0.keyword }.joined(separator: ", ")
                 let selectedWishlist = state.wishlistPlaces.filter { state.selectedWishlistIds.contains($0.id) }
                 let options = CourseOptions(
