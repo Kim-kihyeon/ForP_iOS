@@ -109,8 +109,9 @@ public struct PartnerConnectionFeature {
                 state.connectedUser = nil
                 return .none
 
-            case .disconnectResponse(.failure):
+            case .disconnectResponse(.failure(let error)):
                 state.isLoading = false
+                state.alert = AlertState { TextState("연동 해제 실패") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
                 return .none
 
             case .binding, .alert:

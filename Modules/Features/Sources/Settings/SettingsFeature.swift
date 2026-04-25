@@ -52,6 +52,7 @@ public struct SettingsFeature {
     @Dependency(\.authRepository) var authRepository
     @Dependency(\.fetchEffectivePartnerUseCase) var fetchEffectivePartnerUseCase
     @Dependency(\.partnerRepository) var partnerRepository
+    @Dependency(\.partnerConnectionRepository) var partnerConnectionRepository
     @Dependency(\.currentUserId) var currentUserId
 
     public init() {}
@@ -116,9 +117,12 @@ public struct SettingsFeature {
                 state.isLoading = true
                 return .run { send in
                     let userId = currentUserId()
-                    await send(.resetPartnerResponse(
-                        Result { try await partnerRepository.deletePartner(forUserId: userId) }
-                    ))
+                    await send(.resetPartnerResponse(Result {
+                        try await partnerRepository.deletePartner(forUserId: userId)
+                        if let conn = try? await partnerConnectionRepository.fetchConnection(userId: userId) {
+                            try await partnerConnectionRepository.disconnect(connectionId: conn.id)
+                        }
+                    }))
                 }
 
             case .alert(.presented(.confirmLogout)):
@@ -137,8 +141,9 @@ public struct SettingsFeature {
                 state.partner = nil
                 return .none
 
-            case .resetPartnerResponse(.failure):
+            case .resetPartnerResponse(.failure(let error)):
                 state.isLoading = false
+                state.alert = AlertState { TextState("오류") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
                 return .none
 
             case .logoutTapped:
