@@ -14,6 +14,7 @@ import KakaoSDKAuth
 struct ForPApp: App {
     let store: StoreOf<AppFeature>
     let modelContainer: ModelContainer
+    let notificationService: NotificationService
 
     init() {
         KakaoSDK.initSDK(appKey: Secrets.kakaoAppKey)
@@ -53,6 +54,8 @@ struct ForPApp: App {
         let saveUseCase = SaveCourseUseCase(courseRepository: courseRepo)
         let fetchCoursesUseCase = FetchRecentCoursesUseCase(courseRepository: courseRepo)
         let fetchEffectivePartnerUseCase = FetchEffectivePartnerUseCase(partnerConnectionRepository: partnerConnectionRepo, partnerRepository: partnerRepo)
+        let notificationSvc = NotificationService()
+        self.notificationService = notificationSvc
 
         self.store = Store(initialState: AppFeature.State()) {
             AppFeature()
@@ -62,7 +65,7 @@ struct ForPApp: App {
             $0.partnerRepository = partnerRepo
             $0.partnerConnectionRepository = partnerConnectionRepo
             $0.anniversaryRepository = anniversaryRepo
-            $0.notificationService = NotificationService()
+            $0.notificationService = notificationSvc
             $0.courseRepository = courseRepo
             $0.wishlistRepository = wishlistRepo
             $0.placeRepository = placeRepo
@@ -81,7 +84,7 @@ struct ForPApp: App {
                 .modelContainer(modelContainer)
                 .onAppear {
                     store.send(.onAppear)
-                    _Concurrency.Task { await NotificationService().requestPermission() }
+                    _Concurrency.Task { await notificationService.requestPermission() }
                 }
                 .onOpenURL { url in
                     if AuthApi.isKakaoTalkLoginUrl(url) {

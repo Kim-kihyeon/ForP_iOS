@@ -10,8 +10,7 @@ public struct GPTAIService: AIServiceProtocol {
     }
 
     public func generateCoursePlan(user: User, partner: Partner?, options: CourseOptions) async throws -> CoursePlan {
-        let primaryLocation = options.location.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces) ?? options.location
-        let systemMessage = buildSystemMessage(location: primaryLocation)
+        let systemMessage = buildSystemMessage(location: options.location)
         let prompt = buildPrompt(user: user, partner: partner, options: options)
         return try await withCheckedThrowingContinuation { continuation in
             provider.request(.generateCourse(systemMessage: systemMessage, prompt: prompt)) { result in
@@ -31,15 +30,21 @@ public struct GPTAIService: AIServiceProtocol {
     }
 
     private func buildSystemMessage(location: String) -> String {
+        let locations = location.components(separatedBy: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let isMultiple = locations.count > 1
+        let locationConstraint = isMultiple ? "[\(location)] 중 하나의 반경" : "'\(location)' 반경"
+        let keywordConstraint = isMultiple ? "[\(location)] 중 하나로 시작하는" : "'\(location)'으로 시작하는"
+        let keywordExamples = locations.prefix(2).map { "\"\($0) 카페\"" }.joined(separator: " 또는 ")
         return """
         당신은 한국 커플 데이트 코스 큐레이터입니다.
 
         절대 규칙:
-        1. 모든 장소는 '\(location)' 반경 내에 실제로 존재해야 합니다.
-        2. '\(location)'과 무관한 다른 동/구의 장소는 단 하나도 포함할 수 없습니다.
-           예: '\(location)'이 '홍대역'이면 신촌, 이대, 연남 등 인접 지역도 제외.
-        3. keyword 값은 반드시 '\(location)'으로 시작하는 카카오맵 검색어여야 합니다.
-           올바른 예: "\(location) 카페", "\(location) 이탈리안 레스토랑"
+        1. 모든 장소는 \(locationConstraint)에 실제로 존재해야 합니다.
+        2. 지정된 지역과 무관한 다른 동/구의 장소는 단 하나도 포함할 수 없습니다.
+        3. keyword 값은 반드시 \(keywordConstraint) 카카오맵 검색어여야 합니다.
+           올바른 예: \(keywordExamples)
            잘못된 예: 지역명 없는 키워드, 지정 지역이 아닌 다른 지역명으로 시작하는 키워드
         4. 실제 카카오맵에서 검색 가능한 장소만 추천하세요.
         5. placeCount의 2배 장소를 생성하되, 가장 좋은 placeCount개에만 "isSelected": true를 표시하세요.
