@@ -28,11 +28,11 @@ public final class PartnerRepository: PartnerRepositoryProtocol {
             .execute()
     }
 
-    public func deletePartner(id: UUID) async throws {
+    public func deletePartner(forUserId: UUID) async throws {
         try await supabase
             .from("partners")
             .delete()
-            .eq("id", value: id)
+            .eq("user_id", value: forUserId)
             .execute()
     }
 }

@@ -128,7 +128,7 @@ public struct SettingsFeature {
                 return .run { send in
                     let userId = currentUserId()
                     await send(.resetPartnerResponse(
-                        Result { try await partnerRepository.deletePartner(id: userId) }
+                        Result { try await partnerRepository.deletePartner(forUserId: userId) }
                     ))
                 }
 
