@@ -37,6 +37,12 @@ public final class AnniversaryRepository: AnniversaryRepositoryProtocol, @unchec
     }
 }
 
+private let anniversaryDateFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "yyyy-MM-dd"
+    return f
+}()
+
 private struct AnniversaryInsertRow: Encodable {
     let id: UUID
     let userId: UUID
@@ -52,9 +58,7 @@ private struct AnniversaryInsertRow: Encodable {
         id = a.id
         userId = a.userId
         name = a.name
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        date = formatter.string(from: a.date)
+        date = anniversaryDateFormatter.string(from: a.date)
     }
 }
 
@@ -70,13 +74,11 @@ private struct AnniversaryRow: Decodable {
     }
 
     func toDomain() -> Anniversary {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return Anniversary(
+        Anniversary(
             id: id,
             userId: userId,
             name: name,
-            date: formatter.date(from: date) ?? Date()
+            date: anniversaryDateFormatter.date(from: date) ?? Date()
         )
     }
 }

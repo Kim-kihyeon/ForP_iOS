@@ -21,6 +21,7 @@ extension GPTTarget: TargetType {
         case .generateCourse(let systemMessage, let prompt):
             let body: [String: Any] = [
                 "model": "gpt-4o",
+                "max_tokens": 2000,
                 "messages": [
                     ["role": "system", "content": systemMessage],
                     ["role": "user", "content": prompt],

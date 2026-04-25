@@ -24,7 +24,10 @@ public struct OpenWeatherService: WeatherServiceProtocol {
         let urlString = "https://api.openweathermap.org/data/2.5/weather?lat=\(latitude)&lon=\(longitude)&appid=\(apiKey)&units=metric&lang=kr"
         guard let url = URL(string: urlString) else { throw URLError(.badURL) }
 
-        let (data, _) = try await URLSession.shared.data(from: url)
+        let (data, httpResponse) = try await URLSession.shared.data(from: url)
+        if let http = httpResponse as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw URLError(.badServerResponse)
+        }
         let response = try JSONDecoder().decode(OWCurrentResponse.self, from: data)
 
         let condition = response.weather.first?.description ?? "맑음"
@@ -40,7 +43,10 @@ public struct OpenWeatherService: WeatherServiceProtocol {
         let urlString = "https://api.openweathermap.org/data/2.5/forecast?lat=\(latitude)&lon=\(longitude)&appid=\(apiKey)&units=metric&lang=kr"
         guard let url = URL(string: urlString) else { throw URLError(.badURL) }
 
-        let (data, _) = try await URLSession.shared.data(from: url)
+        let (data, httpResponse) = try await URLSession.shared.data(from: url)
+        if let http = httpResponse as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw URLError(.badServerResponse)
+        }
         let response = try JSONDecoder().decode(OWForecastResponse.self, from: data)
 
         let target = date.timeIntervalSince1970

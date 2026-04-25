@@ -108,11 +108,13 @@ public final class AuthRepository: AuthRepositoryProtocol {
                     UserApi.shared.loginWithKakaoTalk { token, error in
                         if let error { continuation.resume(throwing: error) }
                         else if let token { continuation.resume(returning: token) }
+                        else { continuation.resume(throwing: URLError(.unknown)) }
                     }
                 } else {
                     UserApi.shared.loginWithKakaoAccount { token, error in
                         if let error { continuation.resume(throwing: error) }
                         else if let token { continuation.resume(returning: token) }
+                        else { continuation.resume(throwing: URLError(.unknown)) }
                     }
                 }
             }
