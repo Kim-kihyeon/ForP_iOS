@@ -84,28 +84,38 @@ public struct HomeFeature {
         Reduce { state, action in
             switch action {
             case .onAppear:
-                state.isLoading = state.recentCourses.isEmpty
+                let shouldLoadCourses = state.recentCourses.isEmpty
+                let shouldLoadPartner = state.partner == nil
+                let shouldLoadWeather = state.weather == nil
+                state.isLoading = shouldLoadCourses
                 let userLocation = state.user.location
                 return .run { [userId = state.user.id] send in
-                    await send(.loadCoursesResponse(
-                        Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
-                    ))
-                    await send(.loadPartnerResponse(Result {
-                        try await fetchEffectivePartnerUseCase.execute(userId: userId)
-                    }))
+                    if shouldLoadCourses {
+                        await send(.loadCoursesResponse(
+                            Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
+                        ))
+                    }
+                    if shouldLoadPartner {
+                        await send(.loadPartnerResponse(Result {
+                            try await fetchEffectivePartnerUseCase.execute(userId: userId)
+                        }))
+                    }
+                    // 기념일은 AnniversaryView 변경사항 반영을 위해 항상 갱신
                     await send(.loadAnniversariesResponse(
                         Result { try await anniversaryRepository.fetchAnniversaries(userId: userId) }
                     ))
-                    let coord: (Double, Double)
-                    if let place = try? await placeRepository.searchPlaces(keyword: userLocation).first,
-                       let lat = place.latitude, let lon = place.longitude {
-                        coord = (lat, lon)
-                    } else {
-                        coord = (37.5665, 126.9780)
+                    if shouldLoadWeather {
+                        let coord: (Double, Double)
+                        if let place = try? await placeRepository.searchPlaces(keyword: userLocation).first,
+                           let lat = place.latitude, let lon = place.longitude {
+                            coord = (lat, lon)
+                        } else {
+                            coord = (37.5665, 126.9780)
+                        }
+                        await send(.loadWeatherResponse(
+                            Result { try await weatherService.fetchWeather(latitude: coord.0, longitude: coord.1, date: Date()) }
+                        ))
                     }
-                    await send(.loadWeatherResponse(
-                        Result { try await weatherService.fetchWeather(latitude: coord.0, longitude: coord.1, date: Date()) }
-                    ))
                 }
 
             case .refresh:
