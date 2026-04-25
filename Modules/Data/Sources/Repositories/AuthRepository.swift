@@ -50,7 +50,7 @@ public final class AuthRepository: AuthRepositoryProtocol {
         )
 
         let authUser = session.user
-        return Domain.User(
+        let user = Domain.User(
             id: UUID(uuidString: authUser.id.uuidString) ?? UUID(),
             email: authUser.email ?? "",
             nickname: authUser.userMetadata["full_name"]?.stringValue ?? "사용자",
@@ -59,6 +59,8 @@ public final class AuthRepository: AuthRepositoryProtocol {
             preferredThemes: [],
             location: ""
         )
+        _ = try? await supabase.from("users").upsert(UserRow(from: user), ignoreDuplicates: true).execute()
+        return user
     }
 
     public func logout() async throws {
