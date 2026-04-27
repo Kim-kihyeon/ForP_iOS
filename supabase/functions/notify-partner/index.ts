@@ -4,32 +4,41 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 serve(async (req) => {
   try {
     const { course_id } = await req.json()
+    console.log("[notify-partner] course_id:", course_id)
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     )
 
-    const { data: course } = await supabase
+    const { data: course, error: courseError } = await supabase
       .from("courses")
       .select("user_id, partner_id, title")
       .eq("id", course_id)
       .single()
 
+    if (courseError) console.log("[notify-partner] courseError:", courseError)
     if (!course?.partner_id) {
+      console.log("[notify-partner] no partner_id")
       return new Response("no partner", { status: 200 })
     }
 
-    const [{ data: partnerUser }, { data: creatorUser }] = await Promise.all([
+    const [{ data: partnerUser, error: partnerError }, { data: creatorUser }] = await Promise.all([
       supabase.from("users").select("fcm_token").eq("id", course.partner_id).single(),
       supabase.from("users").select("nickname").eq("id", course.user_id).single(),
     ])
+
+    if (partnerError) console.log("[notify-partner] partnerError:", partnerError)
+    console.log("[notify-partner] fcm_token:", partnerUser?.fcm_token ? "exists" : "null")
 
     if (!partnerUser?.fcm_token) {
       return new Response("no fcm token", { status: 200 })
     }
 
+    console.log("[notify-partner] fetching access token...")
     const accessToken = await getFCMAccessToken()
+    console.log("[notify-partner] access token length:", accessToken?.length ?? 0)
+
     const projectId = Deno.env.get("FIREBASE_PROJECT_ID")!
 
     const fcmRes = await fetch(
@@ -55,42 +64,48 @@ serve(async (req) => {
       }
     )
 
+    const fcmBody = await fcmRes.text()
+    console.log("[notify-partner] fcm status:", fcmRes.status, "body:", fcmBody)
+
     return new Response(JSON.stringify({ ok: fcmRes.ok }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     })
   } catch (e) {
+    console.log("[notify-partner] error:", String(e))
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 })
   }
 })
 
 async function getFCMAccessToken(): Promise<string> {
-  const sa = JSON.parse(Deno.env.get("FIREBASE_SERVICE_ACCOUNT")!)
+  const saRaw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT")!
+  const sa = JSON.parse(saRaw)
 
   const now = Math.floor(Date.now() / 1000)
   const header = { alg: "RS256", typ: "JWT" }
   const payload = {
     iss: sa.client_email,
-    scope: "https://www.googleapis.com/auth/firebase.messaging",
+    scope: "https://www.googleapis.com/auth/cloud-platform",
     aud: "https://oauth2.googleapis.com/token",
     iat: now,
     exp: now + 3600,
   }
 
-  const encode = (obj: object) =>
-    btoa(JSON.stringify(obj))
-      .replace(/=/g, "")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
+  const encodeBase64Url = (data: string) =>
+    btoa(data).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_")
 
-  const signingInput = `${encode(header)}.${encode(payload)}`
+  const headerB64 = encodeBase64Url(JSON.stringify(header))
+  const payloadB64 = encodeBase64Url(JSON.stringify(payload))
+  const signingInput = `${headerB64}.${payloadB64}`
 
-  const pemKey = sa.private_key
+  const privateKeyPem = sa.private_key
+    .replace(/\\n/g, "\n")
     .replace("-----BEGIN PRIVATE KEY-----", "")
     .replace("-----END PRIVATE KEY-----", "")
-    .replace(/\s/g, "")
+    .replace(/\n/g, "")
+    .trim()
 
-  const keyData = Uint8Array.from(atob(pemKey), (c) => c.charCodeAt(0))
+  const keyData = Uint8Array.from(atob(privateKeyPem), (c) => c.charCodeAt(0))
 
   const cryptoKey = await crypto.subtle.importKey(
     "pkcs8",
@@ -119,6 +134,10 @@ async function getFCMAccessToken(): Promise<string> {
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   })
 
-  const { access_token } = await tokenRes.json()
-  return access_token
+  const tokenJson = await tokenRes.json()
+  console.log("[notify-partner] token status:", tokenRes.status, "body:", JSON.stringify(tokenJson))
+  if (!tokenJson.access_token) {
+    throw new Error(`OAuth2 token error: ${JSON.stringify(tokenJson)}`)
+  }
+  return tokenJson.access_token
 }

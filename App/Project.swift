@@ -60,6 +60,8 @@ let project = Project(
                 "PROVISIONING_PROFILE_SPECIFIER": "",
                 "MARKETING_VERSION": "1.0.0",
                 "CURRENT_PROJECT_VERSION": "1",
+                "OTHER_LDFLAGS": "-ObjC",
+                "CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION": "YES",
             ])
         ),
     ]

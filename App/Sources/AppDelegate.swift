@@ -3,7 +3,15 @@ import FirebaseCore
 import FirebaseMessaging
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    var onFCMToken: (@Sendable (String) -> Void)?
+    private var pendingToken: String?
+    var onFCMToken: (@Sendable (String) -> Void)? {
+        didSet {
+            if let token = pendingToken {
+                pendingToken = nil
+                onFCMToken?(token)
+            }
+        }
+    }
 
     func application(
         _ application: UIApplication,
@@ -26,6 +34,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 extension AppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         guard let token = fcmToken else { return }
-        onFCMToken?(token)
+        if let callback = onFCMToken {
+            callback(token)
+        } else {
+            pendingToken = token
+        }
     }
 }

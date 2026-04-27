@@ -37,6 +37,9 @@ public final class AuthRepository: AuthRepositoryProtocol {
                 nickname: nickname
             )
             _ = try? await supabase.from("users").upsert(UserRow(from: user), ignoreDuplicates: true).execute()
+            if let row = try? await supabase.from("users").select().eq("id", value: userId).single().execute().value as UserRow {
+                return row.toDomain()
+            }
             return user
         } catch {
             throw error
