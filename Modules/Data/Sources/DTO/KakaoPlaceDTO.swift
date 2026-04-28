@@ -25,6 +25,8 @@ struct KakaoPlaceDTO: Decodable {
     let id: String
     let placeName: String
     let addressName: String
+    let categoryGroupCode: String
+    let categoryName: String
     let x: String
     let y: String
 
@@ -32,6 +34,8 @@ struct KakaoPlaceDTO: Decodable {
         case id
         case placeName = "place_name"
         case addressName = "address_name"
+        case categoryGroupCode = "category_group_code"
+        case categoryName = "category_name"
         case x, y
     }
 }
