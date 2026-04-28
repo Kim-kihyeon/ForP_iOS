@@ -35,8 +35,20 @@ extension GPTAPIResponse {
         guard let content = choices.first?.message.content else {
             throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "choices가 비어있습니다."))
         }
-        let data = Data(content.utf8)
-        let dto = try JSONDecoder().decode(GPTResponseDTO.self, from: data)
+        // markdown 코드블록 제거 후 순수 JSON만 추출
+        let jsonString: String
+        if let start = content.firstIndex(of: "{"), let end = content.lastIndex(of: "}") {
+            jsonString = String(content[start...end])
+        } else {
+            jsonString = content
+        }
+        let data = Data(jsonString.utf8)
+        guard let dto = try? JSONDecoder().decode(GPTResponseDTO.self, from: data) else {
+            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "GPT 응답 파싱 실패"))
+        }
+        guard !dto.courses.isEmpty else {
+            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "courses가 비어있습니다."))
+        }
         let selected = dto.courses.filter { $0.isSelected }.map {
             CoursePlace(order: $0.order, category: $0.category, keyword: $0.keyword, reason: $0.reason, menu: $0.menu)
         }
