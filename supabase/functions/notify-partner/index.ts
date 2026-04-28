@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
+function subjectParticle(word: string): string {
+  if (!word) return "가"
+  const code = word.charCodeAt(word.length - 1)
+  if (code < 0xAC00 || code > 0xD7A3) return "가"
+  return (code - 0xAC00) % 28 !== 0 ? "이가" : "가"
+}
+
 serve(async (req) => {
   try {
     const { course_id } = await req.json()
@@ -54,7 +61,7 @@ serve(async (req) => {
             token: partnerUser.fcm_token,
             notification: {
               title: "새로운 데이트 코스!",
-              body: `${creatorUser?.nickname ?? "파트너"}가 '${course.title}' 코스를 만들었어요.`,
+              body: `${creatorUser?.nickname ?? "파트너"}${subjectParticle(creatorUser?.nickname ?? "파트너")} '${course.title}' 코스를 만들었어요.`,
             },
             apns: {
               payload: { aps: { sound: "default" } },
