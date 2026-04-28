@@ -46,10 +46,11 @@ public struct GPTAIService: AIServiceProtocol {
         3. keyword 값은 반드시 \(keywordConstraint) 카카오맵 검색어여야 합니다.
            올바른 예: \(keywordExamples)
            잘못된 예: 지역명 없는 키워드, 지정 지역이 아닌 다른 지역명으로 시작하는 키워드
-        4. 실제 카카오맵에서 검색 가능한 장소만 추천하세요.
-        5. placeCount의 2배 장소를 생성하되, 가장 좋은 placeCount개에만 "isSelected": true를 표시하세요.
-        6. courseReason: 이 코스를 추천하는 이유를 2-3문장으로 설명하세요.
-        7. 동선은 반드시 지리적으로 인접한 장소끼리 이동하도록 order를 배치하세요. 불필요하게 먼 곳을 오가는 동선은 절대 만들지 마세요.
+        4. 실제 카카오맵에서 검색 가능한 장소만 추천하세요. 지하철역, 버스터미널, 아파트, 빌라, 주차장, 주유소, 은행, 편의점, 공공기관, 병원, 약국, 학원, 장례식장, 대형마트, 부동산은 절대 포함하지 마세요.
+        5. keyword는 반드시 2~3단어 이내로 짧게 작성하세요. (예: "강남역 카페" O, "강남역 분위기 좋은 루프탑 카페" X)
+        6. placeCount의 2배 장소를 생성하되, 가장 좋은 placeCount개에만 "isSelected": true를 표시하세요.
+        7. courseReason: 이 코스를 추천하는 이유를 2-3문장으로 설명하세요.
+        8. 동선은 반드시 지리적으로 인접한 장소끼리 이동하도록 order를 배치하세요. 불필요하게 먼 곳을 오가는 동선은 절대 만들지 마세요.
         """
     }
 
@@ -88,6 +89,7 @@ public struct GPTAIService: AIServiceProtocol {
                 prompt += "\n파트너 특이사항: \(partner.notes)"
             }
         }
+        prompt += "\n생성 seed: \(Int(Date().timeIntervalSince1970) % 100000)"
         prompt += """
 
         필드 안내:
