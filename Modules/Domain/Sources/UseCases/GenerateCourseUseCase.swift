@@ -57,12 +57,13 @@ public struct GenerateCourseUseCase {
         var usedPlaceIds: Set<String> = []
         for place in plan.places {
             let results = await searchWithFallback(place: place, lat: resolvedCoord.lat, lon: resolvedCoord.lon, radius: options.searchRadius)
-            if let first = results.first, let name = first.placeName, let placeId = first.kakaoPlaceId, !usedPlaceIds.contains(placeId) {
+            if let match = results.first(where: { guard let id = $0.kakaoPlaceId else { return false }; return !usedPlaceIds.contains(id) }),
+               let name = match.placeName, let placeId = match.kakaoPlaceId {
                 var updated = place
                 updated.placeName = name
-                updated.address = first.address
-                updated.latitude = first.latitude
-                updated.longitude = first.longitude
+                updated.address = match.address
+                updated.latitude = match.latitude
+                updated.longitude = match.longitude
                 updated.kakaoPlaceId = placeId
                 enrichedSelected.append(updated)
                 usedPlaceIds.insert(placeId)
@@ -74,12 +75,13 @@ public struct GenerateCourseUseCase {
         var enrichedCandidates: [CoursePlace] = []
         for place in plan.candidates {
             let results = await searchWithFallback(place: place, lat: resolvedCoord.lat, lon: resolvedCoord.lon, radius: options.searchRadius)
-            if let first = results.first, let name = first.placeName, let placeId = first.kakaoPlaceId, !usedPlaceIds.contains(placeId) {
+            if let match = results.first(where: { guard let id = $0.kakaoPlaceId else { return false }; return !usedPlaceIds.contains(id) }),
+               let name = match.placeName, let placeId = match.kakaoPlaceId {
                 var updated = place
                 updated.placeName = name
-                updated.address = first.address
-                updated.latitude = first.latitude
-                updated.longitude = first.longitude
+                updated.address = match.address
+                updated.latitude = match.latitude
+                updated.longitude = match.longitude
                 updated.kakaoPlaceId = placeId
                 enrichedCandidates.append(updated)
                 usedPlaceIds.insert(placeId)
