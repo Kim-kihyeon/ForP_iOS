@@ -2,11 +2,17 @@ import Foundation
 
 public enum CourseGenerationError: LocalizedError {
     case invalidLocation(String)
+    case noPlacesFound(String)
+    case aiParsingFailed
 
     public var errorDescription: String? {
         switch self {
         case .invalidLocation(let location):
             return "'\(location)'을 찾을 수 없어요. 올바른 지역명을 입력해주세요. (예: 강남, 홍대, 성수동)"
+        case .noPlacesFound(let location):
+            return "'\(location)' 주변에서 조건에 맞는 장소를 찾지 못했어요. 다른 테마나 지역으로 다시 시도해보세요."
+        case .aiParsingFailed:
+            return "코스 생성 중 오류가 발생했어요. 다시 시도해주세요."
         }
     }
 }
@@ -48,18 +54,18 @@ public struct GenerateCourseUseCase {
 
         // 선택된 장소 검증
         var enrichedSelected: [CoursePlace] = []
-        var usedPlaceNames: Set<String> = []
+        var usedPlaceIds: Set<String> = []
         for place in plan.places {
-            let results = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: resolvedCoord.lat, longitude: resolvedCoord.lon, radius: options.searchRadius)) ?? []
-            if let first = results.first, let name = first.placeName, !usedPlaceNames.contains(name) {
+            let results = await searchWithFallback(place: place, lat: resolvedCoord.lat, lon: resolvedCoord.lon, radius: options.searchRadius)
+            if let first = results.first, let name = first.placeName, let placeId = first.kakaoPlaceId, !usedPlaceIds.contains(placeId) {
                 var updated = place
                 updated.placeName = name
                 updated.address = first.address
                 updated.latitude = first.latitude
                 updated.longitude = first.longitude
-                updated.kakaoPlaceId = first.kakaoPlaceId
+                updated.kakaoPlaceId = placeId
                 enrichedSelected.append(updated)
-                usedPlaceNames.insert(name)
+                usedPlaceIds.insert(placeId)
             }
             if enrichedSelected.count == options.placeCount { break }
         }
@@ -67,16 +73,16 @@ public struct GenerateCourseUseCase {
         // 후보 장소 검증
         var enrichedCandidates: [CoursePlace] = []
         for place in plan.candidates {
-            let results = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: resolvedCoord.lat, longitude: resolvedCoord.lon, radius: options.searchRadius)) ?? []
-            if let first = results.first, let name = first.placeName, !usedPlaceNames.contains(name) {
+            let results = await searchWithFallback(place: place, lat: resolvedCoord.lat, lon: resolvedCoord.lon, radius: options.searchRadius)
+            if let first = results.first, let name = first.placeName, let placeId = first.kakaoPlaceId, !usedPlaceIds.contains(placeId) {
                 var updated = place
                 updated.placeName = name
                 updated.address = first.address
                 updated.latitude = first.latitude
                 updated.longitude = first.longitude
-                updated.kakaoPlaceId = first.kakaoPlaceId
+                updated.kakaoPlaceId = placeId
                 enrichedCandidates.append(updated)
-                usedPlaceNames.insert(name)
+                usedPlaceIds.insert(placeId)
             }
         }
 
@@ -86,6 +92,10 @@ public struct GenerateCourseUseCase {
             let fill = Array(enrichedCandidates.prefix(needed))
             enrichedCandidates = Array(enrichedCandidates.dropFirst(needed))
             enrichedSelected.append(contentsOf: fill)
+        }
+
+        guard !enrichedSelected.isEmpty else {
+            throw CourseGenerationError.noPlacesFound(options.location)
         }
 
         let optimized = nearestNeighborSort(enrichedSelected)
@@ -104,6 +114,19 @@ public struct GenerateCourseUseCase {
 
     // 지역 입력 파싱: 단일 지역은 그대로, 복합 표현은 중간점 계산
     // gptLocation: GPT 프롬프트/키워드에 사용할 단순 지명
+    private func searchWithFallback(place: CoursePlace, lat: Double, lon: Double, radius: Int) async -> [CoursePlace] {
+        // 1차: 반경 검색
+        let radiusResults = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: lat, longitude: lon, radius: radius)) ?? []
+        if !radiusResults.isEmpty { return radiusResults }
+
+        // 2차: 반경 2배 확장
+        let widerResults = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: lat, longitude: lon, radius: radius * 2)) ?? []
+        if !widerResults.isEmpty { return widerResults }
+
+        // 3차: 최대 반경(20km)으로 확장 검색 — 필터 유지
+        return (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: lat, longitude: lon, radius: 20_000)) ?? []
+    }
+
     private func resolveLocation(_ input: String) async throws -> (gptLocation: String, lat: Double, lon: Double)? {
         // 1. 단순 지역명이면 바로 반환
         let isValid = (try? await placeRepository.isValidKoreanRegion(keyword: input)) ?? false
