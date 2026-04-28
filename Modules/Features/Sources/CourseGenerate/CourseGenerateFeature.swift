@@ -110,13 +110,11 @@ public struct CourseGenerateFeature {
                 state.locationQuery = ""
                 state.locationSuggestions = []
                 state.isSearchingLocation = false
-                state.selectedWishlistIds = []
                 return .none
 
             case .removeSelectedLocation(let index):
                 guard state.selectedLocations.indices.contains(index) else { return .none }
                 state.selectedLocations.remove(at: index)
-                state.selectedWishlistIds = []
                 return .none
 
             case .binding:
@@ -218,7 +216,11 @@ public struct CourseGenerateFeature {
 
             case .generateResponse(.failure(let error)):
                 state.isGenerating = false
-                state.errorMessage = error.localizedDescription
+                if let courseError = error as? CourseGenerationError {
+                    state.errorMessage = courseError.errorDescription
+                } else {
+                    state.errorMessage = "코스 생성 중 오류가 발생했어요. 잠시 후 다시 시도해주세요."
+                }
                 return .none
 
             case .retryTapped:
