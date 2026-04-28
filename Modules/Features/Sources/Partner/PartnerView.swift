@@ -101,8 +101,14 @@ public struct PartnerView: View {
                     Text("파트너 이름")
                         .font(Typography.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    TextField("닉네임", text: $store.nickname)
-                        .font(Typography.body.weight(.medium))
+                    if store.isConnected {
+                        Text(store.nickname)
+                            .font(Typography.body.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        TextField("닉네임", text: $store.nickname)
+                            .font(Typography.body.weight(.medium))
+                    }
                 }
             }
         }
@@ -116,28 +122,34 @@ public struct PartnerView: View {
                     Text("카테고리")
                         .font(Typography.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    HStack(spacing: 6) {
-                        Label("선호", systemImage: "hand.tap.fill")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Brand.pink)
-                            .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(Brand.softPink)
-                            .clipShape(Capsule())
-                        Text("→")
+                    if store.isConnected {
+                        Text("파트너가 직접 설정한 정보예요")
                             .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        Text("비선호")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Brand.iconRed)
-                            .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(Brand.iconRed.opacity(0.1))
-                            .clipShape(Capsule())
-                        Text("→")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        Text("해제")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        HStack(spacing: 6) {
+                            Label("선호", systemImage: "hand.tap.fill")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Brand.pink)
+                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .background(Brand.softPink)
+                                .clipShape(Capsule())
+                            Text("→")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            Text("비선호")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Brand.iconRed)
+                                .padding(.horizontal, 8).padding(.vertical, 4)
+                                .background(Brand.iconRed.opacity(0.1))
+                                .clipShape(Capsule())
+                            Text("→")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            Text("해제")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -170,7 +182,7 @@ public struct PartnerView: View {
                 )
                 .foregroundStyle((isPreferred || isDisliked) ? Color.white : Color.primary)
                 .clipShape(Capsule())
-                .onTapGesture { store.send(.categoryTapped(item.name)) }
+                .onTapGesture { if !store.isConnected { store.send(.categoryTapped(item.name)) } }
             }
         }
     }
@@ -189,20 +201,27 @@ public struct PartnerView: View {
                     Text("절대 제외 음식/장소")
                         .font(Typography.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
+                    if store.isConnected {
+                        Text("파트너가 직접 설정한 정보예요")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
                     FlowLayout(spacing: 8) {
                         ForEach(blacklistPresets, id: \.1) { emoji, name in
                             let isSelected = store.foodBlacklist.contains(name)
                             Button {
-                                if isSelected {
-                                    store.foodBlacklist.removeAll { $0 == name }
-                                } else {
-                                    store.foodBlacklist.append(name)
+                                if !store.isConnected {
+                                    if isSelected {
+                                        store.foodBlacklist.removeAll { $0 == name }
+                                    } else {
+                                        store.foodBlacklist.append(name)
+                                    }
                                 }
                             } label: {
                                 HStack(spacing: 4) {
                                     Text(emoji).font(.system(size: 13))
                                     Text(name).font(.system(size: 12, weight: .medium))
-                                    if isSelected {
+                                    if isSelected && !store.isConnected {
                                         Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
                                     }
                                 }
@@ -222,10 +241,12 @@ public struct PartnerView: View {
                         ForEach(store.foodBlacklist.filter { item in !blacklistPresets.map(\.1).contains(item) }, id: \.self) { item in
                             HStack(spacing: 4) {
                                 Text(item).font(.system(size: 12, weight: .medium))
-                                Button {
-                                    store.foodBlacklist.removeAll { $0 == item }
-                                } label: {
-                                    Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                                if !store.isConnected {
+                                    Button {
+                                        store.foodBlacklist.removeAll { $0 == item }
+                                    } label: {
+                                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                                    }
                                 }
                             }
                             .padding(.horizontal, 10)
@@ -236,16 +257,18 @@ public struct PartnerView: View {
                             .overlay { Capsule().stroke(Color(.systemRed).opacity(0.4), lineWidth: 1) }
                         }
                     }
-                    HStack(spacing: 8) {
-                        TextField("직접 입력 (예: 고수, 오이)", text: $customBlacklistInput)
-                            .font(.system(size: 14))
-                            .onSubmit { addCustomBlacklist() }
-                        Button(action: addCustomBlacklist) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(customBlacklistInput.isEmpty ? Color(.tertiaryLabel) : Color(.systemRed))
+                    if !store.isConnected {
+                        HStack(spacing: 8) {
+                            TextField("직접 입력 (예: 고수, 오이)", text: $customBlacklistInput)
+                                .font(.system(size: 14))
+                                .onSubmit { addCustomBlacklist() }
+                            Button(action: addCustomBlacklist) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(customBlacklistInput.isEmpty ? Color(.tertiaryLabel) : Color(.systemRed))
+                            }
+                            .disabled(customBlacklistInput.isEmpty)
                         }
-                        .disabled(customBlacklistInput.isEmpty)
                     }
                 }
             }
@@ -287,12 +310,12 @@ public struct PartnerView: View {
                     .font(Typography.body.weight(.bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.md)
-                    .background(store.nickname.isEmpty ? Color(.tertiaryLabel) : Brand.pink)
+                    .background((store.isConnected ? false : store.nickname.isEmpty) ? Color(.tertiaryLabel) : Brand.pink)
                     .foregroundStyle(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: store.nickname.isEmpty ? .clear : Brand.pink.opacity(0.35), radius: 12, x: 0, y: 4)
+                    .shadow(color: (store.isConnected ? false : store.nickname.isEmpty) ? .clear : Brand.pink.opacity(0.35), radius: 12, x: 0, y: 4)
             }
-            .disabled(store.nickname.isEmpty)
+            .disabled(store.isConnected ? false : store.nickname.isEmpty)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.sm)
             .padding(.bottom, Spacing.lg)

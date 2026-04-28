@@ -58,52 +58,79 @@ public struct PartnerConnectionView: View {
 
     private func connectedCard(_ user: User) -> some View {
         VStack(spacing: 16) {
-            VStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(Brand.softPink)
-                        .frame(width: 64, height: 64)
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 28, weight: .medium))
-                        .foregroundStyle(Brand.pink)
-                }
+            ZStack {
+                LinearGradient(
+                    colors: [Brand.pink.opacity(0.85), Brand.pink.opacity(0.5), Color(red: 1.0, green: 0.6, blue: 0.4).opacity(0.6)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 20))
 
-                VStack(spacing: 4) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "link")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Brand.pink)
-                        Text("연동됨")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Brand.pink)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Brand.softPink)
-                    .clipShape(Capsule())
+                Circle()
+                    .fill(Color.white.opacity(0.1))
+                    .frame(width: 160, height: 160)
+                    .blur(radius: 40)
+                    .offset(x: 60, y: -40)
 
-                    Text(user.nickname)
-                        .font(.system(size: 22, weight: .bold))
-                        .padding(.top, 4)
-                }
+                VStack(spacing: 20) {
+                    HStack(spacing: 0) {
+                        Circle()
+                            .fill(Color.white.opacity(0.25))
+                            .frame(width: 64, height: 64)
+                            .overlay {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 26, weight: .medium))
+                                    .foregroundStyle(.white)
+                            }
 
-                if !user.preferredCategories.isEmpty {
-                    FlowLayout(spacing: 6) {
-                        ForEach(user.preferredCategories.prefix(5), id: \.self) { cat in
-                            Text(cat)
-                                .font(.system(size: 12, weight: .medium))
+                        ZStack {
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 32, height: 32)
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 14, weight: .bold))
                                 .foregroundStyle(Brand.pink)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Brand.softPink)
-                                .clipShape(Capsule())
+                        }
+                        .offset(x: 0)
+                        .zIndex(1)
+
+                        Circle()
+                            .fill(Color.white.opacity(0.25))
+                            .frame(width: 64, height: 64)
+                            .overlay {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 26, weight: .medium))
+                                    .foregroundStyle(.white)
+                            }
+                    }
+
+                    VStack(spacing: 6) {
+                        Text(user.nickname)
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(.white)
+
+                        Text("파트너와 연동되어 있어요")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+
+                    if !user.preferredCategories.isEmpty {
+                        FlowLayout(spacing: 6) {
+                            ForEach(user.preferredCategories.prefix(5), id: \.self) { cat in
+                                Text(cat)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.white.opacity(0.2))
+                                    .clipShape(Capsule())
+                            }
                         }
                     }
                 }
+                .padding(Spacing.lg)
             }
             .frame(maxWidth: .infinity)
-            .padding(Spacing.lg)
-            .cardStyle()
 
             Button {
                 store.send(.disconnectTapped)

@@ -336,9 +336,9 @@ public struct HomeFeature {
                 state.path.append(.anniversary(AnniversaryFeature.State()))
                 return .none
 
-            case .path(.element(_, action: .settings(.delegate(.openPartner(let existing))))):
+            case .path(.element(_, action: .settings(.delegate(.openPartner(let existing, let isConnected))))):
                 let mode: PartnerFeature.Mode = existing != nil ? .edit : .create
-                state.path.append(.partner(PartnerFeature.State(mode: mode, existing: existing)))
+                state.path.append(.partner(PartnerFeature.State(mode: mode, existing: existing, isConnected: isConnected)))
                 return .none
 
             case .path(.element(_, action: .settings(.delegate(.openWishlist)))):

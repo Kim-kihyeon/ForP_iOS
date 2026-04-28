@@ -120,37 +120,45 @@ public struct SettingsView: View {
                     settingRow(icon: "heart.fill", iconColor: Brand.pink, title: "기념일 관리") {}
                         .redacted(reason: .placeholder)
                 } else if let partner = store.partner {
-                    HStack(spacing: Spacing.md) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Brand.softPink)
-                                .frame(width: 36, height: 36)
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundStyle(Brand.pink)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(partner.nickname)
-                                .font(Typography.body.weight(.semibold))
-                            if !partner.preferredCategories.isEmpty {
-                                Text(partner.preferredCategories.prefix(3).joined(separator: " · "))
-                                    .font(Typography.caption2)
-                                    .foregroundStyle(.secondary)
+                    Button {
+                        store.send(.partnerTapped)
+                    } label: {
+                        HStack(spacing: Spacing.md) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(store.isConnected ? Brand.pink : Brand.softPink)
+                                    .frame(width: 36, height: 36)
+                                Image(systemName: store.isConnected ? "person.2.fill" : "person.fill")
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(store.isConnected ? .white : Brand.pink)
                             }
-                        }
-                        Spacer()
-                        Button {
-                            store.send(.partnerTapped)
-                        } label: {
-                            Text("수정")
-                                .font(Typography.caption.weight(.semibold))
-                                .foregroundStyle(Brand.pink)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Brand.softPink)
-                                .clipShape(Capsule())
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(partner.nickname)
+                                        .font(Typography.body.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                    if store.isConnected {
+                                        Text("연동됨")
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundStyle(Brand.pink)
+                                            .padding(.horizontal, 6).padding(.vertical, 2)
+                                            .background(Brand.softPink)
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                                if !partner.preferredCategories.isEmpty {
+                                    Text(partner.preferredCategories.prefix(3).joined(separator: " · "))
+                                        .font(Typography.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.tertiary)
                         }
                     }
+                    .buttonStyle(.plain)
                     .padding(.vertical, 2)
 
                     Divider().padding(.leading, 52)

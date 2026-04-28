@@ -17,6 +17,7 @@ public struct PartnerFeature {
         public var isLoading = false
         public var showSaved = false
         public var mode: Mode = .create
+        public var isConnected: Bool = false
         var existingPartnerId: UUID? = nil
         @Presents public var alert: AlertState<Action.Alert>?
 
@@ -27,15 +28,17 @@ public struct PartnerFeature {
         var originalFoodBlacklist: [String] = []
 
         public var hasChanges: Bool {
-            nickname != originalNickname ||
-            preferredCategories != originalPreferredCategories ||
-            dislikedCategories != originalDislikedCategories ||
-            notes != originalNotes ||
-            foodBlacklist != originalFoodBlacklist
+            if isConnected { return notes != originalNotes }
+            return nickname != originalNickname ||
+                preferredCategories != originalPreferredCategories ||
+                dislikedCategories != originalDislikedCategories ||
+                notes != originalNotes ||
+                foodBlacklist != originalFoodBlacklist
         }
 
-        public init(mode: Mode = .create, existing: Partner? = nil) {
+        public init(mode: Mode = .create, existing: Partner? = nil, isConnected: Bool = false) {
             self.mode = mode
+            self.isConnected = isConnected
             if let p = existing {
                 self.existingPartnerId = p.id
                 self.nickname = p.nickname

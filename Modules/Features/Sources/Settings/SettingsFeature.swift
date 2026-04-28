@@ -8,6 +8,7 @@ public struct SettingsFeature {
         public var user: User?
         public var partner: Partner? = nil
         public var hasPartner: Bool { partner != nil }
+        public var isConnected: Bool = false
         public var isLoadingPartner = true
         public var isLoading = false
         @Presents public var alert: AlertState<Action.Alert>?
@@ -18,6 +19,7 @@ public struct SettingsFeature {
     public enum Action {
         case onAppear
         case loadPartnerResponse(Result<Partner?, Error>)
+        case connectionChecked(Bool)
         case profileTapped
         case partnerTapped
         case anniversaryTapped
@@ -39,7 +41,7 @@ public struct SettingsFeature {
 
         public enum Delegate: Equatable {
             case openProfile
-            case openPartner(Partner?)
+            case openPartner(Partner?, isConnected: Bool)
             case openAnniversary
             case openWishlist
             case openChecklist
@@ -66,7 +68,13 @@ public struct SettingsFeature {
                     await send(.loadPartnerResponse(Result {
                         try await fetchEffectivePartnerUseCase.execute(userId: userId)
                     }))
+                    let connection = try? await partnerConnectionRepository.fetchConnection(userId: userId)
+                    await send(.connectionChecked(connection != nil))
                 }
+
+            case .connectionChecked(let isConnected):
+                state.isConnected = isConnected
+                return .none
 
             case .loadPartnerResponse(.success(let partner)):
                 state.partner = partner
@@ -81,7 +89,7 @@ public struct SettingsFeature {
                 return .send(.delegate(.openProfile))
 
             case .partnerTapped:
-                return .send(.delegate(.openPartner(state.partner)))
+                return .send(.delegate(.openPartner(state.partner, isConnected: state.isConnected)))
 
             case .anniversaryTapped:
                 return .send(.delegate(.openAnniversary))
