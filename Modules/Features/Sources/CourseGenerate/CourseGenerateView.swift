@@ -503,18 +503,14 @@ private struct WishlistChip: View {
             .buttonStyle(.plain)
             .foregroundStyle(selected ? Brand.pink : (disabled ? Color(.tertiaryLabel) : .primary))
 
-            if selected {
-                Button(action: onDelete) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Brand.pink.opacity(0.7))
-                        .padding(.trailing, 8)
-                        .padding(.vertical, 7)
-                }
-                .buttonStyle(.plain)
-            } else {
-                Color.clear.frame(width: 0)
+            Button(action: selected ? onTap : onDelete) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(selected ? Brand.pink.opacity(0.7) : Color(.tertiaryLabel))
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 7)
             }
+            .buttonStyle(.plain)
         }
         .background(selected ? Brand.softPink : Color(.tertiarySystemFill))
         .clipShape(Capsule())
