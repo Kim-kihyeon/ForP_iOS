@@ -34,7 +34,7 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
                 case .success(let response):
                     do {
                         let dto = try JSONDecoder().decode(KakaoSearchResponse.self, from: response.data)
-                        continuation.resume(returning: Self.deduplicated(dto.documents, keyword: keyword))
+                        continuation.resume(returning: Self.deduplicatedForCourse(dto.documents, keyword: keyword))
                     } catch {
                         continuation.resume(throwing: error)
                     }
@@ -45,22 +45,43 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
         }
     }
 
+    private static let excludedCategoryCodes: Set<String> = [
+        "SW8", "PK6", "SC4", "OL7", "BK9", "PO3", "CS2",
+        "HP8", "PM9", "PS3", "AC5", "AG2", "MT1",
+    ]
+
+    private static let excludedNameKeywords: [String] = [
+        "아파트", "빌라", "오피스텔", "주차장", "지하철역", "고속버스터미널",
+        "버스터미널", "기차역", "주유소", "편의점",
+        "병원", "약국", "장례식장", "동사무소", "주민센터", "구청", "세무서",
+    ]
+
+    private static func toPlace(_ doc: KakaoPlaceDTO, keyword: String) -> CoursePlace {
+        CoursePlace(
+            order: 0, category: "", keyword: keyword, reason: "",
+            placeName: doc.placeName, address: doc.addressName,
+            latitude: Double(doc.y), longitude: Double(doc.x),
+            kakaoPlaceId: doc.id
+        )
+    }
+
     private static func deduplicated(_ documents: [KakaoPlaceDTO], keyword: String) -> [CoursePlace] {
         var seen = Set<String>()
         return documents.compactMap { doc in
             guard !seen.contains(doc.id) else { return nil }
             seen.insert(doc.id)
-            return CoursePlace(
-                order: 0,
-                category: "",
-                keyword: keyword,
-                reason: "",
-                placeName: doc.placeName,
-                address: doc.addressName,
-                latitude: Double(doc.y),
-                longitude: Double(doc.x),
-                kakaoPlaceId: doc.id
-            )
+            return toPlace(doc, keyword: keyword)
+        }
+    }
+
+    private static func deduplicatedForCourse(_ documents: [KakaoPlaceDTO], keyword: String) -> [CoursePlace] {
+        var seen = Set<String>()
+        return documents.compactMap { doc in
+            guard !seen.contains(doc.id) else { return nil }
+            guard !excludedCategoryCodes.contains(doc.categoryGroupCode) else { return nil }
+            guard !excludedNameKeywords.contains(where: { doc.placeName.contains($0) || doc.categoryName.contains($0) }) else { return nil }
+            seen.insert(doc.id)
+            return toPlace(doc, keyword: keyword)
         }
     }
 
