@@ -20,7 +20,7 @@ let project = Project(
             destinations: .iOS,
             product: .app,
             bundleId: "com.kihyeonKim.ForP",
-            deploymentTargets: .iOS("26.0"),
+            deploymentTargets: .iOS("17.0"),
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": ["UIColorName": ""],
                 "CFBundleURLTypes": [
@@ -36,12 +36,32 @@ let project = Project(
                 "KAKAO_REST_KEY": "$(KAKAO_REST_KEY)",
                 "SUPABASE_HOST": "$(SUPABASE_HOST)",
                 "SUPABASE_ANON_KEY": "$(SUPABASE_ANON_KEY)",
-                "OPENAI_API_KEY": "$(OPENAI_API_KEY)",
                 "OPENWEATHER_API_KEY": "$(OPENWEATHER_API_KEY)",
             ]),
             sources: ["Sources/**"],
             resources: ["Resources/**"],
             entitlements: "ForP.entitlements",
+            scripts: [
+                .post(
+                    script: """
+                    set -e
+
+                    if [[ "${PLATFORM_NAME}" == *"simulator"* ]]; then
+                      echo "Skipping Firebase Crashlytics dSYM upload for simulator builds."
+                      exit 0
+                    fi
+
+                    if [ -x "${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run" ]; then
+                      "${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run"
+                    elif [ -x "${SRCROOT}/../.build/checkouts/firebase-ios-sdk/Crashlytics/run" ]; then
+                      "${SRCROOT}/../.build/checkouts/firebase-ios-sdk/Crashlytics/run"
+                    else
+                      echo "warning: Firebase Crashlytics run script not found. dSYM upload skipped."
+                    fi
+                    """,
+                    name: "Firebase Crashlytics"
+                ),
+            ],
             dependencies: [
                 .project(target: "Features", path: "../Modules/Features"),
                 .project(target: "Data", path: "../Modules/Data"),
@@ -52,6 +72,7 @@ let project = Project(
                 .external(name: "KakaoSDKAuth"),
                 .external(name: "KakaoSDKUser"),
                 .external(name: "FirebaseMessaging"),
+                .external(name: "FirebaseCrashlytics"),
             ],
             settings: .settings(base: [
                 "CODE_SIGN_STYLE": "Automatic",
@@ -61,8 +82,20 @@ let project = Project(
                 "MARKETING_VERSION": "1.0.0",
                 "CURRENT_PROJECT_VERSION": "1",
                 "OTHER_LDFLAGS": "-ObjC",
+                "DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym",
                 "CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION": "YES",
             ])
+        ),
+        .target(
+            name: "ForPTests",
+            destinations: .iOS,
+            product: .unitTests,
+            bundleId: "com.kihyeonKim.ForPTests",
+            deploymentTargets: .iOS("17.0"),
+            sources: ["../ForPTests/**"],
+            dependencies: [
+                .target(name: "ForP"),
+            ]
         ),
     ]
 )

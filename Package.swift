@@ -9,9 +9,13 @@ let packageSettings = PackageSettings(
         "Moya": .staticFramework,
         "Supabase": .staticFramework,
         "FirebaseMessaging": .staticFramework,
+        "FirebaseCrashlytics": .staticFramework,
+        "FirebaseCrashlyticsSwift": .staticFramework,
         "FirebaseCore": .staticFramework,
         "FirebaseCoreInternal": .staticFramework,
         "FirebaseInstallations": .staticFramework,
+        "FirebaseSessions": .staticFramework,
+        "FirebaseSessionsObjC": .staticFramework,
         "GoogleUtilities": .staticFramework,
     ]
 )
