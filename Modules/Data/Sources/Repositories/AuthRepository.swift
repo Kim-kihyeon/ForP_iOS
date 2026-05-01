@@ -70,6 +70,15 @@ public final class AuthRepository: AuthRepositoryProtocol {
         try await supabase.auth.signOut()
     }
 
+    public func deleteAccount() async throws {
+        let accessToken = try await supabase.auth.session.accessToken
+        try await supabase.functions.invoke(
+            "delete-account",
+            options: .init(headers: ["Authorization": "Bearer \(accessToken)"])
+        )
+        try? await supabase.auth.signOut()
+    }
+
     public func fetchCurrentUser() async throws -> Domain.User? {
         guard let authUser = try? await supabase.auth.user() else { return nil }
         return Domain.User(

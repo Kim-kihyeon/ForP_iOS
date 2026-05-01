@@ -280,6 +280,16 @@ public struct SettingsView: View {
                 ) {
                     store.send(.logoutTapped)
                 }
+
+                Divider().padding(.leading, 52)
+
+                settingRow(
+                    icon: "trash.fill",
+                    iconColor: .red,
+                    title: "계정 삭제"
+                ) {
+                    store.send(.deleteAccountTapped)
+                }
             }
         }
     }
@@ -323,4 +333,3 @@ public struct SettingsView: View {
         .buttonStyle(.plain)
     }
 }
-

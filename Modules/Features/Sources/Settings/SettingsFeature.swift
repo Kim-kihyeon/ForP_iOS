@@ -31,12 +31,15 @@ public struct SettingsFeature {
         case resetPartnerResponse(Result<Void, Error>)
         case logoutTapped
         case logoutResponse(Result<Void, Error>)
+        case deleteAccountTapped
+        case deleteAccountResponse(Result<Void, Error>)
         case alert(PresentationAction<Alert>)
         case delegate(Delegate)
 
         public enum Alert: Equatable {
             case confirmResetPartner
             case confirmLogout
+            case confirmDeleteAccount
         }
 
         public enum Delegate: Equatable {
@@ -141,6 +144,14 @@ public struct SettingsFeature {
                     ))
                 }
 
+            case .alert(.presented(.confirmDeleteAccount)):
+                state.isLoading = true
+                return .run { send in
+                    await send(.deleteAccountResponse(
+                        Result { try await authRepository.deleteAccount() }
+                    ))
+                }
+
             case .alert:
                 return .none
 
@@ -175,6 +186,30 @@ public struct SettingsFeature {
 
             case .logoutResponse(.failure):
                 state.isLoading = false
+                return .none
+
+            case .deleteAccountTapped:
+                state.alert = AlertState {
+                    TextState("계정 삭제")
+                } actions: {
+                    ButtonState(role: .destructive, action: .confirmDeleteAccount) {
+                        TextState("삭제")
+                    }
+                    ButtonState(role: .cancel) {
+                        TextState("취소")
+                    }
+                } message: {
+                    TextState("계정과 저장된 코스, 찜 목록, 파트너 정보가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.")
+                }
+                return .none
+
+            case .deleteAccountResponse(.success):
+                state.isLoading = false
+                return .send(.delegate(.loggedOut))
+
+            case .deleteAccountResponse(.failure(let error)):
+                state.isLoading = false
+                state.alert = AlertState { TextState("계정 삭제 실패") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
                 return .none
 
             case .delegate:
