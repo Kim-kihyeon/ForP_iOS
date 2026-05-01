@@ -259,18 +259,42 @@ private final class LocationFetcher: NSObject, CLLocationManagerDelegate, @unche
         await withCheckedContinuation { cont in
             continuation = cont
             manager.delegate = self
-            manager.requestWhenInUseAuthorization()
-            manager.requestLocation()
+            switch manager.authorizationStatus {
+            case .notDetermined:
+                manager.requestWhenInUseAuthorization()
+            case .authorizedAlways, .authorizedWhenInUse:
+                manager.requestLocation()
+            case .denied, .restricted:
+                resume(nil)
+            @unknown default:
+                resume(nil)
+            }
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        continuation?.resume(returning: locations.last)
-        continuation = nil
+        resume(locations.last)
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        continuation?.resume(returning: nil)
+        resume(nil)
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        switch manager.authorizationStatus {
+        case .authorizedAlways, .authorizedWhenInUse:
+            manager.requestLocation()
+        case .denied, .restricted:
+            resume(nil)
+        case .notDetermined:
+            break
+        @unknown default:
+            resume(nil)
+        }
+    }
+
+    private func resume(_ location: CLLocation?) {
+        continuation?.resume(returning: location)
         continuation = nil
     }
 }
