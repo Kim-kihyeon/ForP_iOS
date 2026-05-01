@@ -412,3 +412,13 @@ entrypoint = "./functions/kakao-auth/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/kakao-auth/*.html" ]
+
+[functions.delete-account]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/delete-account/index.ts"
+
+[functions.generate-course]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/generate-course/index.ts"

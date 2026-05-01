@@ -30,7 +30,6 @@ jobs:
           KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
           SUPABASE_HOST: ${{ secrets.SUPABASE_HOST }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
         run: |
           cat > App/Secrets.xcconfig << EOF
@@ -43,7 +42,6 @@ jobs:
           KAKAO_REST_KEY = ${KAKAO_REST_KEY}
           SUPABASE_HOST = ${SUPABASE_HOST}
           SUPABASE_ANON_KEY = ${SUPABASE_ANON_KEY}
-          OPENAI_API_KEY = ${OPENAI_API_KEY}
           OPENWEATHER_API_KEY = ${OPENWEATHER_API_KEY}
           EOF
 
@@ -67,8 +65,7 @@ jobs:
           APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
         run: |
           echo "$APP_STORE_CONNECT_API_KEY_CONTENT" | tr -d ' \n' | base64 -d > /tmp/AuthKey.p8
-          echo "first line: $(head -1 /tmp/AuthKey.p8)"
-          echo "bytes: $(wc -c < /tmp/AuthKey.p8)"
+          test -s /tmp/AuthKey.p8
 
       - name: Patch fastlane for OpenSSL 3.x compatibility
         run: |
@@ -103,8 +100,6 @@ jobs:
 
             puts 'Key ID length: ' + key_id.to_s.length.to_s
             puts 'Issuer ID length: ' + issuer_id.to_s.length.to_s
-            puts 'Key first line: ' + key_content.lines.first.chomp
-
             begin
               pkey = OpenSSL::PKey.read(key_content)
               puts 'Key loaded: ' + pkey.class.to_s

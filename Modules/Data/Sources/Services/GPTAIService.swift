@@ -1,32 +1,27 @@
 import Foundation
-@preconcurrency import Moya
+import Supabase
 import Domain
 
 public struct GPTAIService: AIServiceProtocol {
-    private let provider: MoyaProvider<GPTTarget>
+    private let supabase: SupabaseClient
 
-    public init(provider: MoyaProvider<GPTTarget>) {
-        self.provider = provider
+    public init(supabase: SupabaseClient) {
+        self.supabase = supabase
     }
 
-    public func generateCoursePlan(user: User, partner: Partner?, options: CourseOptions) async throws -> CoursePlan {
+    public func generateCoursePlan(user: Domain.User, partner: Partner?, options: CourseOptions) async throws -> CoursePlan {
         let systemMessage = buildSystemMessage(location: options.location)
         let prompt = buildPrompt(user: user, partner: partner, options: options)
-        return try await withCheckedThrowingContinuation { continuation in
-            provider.request(.generateCourse(systemMessage: systemMessage, prompt: prompt)) { result in
-                switch result {
-                case .success(let response):
-                    do {
-                        let apiResponse = try JSONDecoder().decode(GPTAPIResponse.self, from: response.data)
-                        continuation.resume(returning: try apiResponse.toCoursePlan())
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                case .failure(let error):
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
+        let apiResponse: GPTAPIResponse = try await supabase.functions.invoke(
+            "generate-course",
+            options: .init(body: GenerateCourseRequest(systemMessage: systemMessage, prompt: prompt))
+        )
+        return try apiResponse.toCoursePlan()
+    }
+
+    private struct GenerateCourseRequest: Encodable {
+        let systemMessage: String
+        let prompt: String
     }
 
     private func buildSystemMessage(location: String) -> String {
@@ -54,7 +49,7 @@ public struct GPTAIService: AIServiceProtocol {
         """
     }
 
-    private func buildPrompt(user: User, partner: Partner?, options: CourseOptions) -> String {
+    private func buildPrompt(user: Domain.User, partner: Partner?, options: CourseOptions) -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.locale = Locale(identifier: "ko_KR")
         dateFormatter.dateFormat = "M월 d일 (E)"

@@ -20,21 +20,18 @@ struct ForPApp: App {
     init() {
         KakaoSDK.initSDK(appKey: Secrets.kakaoAppKey)
 
-        let container = try! LocalStoreContainer.make()
+        let container = (try? LocalStoreContainer.make()) ?? LocalStoreContainer.makeInMemory()
         self.modelContainer = container
 
-        let supabaseURL = URL(string: Secrets.supabaseURL)
-            ?? URL(string: "https://placeholder.supabase.co")!
+        guard let supabaseURL = URL(string: Secrets.supabaseURL), !Secrets.supabaseAnonKey.isEmpty else {
+            preconditionFailure("Supabase configuration is missing or invalid.")
+        }
         let supabase = SupabaseClient(
             supabaseURL: supabaseURL,
             supabaseKey: Secrets.supabaseAnonKey,
             options: .init(auth: .init(emitLocalSessionAsInitialSession: true))
         )
 
-        let gptProvider = MoyaProviderFactory.make(
-            GPTTarget.self,
-            plugins: [AuthPlugin { Secrets.openAIKey }]
-        )
         let kakaoProvider = MoyaProviderFactory.make(
             KakaoTarget.self,
             plugins: [AuthPlugin(prefix: "KakaoAK") { Secrets.kakaoRestKey }]
@@ -49,7 +46,7 @@ struct ForPApp: App {
         let anniversaryRepo = AnniversaryRepository(supabase: supabase)
         let courseRepo = CourseRepository(supabase: supabase, modelContext: modelContext)
         let placeRepo = PlaceRepository(provider: kakaoProvider)
-        let aiService = GPTAIService(provider: gptProvider)
+        let aiService = GPTAIService(supabase: supabase)
         let weatherService = OpenWeatherService(apiKey: Secrets.openWeatherKey)
         let generateUseCase = GenerateCourseUseCase(aiService: aiService, placeRepository: placeRepo, weatherService: weatherService)
         let saveUseCase = SaveCourseUseCase(courseRepository: courseRepo)
@@ -85,7 +82,9 @@ struct ForPApp: App {
                 .modelContainer(modelContainer)
                 .onAppear {
                     appDelegate.onFCMToken = { token in
-                        store.send(.fcmTokenReceived(token))
+                        _Concurrency.Task { @MainActor in
+                            store.send(.fcmTokenReceived(token))
+                        }
                     }
                     store.send(.onAppear)
                     _Concurrency.Task { await notificationService.requestPermission() }
