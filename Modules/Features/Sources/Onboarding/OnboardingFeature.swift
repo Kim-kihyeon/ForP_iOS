@@ -66,6 +66,14 @@ public struct OnboardingFeature {
                     state.alert = AlertState { TextState("지역을 입력해주세요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("주로 데이트하는 동네를 입력해주세요") }
                     return .none
                 }
+                guard !state.preferredCategories.isEmpty || !state.dislikedCategories.isEmpty else {
+                    state.alert = AlertState { TextState("취향을 선택해주세요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("좋아하거나 피하고 싶은 카테고리를 하나 이상 선택해주세요") }
+                    return .none
+                }
+                guard !state.preferredThemes.isEmpty else {
+                    state.alert = AlertState { TextState("분위기를 선택해주세요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("선호하는 데이트 분위기를 하나 이상 선택해주세요") }
+                    return .none
+                }
                 state.isLoading = true
                 var user = state.user
                 user.preferredCategories = state.preferredCategories

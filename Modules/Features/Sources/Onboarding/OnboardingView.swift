@@ -176,7 +176,7 @@ public struct OnboardingView: View {
             VStack(spacing: 0) {
                 progressBar
 
-                TabView(selection: $currentStep) {
+                TabView(selection: stepBinding) {
                     locationPage.tag(0)
                     categoryPage.tag(1)
                     themePage.tag(2)
@@ -353,9 +353,31 @@ public struct OnboardingView: View {
 
     // MARK: - Bottom Bar
 
+    private var stepBinding: Binding<Int> {
+        Binding(
+            get: { currentStep },
+            set: { nextStep in
+                guard nextStep <= currentStep || (currentStep..<nextStep).allSatisfy({ canProceed(from: $0) }) else {
+                    Haptics.notification(.warning)
+                    return
+                }
+                currentStep = nextStep
+            }
+        )
+    }
+
     private var canProceed: Bool {
-        switch currentStep {
-        case 0: return !store.location.trimmingCharacters(in: .whitespaces).isEmpty
+        canProceed(from: currentStep)
+    }
+
+    private func canProceed(from step: Int) -> Bool {
+        switch step {
+        case 0:
+            return !store.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 1:
+            return !store.preferredCategories.isEmpty || !store.dislikedCategories.isEmpty
+        case 2:
+            return !store.preferredThemes.isEmpty
         default: return true
         }
     }
@@ -377,6 +399,10 @@ public struct OnboardingView: View {
 
             Button {
                 if currentStep < totalSteps - 1 {
+                    guard canProceed else {
+                        Haptics.notification(.warning)
+                        return
+                    }
                     withAnimation(.easeInOut(duration: 0.3)) { currentStep += 1 }
                 } else {
                     store.send(.saveTapped)
