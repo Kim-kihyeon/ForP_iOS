@@ -13,6 +13,7 @@ import KakaoSDKAuth
 @main
 struct ForPApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
     let store: StoreOf<AppFeature>
     let modelContainer: ModelContainer
     let notificationService: NotificationService
@@ -93,6 +94,10 @@ struct ForPApp: App {
                     if AuthApi.isKakaoTalkLoginUrl(url) {
                         _ = AuthController.handleOpenUrl(url: url)
                     }
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    guard newPhase == .active else { return }
+                    store.send(.onAppear)
                 }
         }
     }

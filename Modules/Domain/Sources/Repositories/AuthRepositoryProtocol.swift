@@ -7,4 +7,5 @@ public protocol AuthRepositoryProtocol: Sendable {
     func deleteAccount() async throws
     func fetchCurrentUser() async throws -> User?
     func hasActiveSession() -> Bool
+    func hasValidSession() async -> Bool
 }

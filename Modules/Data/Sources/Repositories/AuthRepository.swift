@@ -96,6 +96,16 @@ public final class AuthRepository: AuthRepositoryProtocol {
         supabase.auth.currentSession != nil
     }
 
+    public func hasValidSession() async -> Bool {
+        do {
+            _ = try await supabase.auth.session
+            _ = try await supabase.auth.user()
+            return true
+        } catch {
+            return false
+        }
+    }
+
     // MARK: - Private
 
     private struct KakaoAuthResponse: Decodable {

@@ -47,8 +47,8 @@ public struct AppFeature {
             case .onAppear:
                 return .run { send in
                     await send(.sessionChecked(Result {
-                        guard authRepository.hasActiveSession() else { return nil }
-                        return try? await userRepository.fetchCurrentUser()
+                        guard await authRepository.hasValidSession() else { return nil }
+                        return try await userRepository.fetchCurrentUser()
                     }))
                 }
 
@@ -84,7 +84,9 @@ public struct AppFeature {
                 }
 
             case .sessionChecked(.failure):
-                state.route = .login
+                if state.route == .splash {
+                    state.route = .login
+                }
                 return .none
 
             case .login(.delegate(.loginSucceeded(let user))):
