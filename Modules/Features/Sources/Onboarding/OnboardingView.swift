@@ -1,11 +1,13 @@
 import SwiftUI
 import ComposableArchitecture
 import CoreSharedUI
+import Domain
 
 public struct OnboardingView: View {
     @Bindable var store: StoreOf<OnboardingFeature>
     @State private var showIntro = true
     @State private var currentStep = 0
+    @State private var customBlacklistInput = ""
 
     // Intro animations
     @State private var appeared = false
@@ -17,7 +19,7 @@ public struct OnboardingView: View {
     @State private var ef6: CGFloat = 0
     @State private var buttonScale: CGFloat = 1.0
 
-    private let totalSteps = 3
+    private let totalSteps = 4
     private let categories: [(emoji: String, name: String)] = [
         ("☕", "카페"), ("🍳", "브런치"), ("🍽️", "음식점"), ("🍸", "술/바"),
         ("🎬", "영화"), ("🌿", "공원"), ("🖼️", "전시"), ("🎭", "문화"),
@@ -26,7 +28,15 @@ public struct OnboardingView: View {
     ]
     private let themes: [(emoji: String, name: String)] = [
         ("🤫", "조용한"), ("⚡", "활동적인"), ("🌸", "감성적인"), ("🍜", "맛집 탐방"),
-        ("🌿", "자연"), ("🏙️", "도심"), ("✨", "이색적인"),
+        ("🌿", "자연"), ("🏙️", "도심"), ("✨", "이색적인"), ("💬", "대화하기 좋은"),
+        ("📸", "사진 찍기 좋은"), ("🎉", "기념일"), ("💸", "가성비"), ("💎", "럭셔리"),
+        ("🏠", "실내 위주"), ("🌤️", "야외 위주"), ("🌃", "야경"), ("🍰", "디저트"),
+        ("🍷", "술 한잔"), ("🚶", "산책"), ("🚗", "드라이브"),
+    ]
+    private let blacklistPresets: [(emoji: String, name: String)] = [
+        ("🥜", "견과류"), ("🦐", "해산물"), ("🥛", "유제품"), ("🌾", "글루텐"),
+        ("🌶️", "매운 음식"), ("🍺", "알코올"), ("🥩", "육류"), ("🐷", "돼지고기"),
+        ("🐟", "날음식/회"), ("☕", "카페인"),
     ]
 
     public init(store: StoreOf<OnboardingFeature>) {
@@ -49,6 +59,7 @@ public struct OnboardingView: View {
         .animation(.easeInOut(duration: 0.4), value: showIntro)
         .navigationBarBackButtonHidden()
         .alert($store.scope(state: \.alert, action: \.alert))
+        .onAppear { store.send(.onAppear) }
     }
 
     // MARK: - Intro Screen
@@ -179,9 +190,11 @@ public struct OnboardingView: View {
                 TabView(selection: stepBinding) {
                     locationPage.tag(0)
                     categoryPage.tag(1)
-                    themePage.tag(2)
+                    blacklistPage.tag(2)
+                    themePage.tag(3)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .highPriorityGesture(DragGesture())
                 .animation(.easeInOut(duration: 0.3), value: currentStep)
 
                 bottomBar
@@ -208,20 +221,94 @@ public struct OnboardingView: View {
     // MARK: - Pages
 
     private var locationPage: some View {
-        pageContainer(icon: "location.fill", title: "어디서 데이트 해요?", subtitle: "주로 가는 동네를 입력해주세요") {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                Text("지역")
-                    .font(Typography.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                HStack(spacing: Spacing.md) {
-                    Image(systemName: "magnifyingglass")
+        pageContainer(icon: "person.crop.circle.fill", title: "기본 정보를 알려주세요", subtitle: "닉네임과 자주 가는 동네를 설정해요") {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("닉네임")
+                        .font(Typography.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    TextField("예: 홍대, 강남, 성수동", text: $store.location)
-                        .font(Typography.body)
+                    HStack(spacing: Spacing.md) {
+                        Image(systemName: "person.fill")
+                            .foregroundStyle(.secondary)
+                        TextField("예: 키키", text: $store.nickname)
+                            .font(Typography.body)
+                            .textInputAutocapitalization(.never)
+                        Button {
+                            Haptics.selection()
+                            store.send(.randomNicknameTapped)
+                        } label: {
+                            Image(systemName: "dice.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(Brand.pink)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(Spacing.md)
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .padding(Spacing.md)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("주로 가는 동네")
+                        .font(Typography.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    if let selected = store.selectedLocation {
+                        selectedLocationChip(selected)
+                    } else {
+                        HStack(spacing: Spacing.md) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.secondary)
+                            TextField("예: 홍대, 강남, 성수동", text: $store.location)
+                                .font(Typography.body)
+                                .textInputAutocapitalization(.never)
+                            if store.isSearchingLocation {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                            }
+                        }
+                        .padding(Spacing.md)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                        if !store.locationSuggestions.isEmpty {
+                            VStack(spacing: 0) {
+                                ForEach(Array(store.locationSuggestions.enumerated()), id: \.offset) { index, place in
+                                    Button {
+                                        Haptics.selection()
+                                        store.send(.locationSuggestionSelected(place))
+                                    } label: {
+                                        HStack(spacing: Spacing.sm) {
+                                            Image(systemName: "mappin.circle.fill")
+                                                .foregroundStyle(Brand.pink)
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(place.placeName ?? place.keyword)
+                                                    .font(Typography.caption.weight(.semibold))
+                                                    .foregroundStyle(.primary)
+                                                if let address = place.address {
+                                                    Text(address)
+                                                        .font(Typography.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                        .lineLimit(1)
+                                                }
+                                            }
+                                            Spacer()
+                                        }
+                                        .padding(.vertical, Spacing.sm)
+                                        .padding(.horizontal, Spacing.md)
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    if index < store.locationSuggestions.count - 1 {
+                                        Divider().padding(.leading, 44)
+                                    }
+                                }
+                            }
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                }
             }
         }
     }
@@ -254,6 +341,12 @@ public struct OnboardingView: View {
                 }
                 categoryChipGrid
             }
+        }
+    }
+
+    private var blacklistPage: some View {
+        pageContainer(icon: "nosign", title: "피하고 싶은 게 있나요?", subtitle: "알레르기나 제외할 음식을 설정해요") {
+            blacklistPicker
         }
     }
 
@@ -351,6 +444,119 @@ public struct OnboardingView: View {
         }
     }
 
+    private var blacklistPicker: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("절대 제외 음식/장소 · 선택사항")
+                .font(Typography.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text("알레르기나 피하고 싶은 음식을 추가해요")
+                .font(Typography.caption2)
+                .foregroundStyle(.tertiary)
+
+            FlowLayout(spacing: 8) {
+                ForEach(blacklistPresets, id: \.name) { item in
+                    let isSelected = store.foodBlacklist.contains(item.name)
+                    Button {
+                        Haptics.selection()
+                        store.send(.blacklistToggled(item.name))
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(item.emoji).font(.system(size: 13))
+                            Text(item.name).font(.system(size: 12, weight: .medium))
+                            if isSelected {
+                                Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(isSelected ? Color(.systemRed).opacity(0.12) : Color(.tertiarySystemFill))
+                        .foregroundStyle(isSelected ? Color(.systemRed) : Color(.secondaryLabel))
+                        .clipShape(Capsule())
+                        .overlay {
+                            if isSelected {
+                                Capsule().stroke(Color(.systemRed).opacity(0.4), lineWidth: 1)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                ForEach(store.foodBlacklist.filter { item in !blacklistPresets.map(\.name).contains(item) }, id: \.self) { item in
+                    HStack(spacing: 4) {
+                        Text(item).font(.system(size: 12, weight: .medium))
+                        Button {
+                            store.send(.blacklistRemoved(item))
+                        } label: {
+                            Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color(.systemRed).opacity(0.12))
+                    .foregroundStyle(Color(.systemRed))
+                    .clipShape(Capsule())
+                    .overlay { Capsule().stroke(Color(.systemRed).opacity(0.4), lineWidth: 1) }
+                }
+            }
+
+            HStack(spacing: 8) {
+                TextField("직접 입력 (예: 고수, 오이)", text: $customBlacklistInput)
+                    .font(.system(size: 14))
+                    .onSubmit { addCustomBlacklist() }
+                Button(action: addCustomBlacklist) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(customBlacklistInput.isEmpty ? Color(.tertiaryLabel) : Color(.systemRed))
+                }
+                .disabled(customBlacklistInput.isEmpty)
+            }
+            .padding(Spacing.sm)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.top, Spacing.sm)
+    }
+
+    private func selectedLocationChip(_ place: CoursePlace) -> some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: "mappin.circle.fill")
+                .foregroundStyle(Brand.pink)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(place.placeName ?? place.keyword)
+                    .font(Typography.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                if let address = place.address, !address.isEmpty {
+                    Text(address)
+                        .font(Typography.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+            Button {
+                Haptics.selection()
+                store.send(.selectedLocationCleared)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(Spacing.md)
+        .background(Brand.softPink)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Brand.pink.opacity(0.35), lineWidth: 1)
+        }
+    }
+
+    private func addCustomBlacklist() {
+        store.send(.blacklistCustomAdded(customBlacklistInput))
+        customBlacklistInput = ""
+    }
+
     // MARK: - Bottom Bar
 
     private var stepBinding: Binding<Int> {
@@ -373,54 +579,84 @@ public struct OnboardingView: View {
     private func canProceed(from step: Int) -> Bool {
         switch step {
         case 0:
-            return !store.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return !store.nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                store.selectedLocation != nil
         case 1:
             return !store.preferredCategories.isEmpty || !store.dislikedCategories.isEmpty
         case 2:
+            return true
+        case 3:
             return !store.preferredThemes.isEmpty
         default: return true
         }
     }
 
     private var bottomBar: some View {
-        HStack(spacing: Spacing.md) {
-            if currentStep > 0 {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.3)) { currentStep -= 1 }
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Brand.pink)
-                        .frame(width: 52, height: 52)
-                        .background(Brand.softPink)
-                        .clipShape(Circle())
-                }
+        VStack(spacing: Spacing.xs) {
+            if !canProceed, let message = proceedHint {
+                Text(message)
+                    .font(Typography.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
 
-            Button {
-                if currentStep < totalSteps - 1 {
-                    guard canProceed else {
-                        Haptics.notification(.warning)
-                        return
+            HStack(spacing: Spacing.md) {
+                if currentStep > 0 {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) { currentStep -= 1 }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Brand.pink)
+                            .frame(width: 52, height: 52)
+                            .background(Brand.softPink)
+                            .clipShape(Circle())
                     }
-                    withAnimation(.easeInOut(duration: 0.3)) { currentStep += 1 }
-                } else {
-                    store.send(.saveTapped)
                 }
-            } label: {
-                Text(currentStep == totalSteps - 1 ? "완료" : "다음")
-                    .font(Typography.body.weight(.bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Spacing.md)
-                    .background(canProceed ? Brand.pink : Color(.tertiaryLabel))
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: canProceed ? Brand.pink.opacity(0.3) : .clear, radius: 10, x: 0, y: 4)
+
+                Button {
+                    if currentStep < totalSteps - 1 {
+                        guard canProceed else {
+                            Haptics.notification(.warning)
+                            return
+                        }
+                        withAnimation(.easeInOut(duration: 0.3)) { currentStep += 1 }
+                    } else {
+                        store.send(.saveTapped)
+                    }
+                } label: {
+                    Text(currentStep == totalSteps - 1 ? "완료" : "다음")
+                        .font(Typography.body.weight(.bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.md)
+                        .background(canProceed ? Brand.pink : Color(.tertiaryLabel))
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: canProceed ? Brand.pink.opacity(0.3) : .clear, radius: 10, x: 0, y: 4)
+                }
+                .disabled(!canProceed)
             }
-            .disabled(!canProceed)
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
         .background(.regularMaterial)
+    }
+
+    private var proceedHint: String? {
+        switch currentStep {
+        case 0:
+            if store.nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return "닉네임을 입력하면 다음으로 갈 수 있어요"
+            }
+            return "검색 결과에서 자주 가는 동네를 선택해주세요"
+        case 1:
+            return "좋아하거나 피하고 싶은 카테고리를 하나 이상 선택해주세요"
+        case 2:
+            return nil
+        case 3:
+            return "선호하는 분위기를 하나 이상 선택해주세요"
+        default:
+            return nil
+        }
     }
 }
