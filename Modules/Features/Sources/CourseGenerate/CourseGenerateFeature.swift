@@ -25,6 +25,18 @@ public struct CourseGenerateFeature {
             self.user = user
             self.partner = partner
             self.selectedThemes = user.preferredThemes
+            let savedLocation = user.location.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !savedLocation.isEmpty {
+                self.selectedLocations = [
+                    CoursePlace(
+                        order: 0,
+                        category: "",
+                        keyword: savedLocation,
+                        reason: "",
+                        placeName: savedLocation
+                    )
+                ]
+            }
         }
     }
 
