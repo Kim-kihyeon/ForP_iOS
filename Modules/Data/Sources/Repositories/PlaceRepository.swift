@@ -65,7 +65,7 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
 
     private static func toPlace(_ doc: KakaoPlaceDTO, keyword: String) -> CoursePlace {
         CoursePlace(
-            order: 0, category: "", keyword: keyword, reason: "",
+            order: 0, category: doc.categoryName, keyword: keyword, reason: "",
             placeName: doc.placeName, address: doc.addressName,
             latitude: Double(doc.y), longitude: Double(doc.x),
             kakaoPlaceId: doc.id

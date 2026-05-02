@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 public enum CourseGenerationError: LocalizedError {
     case invalidLocation(String)
@@ -21,6 +22,7 @@ public struct GenerateCourseUseCase {
     private let aiService: any AIServiceProtocol
     private let placeRepository: any PlaceRepositoryProtocol
     private let weatherService: any WeatherServiceProtocol
+    private static let logger = Logger(subsystem: "com.forp.app", category: "CourseGeneration")
 
     public init(aiService: any AIServiceProtocol, placeRepository: any PlaceRepositoryProtocol, weatherService: any WeatherServiceProtocol) {
         self.aiService = aiService
@@ -29,12 +31,15 @@ public struct GenerateCourseUseCase {
     }
 
     public func execute(user: User, partner: Partner?, options: CourseOptions) async throws -> CoursePlan {
+        Self.logger.info("Course generation started location=\(options.location, privacy: .private) themes=\(options.themes.joined(separator: ","), privacy: .private) requestedPlaces=\(options.placeCount) hasPartner=\(partner != nil)")
+
         // 좌표가 이미 확정된 경우(자동완성 선택) resolveLocation 스킵
         let resolved: (gptLocation: String, lat: Double, lon: Double)
         if let lat = options.baseLatitude, let lon = options.baseLongitude {
             resolved = (gptLocation: options.location, lat: lat, lon: lon)
         } else {
             guard let r = try await resolveLocation(options.location) else {
+                Self.logger.error("Course generation failed invalid_location location=\(options.location, privacy: .private)")
                 throw CourseGenerationError.invalidLocation(options.location)
             }
             resolved = r
@@ -49,12 +54,14 @@ public struct GenerateCourseUseCase {
         }
 
         let plan = try await aiService.generateCoursePlan(user: user, partner: partner, options: optionsWithWeather)
+        Self.logger.info("AI course plan received selected=\(plan.places.count) candidates=\(plan.candidates.count) weather=\(optionsWithWeather.weatherDescription != nil)")
         // 이미 확보한 좌표 재사용 (re-geocode 불필요)
         let resolvedCoord = resolved
 
         // 선택된 장소 검증
         var enrichedSelected: [CoursePlace] = []
         var usedPlaceIds: Set<String> = []
+        var selectedSearchFailures = 0
         for place in plan.places {
             let results = await searchWithFallback(place: place, lat: resolvedCoord.lat, lon: resolvedCoord.lon, radius: options.searchRadius)
             if let match = results.first(where: { guard let id = $0.kakaoPlaceId else { return false }; return !usedPlaceIds.contains(id) }),
@@ -65,14 +72,21 @@ public struct GenerateCourseUseCase {
                 updated.latitude = match.latitude
                 updated.longitude = match.longitude
                 updated.kakaoPlaceId = placeId
+                if !match.category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    updated.category = match.category
+                }
                 enrichedSelected.append(updated)
                 usedPlaceIds.insert(placeId)
+            } else {
+                selectedSearchFailures += 1
+                Self.logger.warning("Selected place could not be verified keyword=\(place.keyword, privacy: .private) category=\(place.category, privacy: .private)")
             }
             if enrichedSelected.count == options.placeCount { break }
         }
 
         // 후보 장소 검증
         var enrichedCandidates: [CoursePlace] = []
+        var candidateSearchFailures = 0
         for place in plan.candidates {
             let results = await searchWithFallback(place: place, lat: resolvedCoord.lat, lon: resolvedCoord.lon, radius: options.searchRadius)
             if let match = results.first(where: { guard let id = $0.kakaoPlaceId else { return false }; return !usedPlaceIds.contains(id) }),
@@ -83,8 +97,13 @@ public struct GenerateCourseUseCase {
                 updated.latitude = match.latitude
                 updated.longitude = match.longitude
                 updated.kakaoPlaceId = placeId
+                if !match.category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    updated.category = match.category
+                }
                 enrichedCandidates.append(updated)
                 usedPlaceIds.insert(placeId)
+            } else {
+                candidateSearchFailures += 1
             }
         }
 
@@ -97,6 +116,7 @@ public struct GenerateCourseUseCase {
         }
 
         guard !enrichedSelected.isEmpty else {
+            Self.logger.error("Course generation failed no_places_found location=\(options.location, privacy: .private) selectedFailures=\(selectedSearchFailures) candidateFailures=\(candidateSearchFailures)")
             throw CourseGenerationError.noPlacesFound(options.location)
         }
 
@@ -111,6 +131,7 @@ public struct GenerateCourseUseCase {
             p.order = index + 1
             return p
         }
+        Self.logger.info("Course generation completed selected=\(reordered.count) candidates=\(reorderedCandidates.count) selectedFailures=\(selectedSearchFailures) candidateFailures=\(candidateSearchFailures)")
         return CoursePlan(places: reordered, candidates: reorderedCandidates, outfitSuggestion: plan.outfitSuggestion, courseReason: plan.courseReason)
     }
 
