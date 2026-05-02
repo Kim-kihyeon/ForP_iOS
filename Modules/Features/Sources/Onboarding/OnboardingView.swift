@@ -20,24 +20,9 @@ public struct OnboardingView: View {
     @State private var buttonScale: CGFloat = 1.0
 
     private let totalSteps = 4
-    private let categories: [(emoji: String, name: String)] = [
-        ("☕", "카페"), ("🍳", "브런치"), ("🍽️", "음식점"), ("🍸", "술/바"),
-        ("🎬", "영화"), ("🌿", "공원"), ("🖼️", "전시"), ("🎭", "문화"),
-        ("🛍️", "쇼핑"), ("🎯", "액티비티"), ("🚗", "드라이브"), ("🎤", "노래방"),
-        ("🏸", "스포츠"), ("🌃", "야경"), ("🧘", "힐링"),
-    ]
-    private let themes: [(emoji: String, name: String)] = [
-        ("🤫", "조용한"), ("⚡", "활동적인"), ("🌸", "감성적인"), ("🍜", "맛집 탐방"),
-        ("🌿", "자연"), ("🏙️", "도심"), ("✨", "이색적인"), ("💬", "대화하기 좋은"),
-        ("📸", "사진 찍기 좋은"), ("🎉", "기념일"), ("💸", "가성비"), ("💎", "럭셔리"),
-        ("🏠", "실내 위주"), ("🌤️", "야외 위주"), ("🌃", "야경"), ("🍰", "디저트"),
-        ("🍷", "술 한잔"), ("🚶", "산책"), ("🚗", "드라이브"),
-    ]
-    private let blacklistPresets: [(emoji: String, name: String)] = [
-        ("🥜", "견과류"), ("🦐", "해산물"), ("🥛", "유제품"), ("🌾", "글루텐"),
-        ("🌶️", "매운 음식"), ("🍺", "알코올"), ("🥩", "육류"), ("🐷", "돼지고기"),
-        ("🐟", "날음식/회"), ("☕", "카페인"),
-    ]
+    private let categories = PreferenceOptions.categories
+    private let themes = PreferenceOptions.themes
+    private let blacklistPresets = PreferenceOptions.blacklistPresets
 
     public init(store: StoreOf<OnboardingFeature>) {
         self.store = store

@@ -291,16 +291,7 @@ public struct CourseGenerateView: View {
 
     // MARK: - Theme
 
-    private let availableThemes: [(String, String)] = [
-        ("로맨틱", "heart.fill"),
-        ("맛집 탐방", "fork.knife"),
-        ("카페 투어", "cup.and.saucer.fill"),
-        ("야외·자연", "leaf.fill"),
-        ("문화·예술", "paintpalette.fill"),
-        ("액티비티", "figure.walk"),
-        ("쇼핑", "bag.fill"),
-        ("야경", "moon.stars.fill"),
-    ]
+    private let availableThemes = PreferenceOptions.themes
 
     private var themeSection: some View {
         FormCard {
@@ -318,24 +309,24 @@ public struct CourseGenerateView: View {
                     .foregroundStyle(.secondary)
                 }
             }
-            let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+            let columns = [GridItem(.adaptive(minimum: 78))]
             LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(availableThemes, id: \.0) { theme, icon in
-                    let selected = store.selectedThemes.contains(theme)
+                ForEach(availableThemes) { option in
+                    let selected = store.selectedThemes.contains(option.name)
                     Button {
                         Haptics.selection()
                         var themes = store.selectedThemes
                         if selected {
-                            themes.removeAll { $0 == theme }
+                            themes.removeAll { $0 == option.name }
                         } else {
-                            themes.append(theme)
+                            themes.append(option.name)
                         }
                         store.send(.binding(.set(\.selectedThemes, themes)))
                     } label: {
                         VStack(spacing: 4) {
-                            Image(systemName: icon)
+                            Image(systemName: option.systemImage ?? "sparkles")
                                 .font(.system(size: 16))
-                            Text(theme)
+                            Text(option.name)
                                 .font(.system(size: 11, weight: .medium))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)

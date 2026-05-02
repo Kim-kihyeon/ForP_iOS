@@ -9,12 +9,9 @@ public struct ProfileView: View {
     @State private var customBlacklistInput = ""
     @Environment(\.dismiss) private var dismiss
 
-    private let categories: [(emoji: String, name: String)] = [
-        ("☕", "카페"), ("🍳", "브런치"), ("🍽️", "음식점"), ("🍸", "술/바"),
-        ("🎬", "영화"), ("🌿", "공원"), ("🖼️", "전시"), ("🎭", "문화"),
-        ("🛍️", "쇼핑"), ("🎯", "액티비티"), ("🚗", "드라이브"), ("🎤", "노래방"),
-        ("🏸", "스포츠"), ("🌃", "야경"), ("🧘", "힐링"),
-    ]
+    private let categories = PreferenceOptions.categories
+    private let themes = PreferenceOptions.themes
+    private let blacklistPresets = PreferenceOptions.blacklistPresets
 
     public init(store: StoreOf<ProfileFeature>) {
         self.store = store
@@ -29,6 +26,7 @@ public struct ProfileView: View {
                     basicSection
                     preferredSection
                     dislikedSection
+                    themeSection
                     blacklistSection
                 }
                 .padding(.horizontal, Spacing.md)
@@ -94,20 +92,20 @@ public struct ProfileView: View {
     // MARK: - Basic
 
     private var basicSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             sectionLabel("기본 정보")
-            VStack(spacing: 0) {
+            VStack(spacing: 14) {
                 fieldRow(icon: "person.fill", iconColor: Brand.pink, label: "닉네임") {
                     TextField("닉네임", text: $store.nickname)
                         .font(Typography.body)
+                        .textInputAutocapitalization(.never)
                 }
-                Divider().padding(.leading, 52)
                 fieldRow(icon: "location.fill", iconColor: Brand.iconBlue, label: "자주 가는 지역") {
-                    TextField("강남, 홍대, 성수동...", text: $store.location)
-                        .font(Typography.body)
+                    locationInput
                 }
             }
-            .padding(Spacing.md)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.md + 2)
             .cardStyle()
         }
     }
@@ -130,32 +128,65 @@ public struct ProfileView: View {
         }
     }
 
-    // MARK: - Blacklist
+    // MARK: - Themes
 
-    private let blacklistPresets: [(String, String)] = [
-        ("🥜", "견과류"), ("🦐", "해산물"), ("🥛", "유제품"), ("🌾", "글루텐"),
-        ("🌶️", "매운 음식"), ("🍺", "알코올"), ("🥩", "육류"), ("🐷", "돼지고기"),
-        ("🐟", "날음식/회"), ("☕", "카페인")
-    ]
+    private var themeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("선호 분위기")
+            FlowLayout(spacing: 8) {
+                ForEach(themes, id: \.name) { item in
+                    let isSelected = store.preferredThemes.contains(item.name)
+                    Button {
+                        Haptics.selection()
+                        if isSelected {
+                            store.preferredThemes.removeAll { $0 == item.name }
+                        } else {
+                            store.preferredThemes.append(item.name)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(item.emoji).font(.system(size: 13))
+                            Text(item.name).font(.system(size: 12, weight: .medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(isSelected ? Brand.softPink : Color(.tertiarySystemFill))
+                        .foregroundStyle(isSelected ? Brand.pink : Color(.secondaryLabel))
+                        .clipShape(Capsule())
+                        .overlay {
+                            if isSelected {
+                                Capsule().stroke(Brand.pink.opacity(0.4), lineWidth: 1)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(Spacing.md)
+            .cardStyle()
+        }
+    }
+
+    // MARK: - Blacklist
 
     private var blacklistSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("절대 제외 음식/장소")
             VStack(alignment: .leading, spacing: 12) {
                 FlowLayout(spacing: 8) {
-                    ForEach(blacklistPresets, id: \.1) { emoji, name in
-                        let isSelected = store.foodBlacklist.contains(name)
+                    ForEach(blacklistPresets) { item in
+                        let isSelected = store.foodBlacklist.contains(item.name)
                         Button {
                             Haptics.selection()
                             if isSelected {
-                                store.foodBlacklist.removeAll { $0 == name }
+                                store.foodBlacklist.removeAll { $0 == item.name }
                             } else {
-                                store.foodBlacklist.append(name)
+                                store.foodBlacklist.append(item.name)
                             }
                         } label: {
                             HStack(spacing: 4) {
-                                Text(emoji).font(.system(size: 13))
-                                Text(name).font(.system(size: 12, weight: .medium))
+                                Text(item.emoji).font(.system(size: 13))
+                                Text(item.name).font(.system(size: 12, weight: .medium))
                                 if isSelected {
                                     Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
                                 }
@@ -173,7 +204,7 @@ public struct ProfileView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    ForEach(store.foodBlacklist.filter { item in !blacklistPresets.map(\.1).contains(item) }, id: \.self) { item in
+                    ForEach(store.foodBlacklist.filter { item in !blacklistPresets.map(\.name).contains(item) }, id: \.self) { item in
                         HStack(spacing: 4) {
                             Text(item).font(.system(size: 12, weight: .medium))
                             Button {
@@ -214,27 +245,117 @@ public struct ProfileView: View {
         customBlacklistInput = ""
     }
 
+    private var locationInput: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let selected = store.selectedLocation {
+                selectedLocationChip(selected)
+            } else {
+                HStack(spacing: 8) {
+                    TextField("강남, 홍대, 성수동...", text: $store.location)
+                        .font(Typography.body)
+                        .textInputAutocapitalization(.never)
+                    if store.isSearchingLocation {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
+                }
+
+                if !store.locationSuggestions.isEmpty {
+                    VStack(spacing: 0) {
+                        ForEach(Array(store.locationSuggestions.enumerated()), id: \.offset) { index, place in
+                            Button {
+                                Haptics.selection()
+                                store.send(.locationSuggestionSelected(place))
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "mappin.circle.fill")
+                                        .foregroundStyle(Brand.pink)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(place.placeName ?? place.keyword)
+                                            .font(Typography.caption.weight(.semibold))
+                                            .foregroundStyle(.primary)
+                                        if let address = place.address, !address.isEmpty {
+                                            Text(address)
+                                                .font(Typography.caption2)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 10)
+                            }
+                            .buttonStyle(.plain)
+
+                            if index < store.locationSuggestions.count - 1 {
+                                Divider().padding(.leading, 38)
+                            }
+                        }
+                    }
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
+    }
+
+    private func selectedLocationChip(_ place: CoursePlace) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "mappin.circle.fill")
+                .foregroundStyle(Brand.pink)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(place.placeName ?? place.keyword)
+                    .font(Typography.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                if let address = place.address, !address.isEmpty {
+                    Text(address)
+                        .font(Typography.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+            Button {
+                Haptics.selection()
+                store.send(.selectedLocationCleared)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+        .background(Brand.softPink)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Brand.pink.opacity(0.3), lineWidth: 1)
+        }
+    }
+
     // MARK: - Category Grid
 
     private func categoryGrid(selected: Binding<[String]>, exclude: [String], accentColor: Color) -> some View {
         let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: columns, spacing: 8) {
-            ForEach(categories, id: \.name) { emoji, name in
-                let isSelected = selected.wrappedValue.contains(name)
-                let isExcluded = exclude.contains(name)
+            ForEach(categories) { item in
+                let isSelected = selected.wrappedValue.contains(item.name)
+                let isExcluded = exclude.contains(item.name)
                 Button {
                     guard !isExcluded else { return }
                     Haptics.selection()
                     if isSelected {
-                        selected.wrappedValue.removeAll { $0 == name }
+                        selected.wrappedValue.removeAll { $0 == item.name }
                     } else {
-                        selected.wrappedValue.append(name)
+                        selected.wrappedValue.append(item.name)
                     }
                 } label: {
                     ZStack(alignment: .topTrailing) {
                         VStack(spacing: 3) {
-                            Text(emoji).font(.system(size: 20))
-                            Text(name)
+                            Text(item.emoji).font(.system(size: 20))
+                            Text(item.name)
                                 .font(.system(size: 10, weight: .medium))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
@@ -301,22 +422,24 @@ public struct ProfileView: View {
     }
 
     private func fieldRow<Content: View>(icon: String, iconColor: Color, label: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: Spacing.md) {
+        HStack(alignment: .top, spacing: Spacing.md) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(iconColor.opacity(0.12))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 40, height: 40)
                 Image(systemName: icon)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(iconColor)
             }
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(label)
                     .font(Typography.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                 content()
+                    .frame(minHeight: 26)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 }

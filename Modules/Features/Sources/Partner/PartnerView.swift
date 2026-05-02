@@ -8,12 +8,8 @@ public struct PartnerView: View {
     @State private var customBlacklistInput = ""
     @Environment(\.dismiss) private var dismiss
 
-    private let categories: [(emoji: String, name: String)] = [
-        ("☕", "카페"), ("🍳", "브런치"), ("🍽️", "음식점"), ("🍸", "술/바"),
-        ("🎬", "영화"), ("🌿", "공원"), ("🖼️", "전시"), ("🎭", "문화"),
-        ("🛍️", "쇼핑"), ("🎯", "액티비티"), ("🚗", "드라이브"), ("🎤", "노래방"),
-        ("🏸", "스포츠"), ("🌃", "야경"), ("🧘", "힐링"),
-    ]
+    private let categories = PreferenceOptions.categories
+    private let blacklistPresets = PreferenceOptions.blacklistPresets
 
     public init(store: StoreOf<PartnerFeature>) {
         self.store = store
@@ -187,12 +183,6 @@ public struct PartnerView: View {
         }
     }
 
-    private let blacklistPresets: [(String, String)] = [
-        ("🥜", "견과류"), ("🦐", "해산물"), ("🥛", "유제품"), ("🌾", "글루텐"),
-        ("🌶️", "매운 음식"), ("🍺", "알코올"), ("🥩", "육류"), ("🐷", "돼지고기"),
-        ("🐟", "날음식/회"), ("☕", "카페인")
-    ]
-
     private var blacklistSection: some View {
         FormCard {
             HStack(alignment: .top, spacing: Spacing.md) {
@@ -207,20 +197,20 @@ public struct PartnerView: View {
                             .foregroundStyle(.tertiary)
                     }
                     FlowLayout(spacing: 8) {
-                        ForEach(blacklistPresets, id: \.1) { emoji, name in
-                            let isSelected = store.foodBlacklist.contains(name)
+                        ForEach(blacklistPresets) { item in
+                            let isSelected = store.foodBlacklist.contains(item.name)
                             Button {
                                 if !store.isConnected {
                                     if isSelected {
-                                        store.foodBlacklist.removeAll { $0 == name }
+                                        store.foodBlacklist.removeAll { $0 == item.name }
                                     } else {
-                                        store.foodBlacklist.append(name)
+                                        store.foodBlacklist.append(item.name)
                                     }
                                 }
                             } label: {
                                 HStack(spacing: 4) {
-                                    Text(emoji).font(.system(size: 13))
-                                    Text(name).font(.system(size: 12, weight: .medium))
+                                    Text(item.emoji).font(.system(size: 13))
+                                    Text(item.name).font(.system(size: 12, weight: .medium))
                                     if isSelected && !store.isConnected {
                                         Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
                                     }
@@ -238,7 +228,7 @@ public struct PartnerView: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        ForEach(store.foodBlacklist.filter { item in !blacklistPresets.map(\.1).contains(item) }, id: \.self) { item in
+                        ForEach(store.foodBlacklist.filter { item in !blacklistPresets.map(\.name).contains(item) }, id: \.self) { item in
                             HStack(spacing: 4) {
                                 Text(item).font(.system(size: 12, weight: .medium))
                                 if !store.isConnected {
