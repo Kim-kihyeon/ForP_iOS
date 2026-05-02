@@ -9,11 +9,11 @@ public enum CourseGenerationError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidLocation(let location):
-            return "'\(location)'을 찾을 수 없어요. 올바른 지역명을 입력해주세요. (예: 강남, 홍대, 성수동)"
+            return "'\(location)' 지역을 찾지 못했어요. 동네 이름을 조금 더 구체적으로 입력하거나, 검색 결과에서 지역을 선택해 주세요."
         case .noPlacesFound(let location):
-            return "'\(location)' 주변에서 조건에 맞는 장소를 찾지 못했어요. 다른 테마나 지역으로 다시 시도해보세요."
+            return "'\(location)' 주변에서 조건에 맞는 장소를 찾지 못했어요. 지역을 넓히거나 분위기/카테고리 조건을 줄여서 다시 시도해 주세요."
         case .aiParsingFailed:
-            return "코스 생성 중 오류가 발생했어요. 다시 시도해주세요."
+            return "추천 결과를 정리하는 중 문제가 생겼어요. 같은 조건으로 다시 시도하거나, 조건을 조금 줄여서 생성해 주세요."
         }
     }
 }
