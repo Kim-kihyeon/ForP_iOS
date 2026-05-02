@@ -55,7 +55,9 @@ public struct AppFeature {
             case .sessionChecked(.success(let user)):
                 if let user {
                     state.authenticatedUserId = user.id
-                    if user.preferredCategories.isEmpty {
+                    if state.route == .main {
+                        state.home.user = user
+                    } else if user.preferredCategories.isEmpty {
                         state.onboarding = OnboardingFeature.State(user: user)
                         state.route = .onboarding
                     } else {
