@@ -117,16 +117,49 @@ public struct GenerateCourseUseCase {
     // 지역 입력 파싱: 단일 지역은 그대로, 복합 표현은 중간점 계산
     // gptLocation: GPT 프롬프트/키워드에 사용할 단순 지명
     private func searchWithFallback(place: CoursePlace, lat: Double, lon: Double, radius: Int) async -> [CoursePlace] {
-        // 1차: 반경 검색
-        let radiusResults = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: lat, longitude: lon, radius: radius)) ?? []
-        if !radiusResults.isEmpty { return radiusResults }
+        for keyword in fallbackKeywords(for: place) {
+            // 1차: 반경 검색
+            let radiusResults = (try? await placeRepository.searchPlaces(keyword: keyword, latitude: lat, longitude: lon, radius: radius)) ?? []
+            if !radiusResults.isEmpty { return radiusResults }
 
-        // 2차: 반경 2배 확장
-        let widerResults = (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: lat, longitude: lon, radius: radius * 2)) ?? []
-        if !widerResults.isEmpty { return widerResults }
+            // 2차: 반경 2배 확장
+            let widerResults = (try? await placeRepository.searchPlaces(keyword: keyword, latitude: lat, longitude: lon, radius: radius * 2)) ?? []
+            if !widerResults.isEmpty { return widerResults }
+        }
 
         // 3차: 최대 반경(20km)으로 확장 검색 — 필터 유지
-        return (try? await placeRepository.searchPlaces(keyword: place.keyword, latitude: lat, longitude: lon, radius: 20_000)) ?? []
+        for keyword in fallbackKeywords(for: place) {
+            let results = (try? await placeRepository.searchPlaces(keyword: keyword, latitude: lat, longitude: lon, radius: 20_000)) ?? []
+            if !results.isEmpty { return results }
+        }
+        return []
+    }
+
+    private func fallbackKeywords(for place: CoursePlace) -> [String] {
+        let location = place.keyword.components(separatedBy: .whitespacesAndNewlines).first ?? place.keyword
+        let category = normalizedCategory(place.category)
+        let candidates = [
+            place.keyword,
+            "\(location) \(category)",
+            "\(location) 데이트",
+            "\(location) 맛집",
+            location,
+        ]
+        var seen = Set<String>()
+        return candidates
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+
+    private func normalizedCategory(_ category: String) -> String {
+        let lowercased = category.lowercased()
+        if lowercased.contains("카페") { return "카페" }
+        if lowercased.contains("브런치") { return "브런치" }
+        if lowercased.contains("식") || lowercased.contains("맛집") || lowercased.contains("음식") { return "맛집" }
+        if lowercased.contains("전시") || lowercased.contains("문화") { return "전시" }
+        if lowercased.contains("공원") || lowercased.contains("산책") { return "공원" }
+        if lowercased.contains("술") || lowercased.contains("바") { return "바" }
+        return category.isEmpty ? "데이트" : category
     }
 
     private func resolveLocation(_ input: String) async throws -> (gptLocation: String, lat: Double, lon: Double)? {

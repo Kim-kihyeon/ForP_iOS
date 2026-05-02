@@ -56,6 +56,13 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
         "병원", "약국", "장례식장", "동사무소", "주민센터", "구청", "세무서",
     ]
 
+    private static let excludedChainKeywords: [String] = [
+        "메가커피", "메가MGC커피", "컴포즈커피", "빽다방", "이디야", "스타벅스",
+        "투썸플레이스", "할리스", "커피빈", "폴바셋", "엔제리너스", "파스쿠찌",
+        "공차", "더벤티", "매머드커피", "커피에반하다", "커피베이", "탐앤탐스",
+        "요거프레소", "커피나무", "하삼동커피", "텐퍼센트커피",
+    ]
+
     private static func toPlace(_ doc: KakaoPlaceDTO, keyword: String) -> CoursePlace {
         CoursePlace(
             order: 0, category: "", keyword: keyword, reason: "",
@@ -76,12 +83,21 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
 
     private static func deduplicatedForCourse(_ documents: [KakaoPlaceDTO], keyword: String) -> [CoursePlace] {
         var seen = Set<String>()
-        return documents.compactMap { doc in
-            guard !seen.contains(doc.id) else { return nil }
-            guard !excludedCategoryCodes.contains(doc.categoryGroupCode) else { return nil }
-            guard !excludedNameKeywords.contains(where: { doc.placeName.contains($0) || doc.categoryName.contains($0) }) else { return nil }
+        let eligible = documents.filter { doc in
+            guard !seen.contains(doc.id) else { return false }
+            guard !excludedCategoryCodes.contains(doc.categoryGroupCode) else { return false }
+            guard !excludedNameKeywords.contains(where: { doc.placeName.contains($0) || doc.categoryName.contains($0) }) else { return false }
             seen.insert(doc.id)
-            return toPlace(doc, keyword: keyword)
+            return true
+        }
+        let localFirst = eligible.filter { doc in
+            !excludedChainKeywords.contains { doc.placeName.localizedCaseInsensitiveContains($0) }
+        }
+        let chains = eligible.filter { doc in
+            excludedChainKeywords.contains { doc.placeName.localizedCaseInsensitiveContains($0) }
+        }
+        return (localFirst + chains).map { doc in
+            toPlace(doc, keyword: keyword)
         }
     }
 
