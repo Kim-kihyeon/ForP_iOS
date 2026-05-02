@@ -5,7 +5,7 @@ let project = Project(
     targets: [
         .target(
             name: "Features",
-            destinations: .iOS,
+            destinations: [.iPhone],
             product: .staticFramework,
             bundleId: "com.forp.features",
             deploymentTargets: .iOS("17.0"),

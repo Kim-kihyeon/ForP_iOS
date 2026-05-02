@@ -5,7 +5,7 @@ let project = Project(
     targets: [
         .target(
             name: "Domain",
-            destinations: .iOS,
+            destinations: [.iPhone],
             product: .staticFramework,
             bundleId: "com.forp.domain",
             deploymentTargets: .iOS("17.0"),

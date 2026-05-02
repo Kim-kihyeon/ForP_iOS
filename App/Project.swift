@@ -17,7 +17,7 @@ let project = Project(
     targets: [
         .target(
             name: "ForP",
-            destinations: .iOS,
+            destinations: [.iPhone],
             product: .app,
             bundleId: "com.kihyeonKim.ForP",
             deploymentTargets: .iOS("17.0"),
@@ -83,12 +83,13 @@ let project = Project(
                 "CURRENT_PROJECT_VERSION": "2",
                 "OTHER_LDFLAGS": "-ObjC",
                 "DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym",
+                "TARGETED_DEVICE_FAMILY": "1",
                 "CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION": "YES",
             ])
         ),
         .target(
             name: "ForPTests",
-            destinations: .iOS,
+            destinations: [.iPhone],
             product: .unitTests,
             bundleId: "com.kihyeonKim.ForPTests",
             deploymentTargets: .iOS("17.0"),
