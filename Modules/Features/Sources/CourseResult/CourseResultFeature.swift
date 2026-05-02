@@ -14,7 +14,6 @@ public struct CourseResultFeature {
         public var isPlaying = false
         public var showLiveMap = false
         public var showDeparture = false
-        public var showBudget = false
         public var showChecklist = false
         public var visitedOrders: Set<Int> = []
         public var showCompletion = false
@@ -53,8 +52,6 @@ public struct CourseResultFeature {
         case stopPlayTapped
         case departureTapped
         case departureDismissed
-        case budgetTapped
-        case budgetDismissed
         case checklistTapped
         case checklistDismissed
         case liveMapDismissed
@@ -248,14 +245,6 @@ public struct CourseResultFeature {
 
             case .departureDismissed:
                 state.showDeparture = false
-                return .none
-
-            case .budgetTapped:
-                state.showBudget = true
-                return .none
-
-            case .budgetDismissed:
-                state.showBudget = false
                 return .none
 
             case .checklistTapped:

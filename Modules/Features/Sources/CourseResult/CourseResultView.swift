@@ -72,12 +72,6 @@ public struct CourseResultView: View {
                 DepartureCalculatorView(places: store.course.places)
             }
             .sheet(isPresented: Binding(
-                get: { store.showBudget },
-                set: { if !$0 { store.send(.budgetDismissed) } }
-            )) {
-                BudgetCalculatorView(places: store.course.places)
-            }
-            .sheet(isPresented: Binding(
                 get: { store.showChecklist },
                 set: { if !$0 { store.send(.checklistDismissed) } }
             )) {
@@ -538,94 +532,76 @@ public struct CourseResultView: View {
 
             // Place info
             VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 4) {
-                            Text(place.placeName ?? place.keyword)
-                                .font(Typography.body.weight(.semibold))
-                                .foregroundStyle(isVisited ? .secondary : .primary)
-                            if !store.isPlaying {
-                                Image(systemName: "mappin.circle.fill")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(color.opacity(isVisited ? 0.3 : 0.7))
-                            }
-                        }
-
-                        HStack(spacing: 6) {
-                            Text(place.category)
-                                .font(Typography.caption2)
-                                .foregroundStyle(isVisited ? .secondary : color)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 2)
-                                .background((isVisited ? Color.secondary : color).opacity(0.1))
-                                .clipShape(Capsule())
-
-                            if let addr = place.address {
-                                Text(addr)
-                                    .font(Typography.caption2)
-                                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 4) {
+                                Text(place.placeName ?? place.keyword)
+                                    .font(Typography.body.weight(.semibold))
+                                    .foregroundStyle(isVisited ? .secondary : .primary)
                                     .lineLimit(1)
+                                if !store.isPlaying {
+                                    Image(systemName: "mappin.circle.fill")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(color.opacity(isVisited ? 0.3 : 0.7))
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                if let category = displayCategory(for: place) {
+                                    Text(category)
+                                        .font(Typography.caption2.weight(.medium))
+                                        .foregroundStyle(isVisited ? .secondary : color)
+                                        .lineLimit(1)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background((isVisited ? Color.secondary : color).opacity(0.1))
+                                        .clipShape(Capsule())
+                                }
+
+                                if let address = displayAddress(for: place) {
+                                    Label(address, systemImage: "mappin.and.ellipse")
+                                        .font(Typography.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
                             }
                         }
 
-                        if !isVisited {
-                            Text(place.reason)
-                                .font(Typography.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 1)
+                        Spacer(minLength: 8)
 
-                            if let menu = place.menu, !menu.isEmpty {
-                                Label(menu, systemImage: "fork.knife")
-                                    .font(Typography.caption2)
-                                    .foregroundStyle(Brand.pink)
+                        if store.isPlaying {
+                            ZStack {
+                                Circle()
+                                    .stroke(isVisited ? color : Color(.systemFill), lineWidth: 2)
+                                    .frame(width: 30, height: 30)
+                                if isVisited {
+                                    Circle().fill(color).frame(width: 30, height: 30)
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
                             }
+                            .animation(.spring(response: 0.3), value: isVisited)
+                            .onTapGesture { Haptics.impact(.rigid); store.send(.placeVisited(place.order)) }
+                        } else {
+                            actionButtons(for: place)
                         }
                     }
 
-                    Spacer()
+                    if !isVisited {
+                        Text(place.reason)
+                            .font(Typography.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                    if store.isPlaying {
-                        ZStack {
-                            Circle()
-                                .stroke(isVisited ? color : Color(.systemFill), lineWidth: 2)
-                                .frame(width: 30, height: 30)
-                            if isVisited {
-                                Circle().fill(color).frame(width: 30, height: 30)
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(.white)
-                            }
-                        }
-                        .animation(.spring(response: 0.3), value: isVisited)
-                        .onTapGesture { Haptics.impact(.rigid); store.send(.placeVisited(place.order)) }
-                    } else {
-                        HStack(spacing: 6) {
-                            let isBookmarked = store.bookmarkedKeywords.contains(place.keyword)
-                            Button {
-                                Haptics.impact(.light)
-                                store.send(.bookmarkPlace(place))
-                            } label: {
-                                VStack(spacing: 2) {
-                                    Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
-                                        .font(.system(size: 14))
-                                    Text("찜").font(.system(size: 10, weight: .medium))
-                                }
-                                .foregroundStyle(isBookmarked ? Brand.pink : .secondary)
-                                .padding(7)
-                                .background(isBookmarked ? Brand.softPink : Color(.tertiarySystemFill))
-                                .clipShape(RoundedRectangle(cornerRadius: 9))
-                            }
-
-                            Button { openKakaoMap(place: place) } label: {
-                                VStack(spacing: 2) {
-                                    Image(systemName: "map.fill").font(.system(size: 14))
-                                    Text("지도").font(.system(size: 10, weight: .medium))
-                                }
+                        if let menu = place.menu, !menu.isEmpty {
+                            Label(menu, systemImage: "fork.knife")
+                                .font(Typography.caption2)
                                 .foregroundStyle(Brand.pink)
-                                .padding(7)
-                                .background(Brand.softPink)
-                                .clipShape(RoundedRectangle(cornerRadius: 9))
-                            }
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -642,6 +618,37 @@ public struct CourseResultView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { tappedPlaceOrder = nil }
             focusMap(on: place)
         })
+    }
+
+    private func actionButtons(for place: CoursePlace) -> some View {
+        HStack(spacing: 6) {
+            let isBookmarked = store.bookmarkedKeywords.contains(place.keyword)
+            Button {
+                Haptics.impact(.light)
+                store.send(.bookmarkPlace(place))
+            } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                        .font(.system(size: 14))
+                    Text("찜").font(.system(size: 10, weight: .medium))
+                }
+                .foregroundStyle(isBookmarked ? Brand.pink : .secondary)
+                .padding(7)
+                .background(isBookmarked ? Brand.softPink : Color(.tertiarySystemFill))
+                .clipShape(RoundedRectangle(cornerRadius: 9))
+            }
+
+            Button { openKakaoMap(place: place) } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: "map.fill").font(.system(size: 14))
+                    Text("지도").font(.system(size: 10, weight: .medium))
+                }
+                .foregroundStyle(Brand.pink)
+                .padding(7)
+                .background(Brand.softPink)
+                .clipShape(RoundedRectangle(cornerRadius: 9))
+            }
+        }
     }
 
     // MARK: - Rating Card
@@ -770,7 +777,6 @@ public struct CourseResultView: View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 utilityButton(icon: "clock.fill", label: "출발 시각") { store.send(.departureTapped) }
-                utilityButton(icon: "wonsign.circle.fill", label: "예산 계산") { store.send(.budgetTapped) }
                 utilityButton(icon: "checklist", label: "체크리스트") { store.send(.checklistTapped) }
             }
             HStack(spacing: Spacing.md) {
@@ -987,6 +993,22 @@ public struct CourseResultView: View {
         guard let encoded = placeName.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
               let webURL = URL(string: "https://map.kakao.com/link/search/\(encoded)") else { return }
         UIApplication.shared.open(webURL)
+    }
+
+    private func displayCategory(for place: CoursePlace) -> String? {
+        let category = place.category
+            .split(separator: ">")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .last ?? place.category.trimmingCharacters(in: .whitespacesAndNewlines)
+        return category.isEmpty ? nil : category
+    }
+
+    private func displayAddress(for place: CoursePlace) -> String? {
+        guard let address = place.address?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !address.isEmpty else {
+            return nil
+        }
+        return address
     }
 }
 
