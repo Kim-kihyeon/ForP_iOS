@@ -102,6 +102,7 @@ public struct CourseResultFeature {
         case togglePlaceLock(CoursePlace)
         case partialRegenerateTapped
         case confirmedPartialRegenerate
+        case cancelPartialRegenerationTapped
         case partialRegenerateResponse(Result<CoursePlan, Error>)
 
         public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate, confirmPartialRegenerate }
@@ -528,6 +529,10 @@ public struct CourseResultFeature {
                     ))
                 }
                 .cancellable(id: "partialCourseRegeneration", cancelInFlight: true)
+
+            case .cancelPartialRegenerationTapped:
+                state.isRegenerating = false
+                return .cancel(id: "partialCourseRegeneration")
 
             case .partialRegenerateResponse(.success(let plan)):
                 state.isRegenerating = false

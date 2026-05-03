@@ -13,6 +13,7 @@ public struct CourseResultView: View {
     @State private var isReordering = false
     @State private var placesBeforeReorder: [CoursePlace] = []
     @State private var showExitConfirm = false
+    @State private var showCancelRegenerationConfirm = false
 
     private var coordinatePlaces: [(CoursePlace, CLLocationCoordinate2D)] {
         store.course.places.compactMap { place in
@@ -90,7 +91,22 @@ public struct CourseResultView: View {
                 .padding(.bottom, 32)
             }
             if store.isRegenerating {
-                CourseRegenerationLoadingView()
+                ZStack(alignment: .bottom) {
+                    CourseRegenerationLoadingView()
+                    Button {
+                        Haptics.impact(.light)
+                        showCancelRegenerationConfirm = true
+                    } label: {
+                        Text("취소")
+                            .font(Typography.body.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, Spacing.xl)
+                            .padding(.vertical, Spacing.sm)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Capsule())
+                    }
+                    .padding(.bottom, 60)
+                }
             } else if store.isSaving || store.isDeleting {
                 LoadingView()
             }
@@ -103,7 +119,7 @@ public struct CourseResultView: View {
         }
         .navigationTitle(store.course.title)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(!store.isSaved)
+        .navigationBarBackButtonHidden(store.isRegenerating || !store.isSaved)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
         .disableSwipeBack()
@@ -120,9 +136,17 @@ public struct CourseResultView: View {
         } message: {
             Text("저장하지 않으면 이 코스가 사라져요.")
         }
+        .alert("다시 추천을 중지할까요?", isPresented: $showCancelRegenerationConfirm) {
+            Button("중지", role: .destructive) {
+                store.send(.cancelPartialRegenerationTapped)
+            }
+            Button("계속 추천", role: .cancel) {}
+        } message: {
+            Text("지금 중지하면 현재 코스를 그대로 유지해요.")
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                if !store.isSaved {
+                if !store.isSaved && !store.isRegenerating {
                     Button {
                         showExitConfirm = true
                     } label: {
