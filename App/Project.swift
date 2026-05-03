@@ -22,6 +22,8 @@ let project = Project(
             bundleId: "com.kihyeonKim.ForP",
             deploymentTargets: .iOS("17.0"),
             infoPlist: .extendingDefault(with: [
+                "CFBundleShortVersionString": "$(MARKETING_VERSION)",
+                "CFBundleVersion": "$(CURRENT_PROJECT_VERSION)",
                 "UILaunchScreen": ["UIColorName": ""],
                 "CFBundleURLTypes": [
                     [
