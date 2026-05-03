@@ -30,10 +30,7 @@ Deno.serve(async (req) => {
     });
 
     // 2. 기존 유저 조회
-    const { data: listData } = await admin.auth.admin.listUsers();
-    const existing = listData?.users.find(
-      (u: any) => u.user_metadata?.kakao_id === kakaoId
-    );
+    const existing = await findUserByKakaoId(admin, kakaoId);
 
     const userEmail = existing?.email ?? email;
 
@@ -48,7 +45,8 @@ Deno.serve(async (req) => {
       if (error) throw error;
     } else {
       // 기존 유저 패스워드 업데이트 (이전 방식으로 생성됐을 수 있음)
-      await admin.auth.admin.updateUserById(existing.id, { password });
+      const { error } = await admin.auth.admin.updateUserById(existing.id, { password });
+      if (error) throw error;
     }
 
     // 패스워드로 로그인해서 세션 획득
@@ -71,6 +69,20 @@ Deno.serve(async (req) => {
     return respond({ error: String(e) }, 500);
   }
 });
+
+async function findUserByKakaoId(admin: any, kakaoId: string) {
+  const perPage = 1000;
+  for (let page = 1; page <= 100; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const existing = data?.users.find(
+      (u: any) => u.user_metadata?.kakao_id === kakaoId
+    );
+    if (existing) return existing;
+    if (!data?.users.length || data.users.length < perPage) return null;
+  }
+  return null;
+}
 
 function respond(body: object, status = 200) {
   return new Response(JSON.stringify(body), {
