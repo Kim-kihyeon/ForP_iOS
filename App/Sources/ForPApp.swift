@@ -17,6 +17,7 @@ struct ForPApp: App {
     let store: StoreOf<AppFeature>
     let modelContainer: ModelContainer
     let notificationService: NotificationService
+    let notificationSettingsStore: NotificationSettingsStore
 
     init() {
         KakaoSDK.initSDK(appKey: Secrets.kakaoAppKey)
@@ -42,6 +43,7 @@ struct ForPApp: App {
         let wishlistRepo = WishlistRepository(supabase: supabase)
         let authRepo = AuthRepository(supabase: supabase, anonKey: Secrets.supabaseAnonKey)
         let userRepo = UserRepository(supabase: supabase)
+        let notificationSettingsRepo = NotificationSettingsRepository(supabase: supabase)
         let partnerRepo = PartnerRepository(supabase: supabase)
         let partnerConnectionRepo = PartnerConnectionRepository(supabase: supabase)
         let anniversaryRepo = AnniversaryRepository(supabase: supabase)
@@ -54,7 +56,9 @@ struct ForPApp: App {
         let fetchCoursesUseCase = FetchRecentCoursesUseCase(courseRepository: courseRepo)
         let fetchEffectivePartnerUseCase = FetchEffectivePartnerUseCase(partnerConnectionRepository: partnerConnectionRepo, partnerRepository: partnerRepo)
         let notificationSvc = NotificationService()
+        let notificationSettingsStore = NotificationSettingsStore()
         self.notificationService = notificationSvc
+        self.notificationSettingsStore = notificationSettingsStore
 
         self.store = Store(initialState: AppFeature.State()) {
             AppFeature()
@@ -65,6 +69,8 @@ struct ForPApp: App {
             $0.partnerConnectionRepository = partnerConnectionRepo
             $0.anniversaryRepository = anniversaryRepo
             $0.notificationService = notificationSvc
+            $0.notificationSettingsStore = notificationSettingsStore
+            $0.notificationSettingsRepository = notificationSettingsRepo
             $0.courseRepository = courseRepo
             $0.wishlistRepository = wishlistRepo
             $0.placeRepository = placeRepo
@@ -73,7 +79,7 @@ struct ForPApp: App {
             $0.fetchRecentCoursesUseCase = fetchCoursesUseCase
             $0.fetchEffectivePartnerUseCase = fetchEffectivePartnerUseCase
             $0.weatherService = weatherService
-            $0.currentUserId = { supabase.auth.currentUser?.id ?? UUID() }
+            $0.currentUserId = { supabase.auth.currentUser?.id }
         }
     }
 
@@ -88,7 +94,6 @@ struct ForPApp: App {
                         }
                     }
                     store.send(.onAppear)
-                    _Concurrency.Task { await notificationService.requestPermission() }
                 }
                 .onOpenURL { url in
                     if AuthApi.isKakaoTalkLoginUrl(url) {

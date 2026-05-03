@@ -74,6 +74,7 @@ public struct HomeFeature {
     @Dependency(\.partnerConnectionRepository) var partnerConnectionRepository
     @Dependency(\.anniversaryRepository) var anniversaryRepository
     @Dependency(\.notificationService) var notificationService: any NotificationServiceProtocol
+    @Dependency(\.notificationSettingsStore) var notificationSettingsStore
     @Dependency(\.weatherService) var weatherService: any WeatherServiceProtocol
     @Dependency(\.placeRepository) var placeRepository
     @Dependency(\.courseRepository) var courseRepository: any CourseRepositoryProtocol
@@ -146,6 +147,8 @@ public struct HomeFeature {
                 state.upcomingAnniversary = anniversaries.sorted { $0.daysUntilThisYear < $1.daysUntilThisYear }.first
                 let anniversariesCopy = anniversaries
                 return .run { _ in
+                    let settings = notificationSettingsStore.load()
+                    guard settings.pushEnabled, settings.anniversaryEnabled else { return }
                     await notificationService.scheduleAnniversaryNotifications(for: anniversariesCopy)
                 }
 

@@ -5,6 +5,20 @@ import Domain
 public struct NotificationService: NotificationServiceProtocol {
     public init() {}
 
+    public func permissionStatus() async -> NotificationPermissionStatus {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        switch settings.authorizationStatus {
+        case .notDetermined:
+            return .notDetermined
+        case .denied:
+            return .denied
+        case .authorized, .provisional, .ephemeral:
+            return .authorized
+        @unknown default:
+            return .denied
+        }
+    }
+
     public func requestPermission() async -> Bool {
         let center = UNUserNotificationCenter.current()
         return (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
@@ -36,18 +50,30 @@ public struct NotificationService: NotificationServiceProtocol {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["course-\(courseId)"])
     }
 
+    public func cancelCourseNotifications() async {
+        let center = UNUserNotificationCenter.current()
+        let pending = await center.pendingNotificationRequests()
+        let ids = pending.filter { $0.identifier.hasPrefix("course-") }.map { $0.identifier }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+    }
+
     public func scheduleAnniversaryNotifications(for anniversaries: [Anniversary]) async {
         let center = UNUserNotificationCenter.current()
         // 기존 기념일 알림 전부 제거 후 재등록
-        let pending = await center.pendingNotificationRequests()
-        let ids = pending.filter { $0.identifier.hasPrefix("anniversary-") }.map { $0.identifier }
-        center.removePendingNotificationRequests(withIdentifiers: ids)
+        await cancelAnniversaryNotifications()
 
         for anniversary in anniversaries {
             schedule(anniversary, daysBefore: 30, center: center)
             schedule(anniversary, daysBefore: 7, center: center)
             schedule(anniversary, daysBefore: 0, center: center)
         }
+    }
+
+    public func cancelAnniversaryNotifications() async {
+        let center = UNUserNotificationCenter.current()
+        let pending = await center.pendingNotificationRequests()
+        let ids = pending.filter { $0.identifier.hasPrefix("anniversary-") }.map { $0.identifier }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
     }
 
     private func schedule(_ anniversary: Anniversary, daysBefore: Int, center: UNUserNotificationCenter) {

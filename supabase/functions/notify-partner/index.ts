@@ -30,13 +30,27 @@ serve(async (req) => {
       return new Response("no partner", { status: 200 })
     }
 
-    const [{ data: partnerUser, error: partnerError }, { data: creatorUser }] = await Promise.all([
+    const [
+      { data: partnerUser, error: partnerError },
+      { data: creatorUser },
+      { data: partnerPreference, error: preferenceError },
+    ] = await Promise.all([
       supabase.from("users").select("fcm_token").eq("id", course.partner_id).single(),
       supabase.from("users").select("nickname").eq("id", course.user_id).single(),
+      supabase
+        .from("notification_preferences")
+        .select("push_enabled, partner_enabled")
+        .eq("user_id", course.partner_id)
+        .maybeSingle(),
     ])
 
     if (partnerError) console.log("[notify-partner] partnerError:", partnerError)
+    if (preferenceError) console.log("[notify-partner] preferenceError:", preferenceError)
     console.log("[notify-partner] fcm_token:", partnerUser?.fcm_token ? "exists" : "null")
+
+    if (partnerPreference && (!partnerPreference.push_enabled || !partnerPreference.partner_enabled)) {
+      return new Response("notification disabled", { status: 200 })
+    }
 
     if (!partnerUser?.fcm_token) {
       return new Response("no fcm token", { status: 200 })

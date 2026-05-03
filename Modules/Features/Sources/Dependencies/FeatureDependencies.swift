@@ -48,6 +48,18 @@ private enum NotificationServiceKey: DependencyKey {
     }
 }
 
+private enum NotificationSettingsStoreKey: DependencyKey {
+    static var liveValue: any NotificationSettingsStoreProtocol {
+        fatalError("notificationSettingsStore: configure via withDependencies in ForPApp")
+    }
+}
+
+private enum NotificationSettingsRepositoryKey: DependencyKey {
+    static var liveValue: any NotificationSettingsRepositoryProtocol {
+        fatalError("notificationSettingsRepository: configure via withDependencies in ForPApp")
+    }
+}
+
 // MARK: - Course
 
 private enum CourseRepositoryKey: DependencyKey {
@@ -109,7 +121,7 @@ private enum FetchEffectivePartnerUseCaseKey: DependencyKey {
 }
 
 private enum CurrentUserIdKey: DependencyKey {
-    static var liveValue: @Sendable () -> UUID { { UUID() } }
+    static var liveValue: @Sendable () -> UUID? { { nil } }
 }
 
 // MARK: - DependencyValues
@@ -123,6 +135,16 @@ extension DependencyValues {
     public var notificationService: any NotificationServiceProtocol {
         get { self[NotificationServiceKey.self] }
         set { self[NotificationServiceKey.self] = newValue }
+    }
+
+    public var notificationSettingsStore: any NotificationSettingsStoreProtocol {
+        get { self[NotificationSettingsStoreKey.self] }
+        set { self[NotificationSettingsStoreKey.self] = newValue }
+    }
+
+    public var notificationSettingsRepository: any NotificationSettingsRepositoryProtocol {
+        get { self[NotificationSettingsRepositoryKey.self] }
+        set { self[NotificationSettingsRepositoryKey.self] = newValue }
     }
 
     public var authRepository: any AuthRepositoryProtocol {
@@ -185,7 +207,7 @@ extension DependencyValues {
         set { self[FetchEffectivePartnerUseCaseKey.self] = newValue }
     }
 
-    public var currentUserId: @Sendable () -> UUID {
+    public var currentUserId: @Sendable () -> UUID? {
         get { self[CurrentUserIdKey.self] }
         set { self[CurrentUserIdKey.self] = newValue }
     }

@@ -92,10 +92,18 @@ public struct PartnerFeature {
             case .binding:
                 return .none
             case .saveTapped:
+                guard let userId = currentUserId() else {
+                    state.alert = AlertState { TextState("저장 실패") } actions: {
+                        ButtonState(role: .cancel) { TextState("확인") }
+                    } message: {
+                        TextState("로그인 상태를 확인한 뒤 다시 시도해주세요.")
+                    }
+                    return .none
+                }
                 state.isLoading = true
                 let partner = Partner(
                     id: state.existingPartnerId ?? UUID(),
-                    userId: currentUserId(),
+                    userId: userId,
                     nickname: state.nickname,
                     preferredCategories: state.preferredCategories,
                     dislikedCategories: state.dislikedCategories,

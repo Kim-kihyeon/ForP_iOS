@@ -35,7 +35,11 @@ public struct WishlistManageFeature {
             case .onAppear:
                 state.isLoading = true
                 state.loadFailed = false
-                let userId = currentUserId()
+                guard let userId = currentUserId() else {
+                    state.isLoading = false
+                    state.loadFailed = true
+                    return .none
+                }
                 return .run { send in
                     await send(.loadResponse(
                         Result { try await wishlistRepository.fetchAll(userId: userId) }

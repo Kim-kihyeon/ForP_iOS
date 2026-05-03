@@ -34,6 +34,7 @@ public struct AppFeature {
 
     @Dependency(\.authRepository) var authRepository
     @Dependency(\.userRepository) var userRepository
+    @Dependency(\.notificationSettingsStore) var notificationSettingsStore
 
     public init() {}
 
@@ -71,11 +72,15 @@ public struct AppFeature {
                         }
                     }
                 } else {
-                    state.route = .login
+                    state.authenticatedUserId = nil
+                    if state.route != .main {
+                        state.route = .login
+                    }
                 }
                 return .none
 
             case .fcmTokenReceived(let token):
+                notificationSettingsStore.saveFCMToken(token)
                 if let userId = state.authenticatedUserId {
                     return .run { _ in
                         try? await userRepository.saveFCMToken(userId: userId, token: token)

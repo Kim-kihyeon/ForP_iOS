@@ -22,6 +22,7 @@ public struct SettingsView: View {
                         coupleSection
                         wishlistSection
                         insightSection
+                        notificationSection
                         accountSection
                     }
                     .padding(.horizontal, Spacing.md)
@@ -258,6 +259,67 @@ public struct SettingsView: View {
         }
     }
 
+    private var notificationSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("NOTIFICATIONS")
+
+            FormCard {
+                notificationToggleRow(
+                    icon: "bell.fill",
+                    iconColor: Brand.pink,
+                    title: "푸쉬 알림",
+                    subtitle: store.notificationPermissionStatus == .denied ? "iPhone 설정에서 알림 권한이 꺼져 있어요" : "앱 알림 전체 수신",
+                    isOn: effectivePushEnabled
+                ) { enabled in
+                    store.send(.pushNotificationToggled(enabled))
+                }
+
+                Divider().padding(.leading, 52)
+
+                notificationToggleRow(
+                    icon: "calendar.badge.clock",
+                    iconColor: Brand.iconBlue,
+                    title: "코스 당일 알림",
+                    subtitle: "저장한 코스 날짜 오전 알림",
+                    isOn: effectivePushEnabled && store.notificationSettings.courseReminderEnabled,
+                    disabled: !effectivePushEnabled
+                ) { enabled in
+                    store.send(.courseReminderToggled(enabled))
+                }
+
+                Divider().padding(.leading, 52)
+
+                notificationToggleRow(
+                    icon: "heart.text.square.fill",
+                    iconColor: Brand.iconOrange,
+                    title: "기념일 알림",
+                    subtitle: "30일 전, 7일 전, 당일 알림",
+                    isOn: effectivePushEnabled && store.notificationSettings.anniversaryEnabled,
+                    disabled: !effectivePushEnabled
+                ) { enabled in
+                    store.send(.anniversaryNotificationToggled(enabled))
+                }
+
+                Divider().padding(.leading, 52)
+
+                notificationToggleRow(
+                    icon: "person.2.wave.2.fill",
+                    iconColor: Brand.iconGreen,
+                    title: "파트너 알림",
+                    subtitle: "파트너가 코스를 공유했을 때",
+                    isOn: effectivePushEnabled && store.notificationSettings.partnerEnabled,
+                    disabled: !effectivePushEnabled
+                ) { enabled in
+                    store.send(.partnerNotificationToggled(enabled))
+                }
+            }
+        }
+    }
+
+    private var effectivePushEnabled: Bool {
+        store.notificationSettings.pushEnabled && store.notificationPermissionStatus != .denied
+    }
+
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionLabel("ACCOUNT")
@@ -331,5 +393,48 @@ public struct SettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func notificationToggleRow(
+        icon: String,
+        iconColor: Color,
+        title: String,
+        subtitle: String,
+        isOn: Bool,
+        disabled: Bool = false,
+        onChange: @escaping (Bool) -> Void
+    ) -> some View {
+        HStack(spacing: Spacing.md) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(iconColor.opacity(disabled ? 0.07 : 0.12))
+                    .frame(width: 36, height: 36)
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(disabled ? Color(.tertiaryLabel) : iconColor)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(Typography.body)
+                    .foregroundStyle(disabled ? .secondary : .primary)
+                Text(subtitle)
+                    .font(Typography.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { isOn },
+                set: { onChange($0) }
+            ))
+            .labelsHidden()
+            .tint(Brand.pink)
+            .disabled(disabled)
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
     }
 }

@@ -118,6 +118,7 @@ public struct CourseResultFeature {
     @Dependency(\.wishlistRepository) var wishlistRepository
     @Dependency(\.currentUserId) var currentUserId
     @Dependency(\.notificationService) var notificationService
+    @Dependency(\.notificationSettingsStore) var notificationSettingsStore
     @Dependency(\.generateCourseUseCase) var generateCourseUseCase
 
     private enum CancelID { case realtime }
@@ -151,7 +152,12 @@ public struct CourseResultFeature {
                 state.isSaved = true
                 let course = state.course
                 return .run { [notificationService, courseRepository] _ in
-                    await notificationService.scheduleCourseNotification(for: course)
+                    let settings = notificationSettingsStore.load()
+                    if settings.pushEnabled, settings.courseReminderEnabled {
+                        await notificationService.scheduleCourseNotification(for: course)
+                    } else {
+                        await notificationService.cancelCourseNotification(courseId: course.id)
+                    }
                     if course.partnerId != nil {
                         await courseRepository.notifyPartner(courseId: course.id)
                     }
@@ -407,7 +413,7 @@ public struct CourseResultFeature {
                 return .none
 
             case .onAppear:
-                let userId = currentUserId()
+                guard let userId = currentUserId() else { return .none }
                 state.isCreator = state.course.userId == userId
                 let courseId = state.course.id
                 let shouldSubscribe = state.isSaved && !state.course.isEnded
@@ -434,6 +440,14 @@ public struct CourseResultFeature {
                 return .none
 
             case .bookmarkPlace(let place):
+                guard let userId = currentUserId() else {
+                    state.alert = AlertState { TextState("찜 저장 실패") } actions: {
+                        ButtonState(role: .cancel) { TextState("확인") }
+                    } message: {
+                        TextState("로그인 상태를 확인한 뒤 다시 시도해주세요.")
+                    }
+                    return .none
+                }
                 let isCurrentlyBookmarked = state.bookmarkedKeywords.contains(place.keyword)
                 if !isCurrentlyBookmarked && state.bookmarkedKeywords.count >= 20 {
                     state.alert = AlertState { TextState("찜 목록이 가득 찼어요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("최대 20개까지 찜할 수 있어요. 기존 찜을 삭제한 후 다시 시도해주세요.") }
@@ -441,7 +455,6 @@ public struct CourseResultFeature {
                 }
                 if isCurrentlyBookmarked {
                     state.bookmarkedKeywords.remove(place.keyword)
-                    let userId = currentUserId()
                     let keyword = place.keyword
                     return .run { [wishlistRepository] _ in
                         let all = (try? await wishlistRepository.fetchAll(userId: userId)) ?? []
@@ -451,7 +464,6 @@ public struct CourseResultFeature {
                     }
                 } else {
                     state.bookmarkedKeywords.insert(place.keyword)
-                    let userId = currentUserId()
                     let wp = WishlistPlace(userId: userId, keyword: place.keyword, placeName: place.placeName, address: place.address, latitude: place.latitude, longitude: place.longitude, category: place.category)
                     return .run { [wishlistRepository] _ in
                         try? await wishlistRepository.save(wp)

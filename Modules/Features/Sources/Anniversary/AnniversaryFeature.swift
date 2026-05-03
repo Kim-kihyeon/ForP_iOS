@@ -38,6 +38,7 @@ public struct AnniversaryFeature {
     @Dependency(\.anniversaryRepository) var anniversaryRepository
     @Dependency(\.currentUserId) var currentUserId
     @Dependency(\.notificationService) var notificationService: any NotificationServiceProtocol
+    @Dependency(\.notificationSettingsStore) var notificationSettingsStore
 
     public init() {}
 
@@ -50,7 +51,10 @@ public struct AnniversaryFeature {
 
             case .onAppear:
                 state.isLoading = true
-                let userId = currentUserId()
+                guard let userId = currentUserId() else {
+                    state.isLoading = false
+                    return .none
+                }
                 return .run { send in
                     await send(.loadResponse(Result {
                         try await anniversaryRepository.fetchAnniversaries(userId: userId)
@@ -61,6 +65,8 @@ public struct AnniversaryFeature {
                 state.isLoading = false
                 state.anniversaries = anniversaries
                 return .run { [anniversaries] _ in
+                    let settings = notificationSettingsStore.load()
+                    guard settings.pushEnabled, settings.anniversaryEnabled else { return }
                     await notificationService.scheduleAnniversaryNotifications(for: anniversaries)
                 }
 
@@ -89,11 +95,12 @@ public struct AnniversaryFeature {
 
             case .saveTapped:
                 guard !state.editingName.isEmpty else { return .none }
+                guard let userId = currentUserId() else { return .none }
                 state.isLoading = true
                 state.isEditing = false
                 let anniversary = Anniversary(
                     id: state.editingId ?? UUID(),
-                    userId: currentUserId(),
+                    userId: userId,
                     name: state.editingName,
                     date: state.editingDate
                 )
@@ -104,7 +111,10 @@ public struct AnniversaryFeature {
                 }
 
             case .saveResponse(.success):
-                let userId = currentUserId()
+                guard let userId = currentUserId() else {
+                    state.isLoading = false
+                    return .none
+                }
                 return .run { send in
                     await send(.loadResponse(Result {
                         try await anniversaryRepository.fetchAnniversaries(userId: userId)
@@ -140,7 +150,10 @@ public struct AnniversaryFeature {
                 }
 
             case .deleteResponse(.success):
-                let userId = currentUserId()
+                guard let userId = currentUserId() else {
+                    state.isLoading = false
+                    return .none
+                }
                 return .run { send in
                     await send(.loadResponse(Result {
                         try await anniversaryRepository.fetchAnniversaries(userId: userId)

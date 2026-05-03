@@ -40,7 +40,10 @@ public struct PartnerConnectionFeature {
             switch action {
             case .onAppear:
                 state.isLoading = true
-                let userId = currentUserId()
+                guard let userId = currentUserId() else {
+                    state.isLoading = false
+                    return .none
+                }
                 return .run { send in
                     let code = (try? await repo.getOrCreateMyCode(userId: userId)) ?? ""
                     let pair: (PartnerConnection, User)? = try? await {
@@ -61,8 +64,15 @@ public struct PartnerConnectionFeature {
             case .connectTapped:
                 let code = state.inputCode.trimmingCharacters(in: .whitespaces).uppercased()
                 guard !code.isEmpty else { return .none }
+                guard let userId = currentUserId() else {
+                    state.alert = AlertState { TextState("연동 실패") } actions: {
+                        ButtonState(role: .cancel) { TextState("확인") }
+                    } message: {
+                        TextState("로그인 상태를 확인한 뒤 다시 시도해주세요.")
+                    }
+                    return .none
+                }
                 state.isLoading = true
-                let userId = currentUserId()
                 return .run { send in
                     await send(.connectResponse(Result {
                         let conn = try await repo.connect(code: code, myUserId: userId)
