@@ -8,6 +8,7 @@ public struct OnboardingView: View {
     @State private var showIntro = true
     @State private var currentStep = 0
     @State private var customBlacklistInput = ""
+    @FocusState private var focusedField: OnboardingField?
 
     // Intro animations
     @State private var appeared = false
@@ -23,6 +24,16 @@ public struct OnboardingView: View {
     private let categories = PreferenceOptions.categories
     private let themes = PreferenceOptions.themes
     private let blacklistPresets = PreferenceOptions.blacklistPresets
+
+    private enum OnboardingField: Hashable {
+        case nickname
+        case location
+        case blacklist
+    }
+
+    private enum ScrollTarget {
+        static let locationSuggestions = "locationSuggestions"
+    }
 
     public init(store: StoreOf<OnboardingFeature>) {
         self.store = store
@@ -172,18 +183,27 @@ public struct OnboardingView: View {
             VStack(spacing: 0) {
                 progressBar
 
-                TabView(selection: stepBinding) {
-                    locationPage.tag(0)
-                    categoryPage.tag(1)
-                    blacklistPage.tag(2)
-                    themePage.tag(3)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .highPriorityGesture(DragGesture())
+                currentPage
+                    .id(currentStep)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
                 .animation(.easeInOut(duration: 0.3), value: currentStep)
 
                 bottomBar
             }
+        }
+    }
+
+    @ViewBuilder
+    private var currentPage: some View {
+        switch currentStep {
+        case 0:
+            locationPage
+        case 1:
+            categoryPage
+        case 2:
+            blacklistPage
+        default:
+            themePage
         }
     }
 
@@ -206,7 +226,13 @@ public struct OnboardingView: View {
     // MARK: - Pages
 
     private var locationPage: some View {
-        pageContainer(icon: "person.crop.circle.fill", title: "기본 정보를 알려주세요", subtitle: "닉네임과 자주 가는 동네를 설정해요") {
+        pageContainer(
+            icon: "person.crop.circle.fill",
+            title: "기본 정보를 알려주세요",
+            subtitle: "닉네임과 자주 가는 동네를 설정해요",
+            extraBottomPadding: locationSearchBottomPadding,
+            scrollTarget: locationSuggestionsScrollTarget
+        ) {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     Text("닉네임")
@@ -218,6 +244,7 @@ public struct OnboardingView: View {
                         TextField("예: 키키", text: $store.nickname)
                             .font(Typography.body)
                             .textInputAutocapitalization(.never)
+                            .focused($focusedField, equals: .nickname)
                         Button {
                             Haptics.selection()
                             store.send(.randomNicknameTapped)
@@ -247,6 +274,7 @@ public struct OnboardingView: View {
                             TextField("예: 홍대, 강남, 성수동", text: $store.location)
                                 .font(Typography.body)
                                 .textInputAutocapitalization(.never)
+                                .focused($focusedField, equals: .location)
                             if store.isSearchingLocation {
                                 ProgressView()
                                     .scaleEffect(0.8)
@@ -291,6 +319,7 @@ public struct OnboardingView: View {
                             }
                             .background(Color(.secondarySystemBackground))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .id(ScrollTarget.locationSuggestions)
                         }
                     }
                 }
@@ -360,40 +389,52 @@ public struct OnboardingView: View {
         icon: String,
         title: String,
         subtitle: String,
-        @ViewBuilder content: () -> Content
+        extraBottomPadding: CGFloat = 0,
+        scrollTarget: String? = nil,
+        @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                LinearGradient(
-                    colors: [Brand.pink, Color(red: 1.0, green: 0.6, blue: 0.4)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .frame(height: 220)
-                .overlay {
-                    VStack(spacing: Spacing.md) {
-                        ZStack {
-                            Circle()
-                                .fill(.white.opacity(0.2))
-                                .frame(width: 72, height: 72)
-                            Image(systemName: icon)
-                                .font(.system(size: 30, weight: .semibold))
-                                .foregroundStyle(.white)
-                        }
-                        VStack(spacing: 4) {
-                            Text(title)
-                                .font(.system(size: 22, weight: .bold))
-                                .foregroundStyle(.white)
-                            Text(subtitle)
-                                .font(Typography.caption)
-                                .foregroundStyle(.white.opacity(0.85))
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [Brand.pink, Color(red: 1.0, green: 0.6, blue: 0.4)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(height: 220)
+                    .overlay {
+                        VStack(spacing: Spacing.md) {
+                            ZStack {
+                                Circle()
+                                    .fill(.white.opacity(0.2))
+                                    .frame(width: 72, height: 72)
+                                Image(systemName: icon)
+                                    .font(.system(size: 30, weight: .semibold))
+                                    .foregroundStyle(.white)
+                            }
+                            VStack(spacing: 4) {
+                                Text(title)
+                                    .font(.system(size: 22, weight: .bold))
+                                    .foregroundStyle(.white)
+                                Text(subtitle)
+                                    .font(Typography.caption)
+                                    .foregroundStyle(.white.opacity(0.85))
+                            }
                         }
                     }
-                }
 
-                content()
-                    .padding(Spacing.md)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    content()
+                        .padding(Spacing.md)
+                        .padding(.bottom, extraBottomPadding)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: scrollTarget) { _, target in
+                guard let target else { return }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(target, anchor: .bottom)
+                }
             }
         }
     }
@@ -487,6 +528,7 @@ public struct OnboardingView: View {
             HStack(spacing: 8) {
                 TextField("직접 입력 (예: 고수, 오이)", text: $customBlacklistInput)
                     .font(.system(size: 14))
+                    .focused($focusedField, equals: .blacklist)
                     .onSubmit { addCustomBlacklist() }
                 Button(action: addCustomBlacklist) {
                     Image(systemName: "plus.circle.fill")
@@ -542,20 +584,15 @@ public struct OnboardingView: View {
         customBlacklistInput = ""
     }
 
-    // MARK: - Bottom Bar
-
-    private var stepBinding: Binding<Int> {
-        Binding(
-            get: { currentStep },
-            set: { nextStep in
-                guard nextStep <= currentStep || (currentStep..<nextStep).allSatisfy({ canProceed(from: $0) }) else {
-                    Haptics.notification(.warning)
-                    return
-                }
-                currentStep = nextStep
-            }
-        )
+    private var locationSearchBottomPadding: CGFloat {
+        focusedField == .location && store.selectedLocation == nil ? 260 : 0
     }
+
+    private var locationSuggestionsScrollTarget: String? {
+        focusedField == .location && !store.locationSuggestions.isEmpty ? ScrollTarget.locationSuggestions : nil
+    }
+
+    // MARK: - Bottom Bar
 
     private var canProceed: Bool {
         canProceed(from: currentStep)
