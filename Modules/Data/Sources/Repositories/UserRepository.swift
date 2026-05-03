@@ -36,4 +36,3 @@ public final class UserRepository: UserRepositoryProtocol {
             .execute()
     }
 }
-
