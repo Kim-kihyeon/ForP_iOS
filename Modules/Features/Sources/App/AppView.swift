@@ -64,7 +64,7 @@ private struct SplashView: View {
                         .font(.system(size: 38, weight: .bold, design: .rounded))
                         .foregroundStyle(.primary)
 
-                    Text("취향에 맞는 데이트 코스를 준비하고 있어요")
+                    Text("둘의 취향을 바탕으로 데이트 코스를 추천해요")
                         .font(Typography.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
