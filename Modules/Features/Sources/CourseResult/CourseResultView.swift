@@ -89,11 +89,17 @@ public struct CourseResultView: View {
                 }
                 .padding(.bottom, 32)
             }
-            if store.isSaving || store.isDeleting { LoadingView() }
+            if store.isRegenerating {
+                CourseRegenerationLoadingView()
+            } else if store.isSaving || store.isDeleting {
+                LoadingView()
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !store.isSaved { saveButton }
-            else if !store.isPlaying && !store.course.isEnded { startButton }
+            if !store.isSaving && !store.isDeleting && !store.isRegenerating {
+                if !store.isSaved { saveButton }
+                else if !store.isPlaying && !store.course.isEnded { startButton }
+            }
         }
         .navigationTitle(store.course.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -102,6 +108,11 @@ public struct CourseResultView: View {
         .toolbarBackground(Brand.softPink, for: .navigationBar)
         .disableSwipeBack()
         .onAppear { store.send(.onAppear) }
+        .onChange(of: store.course.places) { _, _ in
+            let coords = coordinatePlaces.map { $0.1 }
+            guard !coords.isEmpty else { return }
+            mapCameraPosition = .region(mapRegion(for: coords))
+        }
         .onDisappear { store.send(.viewDisappeared) }
         .alert("코스를 저장하지 않고 나갈까요?", isPresented: $showExitConfirm) {
             Button("나가기", role: .destructive) { store.send(.delegate(.dismiss)) }
@@ -202,6 +213,9 @@ public struct CourseResultView: View {
             if store.course.isEnded && !store.isPlaying { endedBanner }
             if store.isPlaying { progressBar }
             timelinePlaces
+            if !store.isSaved && !store.isPlaying && !store.course.isEnded {
+                regenerationControls
+            }
             if !store.isPlaying { ratingsSection }
             if !store.course.candidates.isEmpty, !store.isPlaying {
                 candidatesAccordion
@@ -468,6 +482,41 @@ public struct CourseResultView: View {
         }
     }
 
+    private var regenerationControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Brand.pink)
+                Text(store.lockedPlaceKeys.isEmpty ? "유지할 장소를 고정해 주세요" : "\(store.lockedPlaceKeys.count)곳 고정됨")
+                    .font(Typography.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+
+            Button {
+                Haptics.impact(.medium)
+                store.send(.partialRegenerateTapped)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("고정한 장소 유지하고 다시 추천")
+                        .font(Typography.caption.weight(.bold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(store.canPartiallyRegenerate ? Brand.pink : Color(.tertiarySystemFill))
+                .foregroundStyle(store.canPartiallyRegenerate ? .white : .secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(.plain)
+            .disabled(!store.canPartiallyRegenerate)
+        }
+        .padding(Spacing.md)
+        .cardStyle()
+    }
+
     private var reorderList: some View {
         List {
             ForEach(Array(store.course.places.enumerated()), id: \.element.order) { index, place in
@@ -622,6 +671,24 @@ public struct CourseResultView: View {
 
     private func actionButtons(for place: CoursePlace) -> some View {
         HStack(spacing: 6) {
+            if !store.isSaved {
+                let isLocked = store.lockedPlaceKeys.contains(placeIdentityKey(place))
+                Button {
+                    Haptics.impact(.light)
+                    store.send(.togglePlaceLock(place))
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: isLocked ? "pin.fill" : "pin")
+                            .font(.system(size: 14))
+                        Text("고정").font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundStyle(isLocked ? Brand.pink : .secondary)
+                    .padding(7)
+                    .background(isLocked ? Brand.softPink : Color(.tertiarySystemFill))
+                    .clipShape(RoundedRectangle(cornerRadius: 9))
+                }
+            }
+
             let isBookmarked = store.bookmarkedKeywords.contains(place.keyword)
             Button {
                 Haptics.impact(.light)
@@ -1071,6 +1138,21 @@ public struct CourseResultView: View {
             return nil
         }
         return address
+    }
+
+    private func placeIdentityKey(_ place: CoursePlace) -> String {
+        if let id = place.kakaoPlaceId, !id.isEmpty {
+            return "id:\(id)"
+        }
+        let name = (place.placeName ?? place.keyword)
+            .folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+            .components(separatedBy: .whitespacesAndNewlines)
+            .joined()
+        let address = (place.address ?? "")
+            .folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+            .components(separatedBy: .whitespacesAndNewlines)
+            .joined()
+        return "text:\(name)|\(address)"
     }
 }
 

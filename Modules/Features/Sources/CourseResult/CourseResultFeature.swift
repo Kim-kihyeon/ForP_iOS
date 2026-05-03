@@ -101,9 +101,10 @@ public struct CourseResultFeature {
         case bookmarksLoaded([WishlistPlace])
         case togglePlaceLock(CoursePlace)
         case partialRegenerateTapped
+        case confirmedPartialRegenerate
         case partialRegenerateResponse(Result<CoursePlan, Error>)
 
-        public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate }
+        public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate, confirmPartialRegenerate }
         public enum Delegate: Equatable {
             case dismiss
             case deleted
@@ -214,6 +215,9 @@ public struct CourseResultFeature {
                         Result { try await courseRepository.deleteCourse(id: id) }
                     ))
                 }
+
+            case .alert(.presented(.confirmPartialRegenerate)):
+                return .send(.confirmedPartialRegenerate)
 
             case .alert:
                 return .none
@@ -465,6 +469,23 @@ public struct CourseResultFeature {
                 return .none
 
             case .partialRegenerateTapped:
+                guard state.canPartiallyRegenerate else { return .none }
+                let replaceCount = state.course.places.count - state.lockedPlaceKeys.count
+                state.alert = AlertState {
+                    TextState("다시 추천할까요?")
+                } actions: {
+                    ButtonState(role: .destructive, action: .confirmPartialRegenerate) {
+                        TextState("다시 추천")
+                    }
+                    ButtonState(role: .cancel) {
+                        TextState("취소")
+                    }
+                } message: {
+                    TextState("고정하지 않은 \(replaceCount)곳이 다른 장소로 바뀔 수 있어요.")
+                }
+                return .none
+
+            case .confirmedPartialRegenerate:
                 guard state.canPartiallyRegenerate,
                       let user = state.user,
                       let options = state.generationOptions else {
