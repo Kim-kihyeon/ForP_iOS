@@ -43,7 +43,6 @@ enum PreferenceOptions {
         .init("✨", "이색적인", systemImage: "wand.and.stars"),
         .init("💬", "대화하기 좋은", systemImage: "bubble.left.and.bubble.right.fill"),
         .init("📸", "사진 찍기 좋은", systemImage: "camera.fill"),
-        .init("🎉", "기념일", systemImage: "gift.fill"),
         .init("💸", "가성비", systemImage: "wonsign.circle.fill"),
         .init("💎", "럭셔리", systemImage: "diamond.fill"),
         .init("🏠", "실내 위주", systemImage: "house.fill"),
