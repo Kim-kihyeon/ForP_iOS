@@ -24,12 +24,14 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
                 .value
             return rows.map { $0.toDomain() }
         } catch {
-            let descriptor = FetchDescriptor<CourseCache>(
-                predicate: #Predicate { $0.userId == userId },
-                sortBy: [SortDescriptor(\.date, order: .reverse)]
-            )
-            let cached = try modelContext.fetch(descriptor)
-            return try cached.prefix(limit).map { try $0.toDomain() }
+            return try await MainActor.run {
+                let descriptor = FetchDescriptor<CourseCache>(
+                    predicate: #Predicate { $0.userId == userId },
+                    sortBy: [SortDescriptor(\.date, order: .reverse)]
+                )
+                let cached = try modelContext.fetch(descriptor)
+                return try cached.prefix(limit).map { try $0.toDomain() }
+            }
         }
     }
 
@@ -50,17 +52,19 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
                 .value
             return rows.map { $0.toDomain() }
         } catch {
-            let descriptor = FetchDescriptor<CourseCache>(
-                predicate: #Predicate { $0.userId == userId },
-                sortBy: [SortDescriptor(\.date, order: .reverse)]
-            )
-            let cached = try modelContext.fetch(descriptor)
-            let cal = Calendar.current
-            return try cached.compactMap { cache -> Course? in
-                let course = try cache.toDomain()
-                let comps = cal.dateComponents([.year, .month], from: course.date)
-                guard comps.year == year, comps.month == month else { return nil }
-                return course
+            return try await MainActor.run {
+                let descriptor = FetchDescriptor<CourseCache>(
+                    predicate: #Predicate { $0.userId == userId },
+                    sortBy: [SortDescriptor(\.date, order: .reverse)]
+                )
+                let cached = try modelContext.fetch(descriptor)
+                let cal = Calendar.current
+                return try cached.compactMap { cache -> Course? in
+                    let course = try cache.toDomain()
+                    let comps = cal.dateComponents([.year, .month], from: course.date)
+                    guard comps.year == year, comps.month == month else { return nil }
+                    return course
+                }
             }
         }
     }
@@ -72,9 +76,11 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
             .upsert(row)
             .execute()
 
-        let cache = try CourseCache(from: course)
-        modelContext.insert(cache)
-        try modelContext.save()
+        try await MainActor.run {
+            let cache = try CourseCache(from: course)
+            modelContext.insert(cache)
+            try modelContext.save()
+        }
     }
 
     public func toggleLike(id: UUID, isLiked: Bool) async throws {
@@ -84,10 +90,12 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
             .eq("id", value: id)
             .execute()
 
-        let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
-        if let cache = try modelContext.fetch(descriptor).first {
-            cache.isLiked = isLiked
-            try modelContext.save()
+        try await MainActor.run {
+            let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+            if let cache = try modelContext.fetch(descriptor).first {
+                cache.isLiked = isLiked
+                try modelContext.save()
+            }
         }
     }
 
@@ -98,10 +106,12 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
             .eq("id", value: id)
             .execute()
 
-        let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
-        if let cache = try modelContext.fetch(descriptor).first {
-            cache.title = title
-            try modelContext.save()
+        try await MainActor.run {
+            let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+            if let cache = try modelContext.fetch(descriptor).first {
+                cache.title = title
+                try modelContext.save()
+            }
         }
     }
 
@@ -116,11 +126,13 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
             .eq("id", value: id)
             .execute()
 
-        let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
-        if let cache = try modelContext.fetch(descriptor).first {
-            cache.rating = rating
-            cache.review = review.isEmpty ? nil : review
-            try modelContext.save()
+        try await MainActor.run {
+            let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+            if let cache = try modelContext.fetch(descriptor).first {
+                cache.rating = rating
+                cache.review = review.isEmpty ? nil : review
+                try modelContext.save()
+            }
         }
     }
 
@@ -145,10 +157,12 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
             .rpc("end_course", params: ["course_id": id])
             .execute()
 
-        let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
-        if let cache = try modelContext.fetch(descriptor).first {
-            cache.isEnded = true
-            try modelContext.save()
+        try await MainActor.run {
+            let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+            if let cache = try modelContext.fetch(descriptor).first {
+                cache.isEnded = true
+                try modelContext.save()
+            }
         }
     }
 
@@ -192,12 +206,14 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
             .eq("id", value: id)
             .execute()
 
-        let descriptor = FetchDescriptor<CourseCache>(
-            predicate: #Predicate { $0.id == id }
-        )
-        if let cache = try modelContext.fetch(descriptor).first {
-            modelContext.delete(cache)
-            try modelContext.save()
+        try await MainActor.run {
+            let descriptor = FetchDescriptor<CourseCache>(
+                predicate: #Predicate { $0.id == id }
+            )
+            if let cache = try modelContext.fetch(descriptor).first {
+                modelContext.delete(cache)
+                try modelContext.save()
+            }
         }
     }
 }
