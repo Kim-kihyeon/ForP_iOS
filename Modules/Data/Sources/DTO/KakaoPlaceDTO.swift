@@ -29,6 +29,7 @@ struct KakaoPlaceDTO: Decodable {
     let categoryName: String
     let x: String
     let y: String
+    let placeURL: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -36,6 +37,7 @@ struct KakaoPlaceDTO: Decodable {
         case addressName = "address_name"
         case categoryGroupCode = "category_group_code"
         case categoryName = "category_name"
+        case placeURL = "place_url"
         case x, y
     }
 }

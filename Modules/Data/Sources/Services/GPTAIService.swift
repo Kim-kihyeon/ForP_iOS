@@ -92,7 +92,7 @@ public struct GPTAIService: AIServiceProtocol {
         필드 안내:
         - keyword: '\(options.location)'으로 시작하는 카카오맵 검색어 (예: "\(options.location) 감성 카페")
         - 카페/브런치/음식점 keyword는 프랜차이즈명보다 지역+분위기/카테고리 조합을 우선 사용 (예: "\(options.location) 로스터리", "\(options.location) 디저트 카페")
-        - menu: 이 카테고리에서 일반적으로 즐기는 음식 종류나 활동 (예: "파스타, 와인", "아메리카노, 디저트"). 실제 존재하는 메뉴를 확신할 수 없으면 카테고리 특성 기반의 일반적인 표현으로만 작성. 카페·음식점·브런치·술/바 외에는 null
+        - menu: 실제 매장의 대표메뉴를 확인할 수 없으므로 항상 null
         - outfit: 날씨·코스 분위기에 맞는 옷차림 제안 1-2문장
         - isSelected: 최종 코스 포함 시 true, 후보 장소는 false
         """

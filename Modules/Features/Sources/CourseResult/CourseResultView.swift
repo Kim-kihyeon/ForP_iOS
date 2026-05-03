@@ -596,8 +596,8 @@ public struct CourseResultView: View {
                             .lineLimit(nil)
                             .fixedSize(horizontal: false, vertical: true)
 
-                        if let menu = place.menu, !menu.isEmpty {
-                            Label(menu, systemImage: "fork.knife")
+                        if let placeType = displayPlaceType(for: place) {
+                            Label(placeType, systemImage: "tag.fill")
                                 .font(Typography.caption2)
                                 .foregroundStyle(Brand.pink)
                                 .lineLimit(2)
@@ -640,8 +640,8 @@ public struct CourseResultView: View {
 
             Button { openKakaoMap(place: place) } label: {
                 VStack(spacing: 2) {
-                    Image(systemName: "map.fill").font(.system(size: 14))
-                    Text("지도").font(.system(size: 10, weight: .medium))
+                    Image(systemName: "info.circle.fill").font(.system(size: 14))
+                    Text("상세").font(.system(size: 10, weight: .medium))
                 }
                 .foregroundStyle(Brand.pink)
                 .padding(7)
@@ -744,8 +744,8 @@ public struct CourseResultView: View {
             HStack(spacing: 6) {
                 Button { openKakaoMap(place: place) } label: {
                     VStack(spacing: 2) {
-                        Image(systemName: "map.fill").font(.system(size: 13))
-                        Text("지도").font(.system(size: 9, weight: .medium))
+                        Image(systemName: "info.circle.fill").font(.system(size: 13))
+                        Text("상세").font(.system(size: 9, weight: .medium))
                     }
                     .foregroundStyle(Brand.pink)
                     .padding(6)
@@ -967,6 +967,12 @@ public struct CourseResultView: View {
     private func openKakaoMap(place: CoursePlace) {
         let placeName = place.placeName ?? place.keyword
 
+        if let urlString = place.kakaoPlaceURL,
+           let url = URL(string: urlString) {
+            UIApplication.shared.open(url)
+            return
+        }
+
         // 1순위: 카카오 장소 ID로 정확한 장소 페이지 오픈
         if let placeId = place.kakaoPlaceId {
             let appURLString = "kakaomap://place?id=\(placeId)"
@@ -1001,6 +1007,62 @@ public struct CourseResultView: View {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .last ?? place.category.trimmingCharacters(in: .whitespacesAndNewlines)
         return category.isEmpty ? nil : category
+    }
+
+    private func displayPlaceType(for place: CoursePlace) -> String? {
+        if let specificType = specificPlaceType(for: place) {
+            return specificType
+        }
+        return displayCategory(for: place)
+    }
+
+    private func specificPlaceType(for place: CoursePlace) -> String? {
+        let text = [
+            place.placeName,
+            place.keyword,
+            place.category,
+            place.reason,
+        ]
+        .compactMap { $0 }
+        .joined(separator: " ")
+        .lowercased()
+
+        let aliases: [(type: String, keywords: [String])] = [
+            ("훠궈 전문점", ["훠궈", "하이디라오", "haidilao", "hot pot", "hotpot"]),
+            ("마라탕 전문점", ["마라탕"]),
+            ("마라샹궈 전문점", ["마라샹궈"]),
+            ("양꼬치 전문점", ["양꼬치"]),
+            ("샤브샤브 전문점", ["샤브샤브"]),
+            ("스시/초밥", ["초밥", "스시", "sushi"]),
+            ("회/사시미", ["사시미", "회"]),
+            ("오마카세", ["오마카세"]),
+            ("라멘", ["라멘", "라면"]),
+            ("우동", ["우동"]),
+            ("돈카츠", ["돈카츠", "돈까스"]),
+            ("이자카야", ["이자카야"]),
+            ("파스타", ["파스타"]),
+            ("피자", ["피자"]),
+            ("스테이크", ["스테이크"]),
+            ("와인바", ["와인바", "와인 바"]),
+            ("고기구이", ["삼겹살", "고깃집", "고기집", "구이", "갈비"]),
+            ("곱창/막창", ["곱창", "막창"]),
+            ("족발/보쌈", ["족발", "보쌈"]),
+            ("닭갈비", ["닭갈비"]),
+            ("치킨", ["치킨"]),
+            ("버거", ["버거", "햄버거"]),
+            ("타코", ["타코"]),
+            ("쌀국수", ["쌀국수"]),
+            ("딤섬", ["딤섬"]),
+            ("중식", ["짜장", "자장", "짬뽕"]),
+            ("떡볶이", ["떡볶이"]),
+            ("브런치 카페", ["브런치"]),
+            ("베이커리", ["베이커리", "빵집"]),
+            ("디저트 카페", ["디저트", "케이크", "빙수", "도넛"]),
+        ]
+
+        return aliases.first { alias in
+            alias.keywords.contains { text.contains($0) }
+        }?.type
     }
 
     private func displayAddress(for place: CoursePlace) -> String? {

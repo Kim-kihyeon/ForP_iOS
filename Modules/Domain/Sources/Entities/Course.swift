@@ -16,6 +16,7 @@ public struct CoursePlace: Codable, Equatable {
     public var latitude: Double?
     public var longitude: Double?
     public var kakaoPlaceId: String?
+    public var kakaoPlaceURL: String?
 
     public init(
         order: Int,
@@ -27,7 +28,8 @@ public struct CoursePlace: Codable, Equatable {
         address: String? = nil,
         latitude: Double? = nil,
         longitude: Double? = nil,
-        kakaoPlaceId: String? = nil
+        kakaoPlaceId: String? = nil,
+        kakaoPlaceURL: String? = nil
     ) {
         self.order = order
         self.category = category
@@ -39,6 +41,7 @@ public struct CoursePlace: Codable, Equatable {
         self.latitude = latitude
         self.longitude = longitude
         self.kakaoPlaceId = kakaoPlaceId
+        self.kakaoPlaceURL = kakaoPlaceURL
     }
 }
 
