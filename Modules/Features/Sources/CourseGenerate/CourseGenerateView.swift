@@ -6,9 +6,8 @@ import Domain
 public struct CourseGenerateView: View {
     @Bindable var store: StoreOf<CourseGenerateFeature>
     @State private var pendingDeleteId: UUID? = nil
-    @State private var showExitConfirm = false
+    @State private var showCancelGenerationConfirm = false
     @FocusState private var locationFocused: Bool
-    @Environment(\.dismiss) private var dismiss
 
     public init(store: StoreOf<CourseGenerateFeature>) {
         self.store = store
@@ -43,7 +42,7 @@ public struct CourseGenerateView: View {
                     CourseLoadingView()
                     Button {
                         Haptics.impact(.light)
-                        store.send(.cancelGenerationTapped)
+                        showCancelGenerationConfirm = true
                     } label: {
                         Text("취소")
                             .font(Typography.body.weight(.medium))
@@ -63,29 +62,16 @@ public struct CourseGenerateView: View {
         .navigationTitle("코스 만들기")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    showExitConfirm = true
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text("뒤로")
-                            .font(Typography.body)
-                    }
-                }
-                .tint(Brand.pink)
-            }
-        }
-        .alert("코스 만들기를 그만할까요?", isPresented: $showExitConfirm) {
-            Button("나가기", role: .destructive) { dismiss() }
-            Button("계속하기", role: .cancel) {}
-        } message: {
-            Text("입력한 내용이 사라져요.")
-        }
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .alert("코스 생성을 중지할까요?", isPresented: $showCancelGenerationConfirm) {
+            Button("중지", role: .destructive) {
+                store.send(.cancelGenerationTapped)
+            }
+            Button("계속 생성", role: .cancel) {}
+        } message: {
+            Text("지금 중지하면 다시 생성해야 해요.")
+        }
         .alert("코스 생성 실패", isPresented: Binding(
             get: { store.errorMessage != nil },
             set: { if !$0 { store.send(.binding(.set(\.errorMessage, nil))) } }
