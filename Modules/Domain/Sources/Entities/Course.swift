@@ -137,8 +137,23 @@ public struct CourseOptions: Equatable {
     public var baseLatitude: Double?
     public var baseLongitude: Double?
     public var searchRadius: Int
+    public var lockedPlaces: [CoursePlace]
+    public var excludedPlaces: [CoursePlace]
 
-    public init(location: String, themes: [String], placeCount: Int, mode: CourseMode, memo: String = "", date: Date = Date(), wishlistPlaces: [WishlistPlace] = [], baseLatitude: Double? = nil, baseLongitude: Double? = nil, searchRadius: Int = 2000) {
+    public init(
+        location: String,
+        themes: [String],
+        placeCount: Int,
+        mode: CourseMode,
+        memo: String = "",
+        date: Date = Date(),
+        wishlistPlaces: [WishlistPlace] = [],
+        baseLatitude: Double? = nil,
+        baseLongitude: Double? = nil,
+        searchRadius: Int = 2000,
+        lockedPlaces: [CoursePlace] = [],
+        excludedPlaces: [CoursePlace] = []
+    ) {
         self.location = location
         self.themes = themes
         self.placeCount = placeCount
@@ -149,5 +164,7 @@ public struct CourseOptions: Equatable {
         self.baseLatitude = baseLatitude
         self.baseLongitude = baseLongitude
         self.searchRadius = searchRadius
+        self.lockedPlaces = lockedPlaces
+        self.excludedPlaces = excludedPlaces
     }
 }

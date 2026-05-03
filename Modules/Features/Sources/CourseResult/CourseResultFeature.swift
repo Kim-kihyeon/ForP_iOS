@@ -10,6 +10,11 @@ public struct CourseResultFeature {
         public var isSaving = false
         public var isSaved: Bool
         public var isDeleting = false
+        public var isRegenerating = false
+        public var lockedPlaceKeys: Set<String> = []
+        public var user: User?
+        public var partner: Partner?
+        public var generationOptions: CourseOptions?
         // 진행 모드
         public var isPlaying = false
         public var showLiveMap = false
@@ -28,11 +33,31 @@ public struct CourseResultFeature {
         public var isCreator: Bool = true
         public var placeCountNote: String? = nil
 
+        public var canPartiallyRegenerate: Bool {
+            !isSaved &&
+                !isPlaying &&
+                !course.isEnded &&
+                !isRegenerating &&
+                user != nil &&
+                generationOptions != nil &&
+                !lockedPlaceKeys.isEmpty &&
+                lockedPlaceKeys.count < course.places.count
+        }
+
         @Presents public var alert: AlertState<Action.Alert>?
 
-        public init(course: Course, isSaved: Bool = false) {
+        public init(
+            course: Course,
+            isSaved: Bool = false,
+            user: User? = nil,
+            partner: Partner? = nil,
+            generationOptions: CourseOptions? = nil
+        ) {
             self.course = course
             self.isSaved = isSaved
+            self.user = user
+            self.partner = partner
+            self.generationOptions = generationOptions
         }
     }
 
@@ -74,6 +99,9 @@ public struct CourseResultFeature {
         case onAppear
         case bookmarkPlace(CoursePlace)
         case bookmarksLoaded([WishlistPlace])
+        case togglePlaceLock(CoursePlace)
+        case partialRegenerateTapped
+        case partialRegenerateResponse(Result<CoursePlan, Error>)
 
         public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate }
         public enum Delegate: Equatable {
@@ -89,6 +117,7 @@ public struct CourseResultFeature {
     @Dependency(\.wishlistRepository) var wishlistRepository
     @Dependency(\.currentUserId) var currentUserId
     @Dependency(\.notificationService) var notificationService
+    @Dependency(\.generateCourseUseCase) var generateCourseUseCase
 
     private enum CancelID { case realtime }
 
@@ -425,10 +454,101 @@ public struct CourseResultFeature {
                     }
                 }
 
+            case .togglePlaceLock(let place):
+                guard !state.isSaved, !state.isPlaying, !state.course.isEnded else { return .none }
+                let key = placeIdentityKey(place)
+                if state.lockedPlaceKeys.contains(key) {
+                    state.lockedPlaceKeys.remove(key)
+                } else {
+                    state.lockedPlaceKeys.insert(key)
+                }
+                return .none
+
+            case .partialRegenerateTapped:
+                guard state.canPartiallyRegenerate,
+                      let user = state.user,
+                      let options = state.generationOptions else {
+                    return .none
+                }
+                let lockedKeys = state.lockedPlaceKeys
+                let lockedPlaces = state.course.places.filter { lockedKeys.contains(placeIdentityKey($0)) }
+                let excludedPlaces = state.course.places.filter { !lockedKeys.contains(placeIdentityKey($0)) }
+                state.isRegenerating = true
+                state.placeCountNote = nil
+
+                var nextOptions = options
+                nextOptions.placeCount = state.course.places.count
+                nextOptions.date = state.course.date
+                nextOptions.lockedPlaces = lockedPlaces
+                nextOptions.excludedPlaces = excludedPlaces
+                if nextOptions.baseLatitude == nil || nextOptions.baseLongitude == nil {
+                    let lats = state.course.places.compactMap(\.latitude)
+                    let lons = state.course.places.compactMap(\.longitude)
+                    nextOptions.baseLatitude = lats.isEmpty ? nil : lats.reduce(0, +) / Double(lats.count)
+                    nextOptions.baseLongitude = lons.isEmpty ? nil : lons.reduce(0, +) / Double(lons.count)
+                }
+
+                let requestOptions = nextOptions
+                return .run { [generateCourseUseCase, partner = state.partner] send in
+                    await send(.partialRegenerateResponse(
+                        Result { try await generateCourseUseCase.execute(user: user, partner: partner, options: requestOptions) }
+                    ))
+                }
+                .cancellable(id: "partialCourseRegeneration", cancelInFlight: true)
+
+            case .partialRegenerateResponse(.success(let plan)):
+                state.isRegenerating = false
+                let previousLockedKeys = state.lockedPlaceKeys
+                state.course.places = plan.places
+                state.course.candidates = plan.candidates
+                state.course.outfitSuggestion = plan.outfitSuggestion
+                state.course.courseReason = plan.courseReason
+                state.lockedPlaceKeys = Set(plan.places
+                    .filter { previousLockedKeys.contains(placeIdentityKey($0)) }
+                    .map(placeIdentityKey))
+                if let options = state.generationOptions, plan.places.count < options.placeCount {
+                    state.placeCountNote = plan.candidates.isEmpty
+                        ? "고정한 장소를 제외하고 새 장소를 충분히 찾지 못했어요."
+                        : "요청한 수보다 적게 찾았어요. 후보 장소에서 추가할 수 있어요."
+                }
+                return .none
+
+            case .partialRegenerateResponse(.failure(let error)):
+                state.isRegenerating = false
+                if let courseError = error as? CourseGenerationError {
+                    state.alert = AlertState { TextState("다시 추천 실패") } actions: {
+                        ButtonState(role: .cancel) { TextState("확인") }
+                    } message: {
+                        TextState(courseError.errorDescription ?? "조건을 조금 바꿔 다시 시도해주세요.")
+                    }
+                } else {
+                    state.alert = AlertState { TextState("다시 추천 실패") } actions: {
+                        ButtonState(role: .cancel) { TextState("확인") }
+                    } message: {
+                        TextState("고정한 장소를 유지한 채 다시 추천하지 못했어요. 잠시 후 다시 시도해주세요.")
+                    }
+                }
+                return .none
+
             case .delegate:
                 return .none
             }
         }
         .ifLet(\.$alert, action: \.alert)
     }
+}
+
+private func placeIdentityKey(_ place: CoursePlace) -> String {
+    if let id = place.kakaoPlaceId, !id.isEmpty {
+        return "id:\(id)"
+    }
+    let name = (place.placeName ?? place.keyword)
+        .folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+        .components(separatedBy: .whitespacesAndNewlines)
+        .joined()
+    let address = (place.address ?? "")
+        .folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+        .components(separatedBy: .whitespacesAndNewlines)
+        .joined()
+    return "text:\(name)|\(address)"
 }

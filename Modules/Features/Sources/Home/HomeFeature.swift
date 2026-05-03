@@ -49,7 +49,7 @@ public struct HomeFeature {
         case loadAnniversariesResponse(Result<[Anniversary], Error>)
         case loadWeatherResponse(Result<WeatherInfo, Error>)
         case generateCourseTapped
-        case courseReadyToShow(Course, String?)
+        case courseReadyToShow(Course, String?, CourseOptions)
         case redateCourseReady(Course)
         case courseSelected(Course)
         case settingsTapped
@@ -204,7 +204,7 @@ public struct HomeFeature {
 
             case .calendarCourseSelected(let course):
                 state.showCalendar = false
-                state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true)))
+                state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true, user: state.user, partner: state.partner)))
                 return .none
 
             case .alert:
@@ -215,7 +215,7 @@ public struct HomeFeature {
                 return .none
 
             case .courseSelected(let course):
-                state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true)))
+                state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true, user: state.user, partner: state.partner)))
                 return .none
 
             case .settingsTapped:
@@ -249,19 +249,24 @@ public struct HomeFeature {
                             ? "요청한 \(options.placeCount)곳 중 \(plan.places.count)곳만 찾았어요. 해당 지역에서 장소를 충분히 찾지 못했어요."
                             : "요청한 \(options.placeCount)곳 중 \(plan.places.count)곳만 찾았어요. 후보 장소에서 추가할 수 있어요."
                         : nil
-                    await send(.courseReadyToShow(course, note))
+                    await send(.courseReadyToShow(course, note, options))
                 }
 
-            case .courseReadyToShow(let course, let note):
+            case .courseReadyToShow(let course, let note, let options):
                 state.path.removeLast()
-                var resultState = CourseResultFeature.State(course: course)
+                var resultState = CourseResultFeature.State(
+                    course: course,
+                    user: state.user,
+                    partner: state.partner,
+                    generationOptions: options
+                )
                 resultState.placeCountNote = note
                 state.path.append(.courseResult(resultState))
                 return .none
 
             case .redateCourseReady(let course):
                 state.path.removeAll()
-                state.path.append(.courseResult(CourseResultFeature.State(course: course)))
+                state.path.append(.courseResult(CourseResultFeature.State(course: course, user: state.user, partner: state.partner)))
                 return .none
 
             case .path(.popFrom(id: let id)):

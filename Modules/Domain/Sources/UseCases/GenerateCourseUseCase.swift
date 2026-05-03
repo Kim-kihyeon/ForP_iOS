@@ -60,11 +60,21 @@ public struct GenerateCourseUseCase {
 
         // 선택된 장소 검증
         var enrichedSelected: [CoursePlace] = []
-        var usedPlaceIds: Set<String> = []
+        var usedPlaceIds = Set(options.lockedPlaces.compactMap(\.kakaoPlaceId))
+        let excludedKeys = Set((options.lockedPlaces + options.excludedPlaces).map(placeIdentityKey))
+        let lockedSpecificTypes = Set(options.lockedPlaces.compactMap(specificFoodTypeKey))
         var selectedSearchFailures = 0
         for place in plan.places {
             let results = await searchWithFallback(place: place, lat: resolvedCoord.lat, lon: resolvedCoord.lon, radius: options.searchRadius)
-            if let match = results.first(where: { guard let id = $0.kakaoPlaceId else { return false }; return !usedPlaceIds.contains(id) }),
+            if let match = results.first(where: { match in
+                isAllowedReplacement(
+                    generated: place,
+                    match: match,
+                    usedPlaceIds: usedPlaceIds,
+                    excludedKeys: excludedKeys,
+                    lockedSpecificTypes: lockedSpecificTypes
+                )
+            }),
                let name = match.placeName, let placeId = match.kakaoPlaceId {
                 var updated = place
                 updated.placeName = name
@@ -72,9 +82,11 @@ public struct GenerateCourseUseCase {
                 updated.latitude = match.latitude
                 updated.longitude = match.longitude
                 updated.kakaoPlaceId = placeId
+                updated.kakaoPlaceURL = match.kakaoPlaceURL
                 if !match.category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     updated.category = match.category
                 }
+                updated.menu = nil
                 enrichedSelected.append(updated)
                 usedPlaceIds.insert(placeId)
             } else {
@@ -89,7 +101,15 @@ public struct GenerateCourseUseCase {
         var candidateSearchFailures = 0
         for place in plan.candidates {
             let results = await searchWithFallback(place: place, lat: resolvedCoord.lat, lon: resolvedCoord.lon, radius: options.searchRadius)
-            if let match = results.first(where: { guard let id = $0.kakaoPlaceId else { return false }; return !usedPlaceIds.contains(id) }),
+            if let match = results.first(where: { match in
+                isAllowedReplacement(
+                    generated: place,
+                    match: match,
+                    usedPlaceIds: usedPlaceIds,
+                    excludedKeys: excludedKeys,
+                    lockedSpecificTypes: lockedSpecificTypes
+                )
+            }),
                let name = match.placeName, let placeId = match.kakaoPlaceId {
                 var updated = place
                 updated.placeName = name
@@ -97,9 +117,11 @@ public struct GenerateCourseUseCase {
                 updated.latitude = match.latitude
                 updated.longitude = match.longitude
                 updated.kakaoPlaceId = placeId
+                updated.kakaoPlaceURL = match.kakaoPlaceURL
                 if !match.category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     updated.category = match.category
                 }
+                updated.menu = nil
                 enrichedCandidates.append(updated)
                 usedPlaceIds.insert(placeId)
             } else {
@@ -120,11 +142,23 @@ public struct GenerateCourseUseCase {
             throw CourseGenerationError.noPlacesFound(options.location)
         }
 
-        let optimized = nearestNeighborSort(enrichedSelected)
-        let reordered = optimized.enumerated().map { index, place -> CoursePlace in
-            var p = place
-            p.order = index + 1
-            return p
+        let reordered: [CoursePlace]
+        if options.lockedPlaces.isEmpty {
+            let optimized = nearestNeighborSort(enrichedSelected)
+            reordered = optimized.enumerated().map { index, place -> CoursePlace in
+                var p = place
+                p.order = index + 1
+                return p
+            }
+        } else {
+            reordered = mergeLockedPlaces(
+                locked: options.lockedPlaces,
+                replacements: enrichedSelected + enrichedCandidates,
+                totalCount: options.placeCount
+            )
+            enrichedCandidates.removeAll { candidate in
+                reordered.contains { placeIdentityKey($0) == placeIdentityKey(candidate) }
+            }
         }
         let reorderedCandidates = enrichedCandidates.enumerated().map { index, place -> CoursePlace in
             var p = place
@@ -133,6 +167,125 @@ public struct GenerateCourseUseCase {
         }
         Self.logger.info("Course generation completed selected=\(reordered.count) candidates=\(reorderedCandidates.count) selectedFailures=\(selectedSearchFailures) candidateFailures=\(candidateSearchFailures)")
         return CoursePlan(places: reordered, candidates: reorderedCandidates, outfitSuggestion: plan.outfitSuggestion, courseReason: plan.courseReason)
+    }
+
+    private func isAllowedReplacement(
+        generated: CoursePlace,
+        match: CoursePlace,
+        usedPlaceIds: Set<String>,
+        excludedKeys: Set<String>,
+        lockedSpecificTypes: Set<String>
+    ) -> Bool {
+        guard let id = match.kakaoPlaceId else { return false }
+        guard !usedPlaceIds.contains(id), !excludedKeys.contains(placeIdentityKey(match)) else { return false }
+        guard !lockedSpecificTypes.isEmpty else { return true }
+
+        let generatedType = specificFoodTypeKey(generated)
+        let matchedType = specificFoodTypeKey(match)
+        return [generatedType, matchedType]
+            .compactMap { $0 }
+            .allSatisfy { !lockedSpecificTypes.contains($0) }
+    }
+
+    private func mergeLockedPlaces(locked: [CoursePlace], replacements: [CoursePlace], totalCount: Int) -> [CoursePlace] {
+        let lockedByOrder = Dictionary(uniqueKeysWithValues: locked.map { ($0.order, $0) })
+        var replacementQueue = replacements
+        var result: [CoursePlace] = []
+        var usedKeys = Set(locked.map(placeIdentityKey))
+
+        for order in 1...totalCount {
+            if var lockedPlace = lockedByOrder[order] {
+                lockedPlace.order = order
+                lockedPlace.menu = nil
+                result.append(lockedPlace)
+                continue
+            }
+
+            guard let nextIndex = replacementQueue.firstIndex(where: { !usedKeys.contains(placeIdentityKey($0)) }) else {
+                continue
+            }
+            var place = replacementQueue.remove(at: nextIndex)
+            place.order = order
+            usedKeys.insert(placeIdentityKey(place))
+            result.append(place)
+        }
+
+        return result.sorted { $0.order < $1.order }
+    }
+
+    private func placeIdentityKey(_ place: CoursePlace) -> String {
+        if let id = place.kakaoPlaceId, !id.isEmpty {
+            return "id:\(id)"
+        }
+        let name = (place.placeName ?? place.keyword)
+            .folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+            .components(separatedBy: .whitespacesAndNewlines)
+            .joined()
+        let address = (place.address ?? "")
+            .folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+            .components(separatedBy: .whitespacesAndNewlines)
+            .joined()
+        return "text:\(name)|\(address)"
+    }
+
+    private func specificFoodTypeKey(_ place: CoursePlace) -> String? {
+        let text = [
+            place.placeName,
+            place.keyword,
+            place.category,
+            place.menu,
+            place.reason,
+        ]
+        .compactMap { $0 }
+        .joined(separator: " ")
+        .lowercased()
+
+        return foodTypeAliases.first { alias in
+            alias.keywords.contains { text.contains($0) }
+        }?.type
+    }
+
+    private var foodTypeAliases: [(type: String, keywords: [String])] {
+        [
+            ("훠궈", ["훠궈", "하이디라오", "haidilao", "hot pot", "hotpot"]),
+            ("마라탕", ["마라탕"]),
+            ("마라샹궈", ["마라샹궈"]),
+            ("양꼬치", ["양꼬치"]),
+            ("샤브샤브", ["샤브샤브"]),
+            ("초밥", ["초밥", "스시", "sushi"]),
+            ("사시미", ["사시미", "회"]),
+            ("오마카세", ["오마카세"]),
+            ("라멘", ["라멘", "라면"]),
+            ("우동", ["우동"]),
+            ("돈카츠", ["돈카츠", "돈까스"]),
+            ("이자카야", ["이자카야"]),
+            ("파스타", ["파스타"]),
+            ("피자", ["피자"]),
+            ("스테이크", ["스테이크"]),
+            ("리조또", ["리조또"]),
+            ("와인바", ["와인바", "와인 바"]),
+            ("삼겹살", ["삼겹살"]),
+            ("고깃집", ["고깃집", "고기집", "구이"]),
+            ("갈비", ["갈비"]),
+            ("곱창", ["곱창"]),
+            ("막창", ["막창"]),
+            ("족발", ["족발"]),
+            ("보쌈", ["보쌈"]),
+            ("곱도리탕", ["곱도리탕"]),
+            ("닭갈비", ["닭갈비"]),
+            ("치킨", ["치킨"]),
+            ("버거", ["버거", "햄버거"]),
+            ("타코", ["타코"]),
+            ("쌀국수", ["쌀국수"]),
+            ("팟타이", ["팟타이"]),
+            ("딤섬", ["딤섬"]),
+            ("짜장면", ["짜장", "자장"]),
+            ("짬뽕", ["짬뽕"]),
+            ("떡볶이", ["떡볶이"]),
+            ("브런치", ["브런치"]),
+            ("베이커리", ["베이커리", "빵집"]),
+            ("디저트", ["디저트", "케이크", "빙수"]),
+        ]
     }
 
     // 지역 입력 파싱: 단일 지역은 그대로, 복합 표현은 중간점 계산

@@ -133,7 +133,7 @@ public struct CourseGenerateFeature {
                 return .none
 
             case .onAppear:
-                let userId = currentUserId()
+                guard let userId = currentUserId() else { return .none }
                 return .run { [wishlistRepository] send in
                     let places = (try? await wishlistRepository.fetchAll(userId: userId)) ?? []
                     await send(.wishlistLoaded(places))
@@ -202,6 +202,19 @@ public struct CourseGenerateFeature {
                 // isGenerating을 false로 하지 않아야 navigation 전 깜빡임 방지
                 let locationStr = state.selectedLocations.map { $0.placeName ?? $0.keyword }.joined(separator: ", ")
                 let selectedWishlist = state.wishlistPlaces.filter { state.selectedWishlistIds.contains($0.id) }
+                let lats = state.selectedLocations.compactMap { $0.latitude }
+                let lons = state.selectedLocations.compactMap { $0.longitude }
+                let baseLat = lats.isEmpty ? nil : lats.reduce(0, +) / Double(lats.count)
+                let baseLon = lons.isEmpty ? nil : lons.reduce(0, +) / Double(lons.count)
+                let searchRadius: Int = {
+                    guard let bl = baseLat, let bln = baseLon, lats.count > 1 else { return 2000 }
+                    let maxSpreadMeters = zip(lats, lons).map { lat, lon -> Double in
+                        let dlat = lat - bl
+                        let dlon = (lon - bln) * cos(bl * .pi / 180)
+                        return sqrt(dlat * dlat + dlon * dlon) * 111_000
+                    }.max() ?? 0
+                    return min(max(Int(maxSpreadMeters) + 1_000, 1_500), 3_000)
+                }()
                 let options = CourseOptions(
                     location: locationStr,
                     themes: state.selectedThemes,
@@ -209,7 +222,10 @@ public struct CourseGenerateFeature {
                     mode: .ordered,
                     memo: state.memo,
                     date: state.date,
-                    wishlistPlaces: selectedWishlist
+                    wishlistPlaces: selectedWishlist,
+                    baseLatitude: baseLat,
+                    baseLongitude: baseLon,
+                    searchRadius: searchRadius
                 )
                 if !state.selectedThemes.isEmpty {
                     var updatedUser = state.user
