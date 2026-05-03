@@ -11,6 +11,8 @@ struct MonthlyReportView: View {
     private var now: Date { Date() }
     private var year: Int { cal.component(.year, from: now) }
     private var month: Int { cal.component(.month, from: now) }
+    private var yearMonthText: String { "\(String(year))년 \(String(month))월" }
+    private var monthTitleText: String { "\(String(month))월 리포트" }
 
     private var totalPlaces: Int {
         courses.reduce(0) { $0 + $1.places.count }
@@ -26,7 +28,7 @@ struct MonthlyReportView: View {
         var counts: [String: Int] = [:]
         for course in courses {
             for place in course.places {
-                counts[place.category, default: 0] += 1
+                counts[displayCategoryName(place.category), default: 0] += 1
             }
         }
         return counts.map { (name: $0.key, count: $0.value) }
@@ -62,7 +64,7 @@ struct MonthlyReportView: View {
                     }
                 }
             }
-            .navigationTitle("\(month)월 리포트")
+            .navigationTitle(monthTitleText)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -88,7 +90,7 @@ struct MonthlyReportView: View {
                 )
 
             VStack(spacing: 6) {
-                Text("\(year)년 \(month)월")
+                Text(yearMonthText)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.8))
 
@@ -190,7 +192,10 @@ struct MonthlyReportView: View {
 
             Text(name)
                 .font(.system(size: 14, weight: .semibold))
-                .frame(width: 60, alignment: .leading)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .minimumScaleFactor(0.9)
+                .frame(width: 96, alignment: .leading)
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -284,5 +289,16 @@ struct MonthlyReportView: View {
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(.secondary)
             .padding(.leading, 4)
+    }
+
+    private func displayCategoryName(_ category: String) -> String {
+        let name = category
+            .split(separator: ">")
+            .last
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            ?? category.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !name.isEmpty else { return "기타" }
+        return name.replacingOccurrences(of: ", ", with: "/")
     }
 }
