@@ -210,6 +210,9 @@ public struct CourseResultView: View {
     private var mainContent: some View {
         VStack(spacing: 16) {
             headerCard
+            if let options = store.generationOptions {
+                requestSummaryCard(options)
+            }
             if store.course.isEnded && !store.isPlaying { endedBanner }
             if store.isPlaying { progressBar }
             timelinePlaces
@@ -380,6 +383,47 @@ public struct CourseResultView: View {
         }
         .padding(Spacing.md)
         .cardStyle()
+    }
+
+    private func requestSummaryCard(_ options: CourseOptions) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Brand.pink)
+                Text("요청한 조건")
+                    .font(Typography.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Spacer()
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                requestSummaryRow(icon: "mappin.and.ellipse", text: options.location)
+                requestSummaryRow(icon: "number", text: "\(options.placeCount)곳")
+                if !options.themes.isEmpty {
+                    requestSummaryRow(icon: "sparkles", text: options.themes.joined(separator: " · "))
+                }
+                if !options.memo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    requestSummaryRow(icon: "text.alignleft", text: options.memo)
+                }
+            }
+        }
+        .padding(Spacing.md)
+        .cardStyle()
+    }
+
+    private func requestSummaryRow(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+                .padding(.top, 2)
+            Text(text)
+                .font(Typography.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: - Progress Bar
