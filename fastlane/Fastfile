@@ -13,8 +13,15 @@ platform :ios do
     setup_ci if is_ci
     match(type: "appstore", readonly: is_ci, api_key: api_key)
 
+    latest_build_number = latest_testflight_build_number(
+      api_key: api_key,
+      app_identifier: "com.kihyeonKim.ForP"
+    ).to_i
+    requested_build_number = ENV["BUILD_NUMBER"].to_i
+    next_build_number = [latest_build_number + 1, requested_build_number].max
+
     increment_build_number(
-      build_number: ENV["BUILD_NUMBER"] || Time.now.strftime("%Y%m%d%H%M"),
+      build_number: next_build_number,
       xcodeproj: "App/ForP.xcodeproj"
     )
 
