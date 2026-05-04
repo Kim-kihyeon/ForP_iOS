@@ -5,8 +5,10 @@ import Domain
 
 public struct CourseGenerateView: View {
     @Bindable var store: StoreOf<CourseGenerateFeature>
+    @Environment(\.dismiss) private var dismiss
     @State private var pendingDeleteId: UUID? = nil
     @State private var showCancelGenerationConfirm = false
+    @State private var shouldDismissAfterCancel = false
     @FocusState private var locationFocused: Bool
 
     public init(store: StoreOf<CourseGenerateFeature>) {
@@ -42,6 +44,7 @@ public struct CourseGenerateView: View {
                     CourseLoadingView()
                     Button {
                         Haptics.impact(.light)
+                        shouldDismissAfterCancel = false
                         showCancelGenerationConfirm = true
                     } label: {
                         Text("취소")
@@ -57,18 +60,44 @@ public struct CourseGenerateView: View {
             }
         }
         .hideKeyboardOnTap()
-        .disableSwipeBack()
+        .swipeBackDisabled(true)
+        .simultaneousGesture(edgeBackSwipeGesture)
         .onAppear { store.send(.onAppear) }
         .navigationTitle("코스 만들기")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .toolbar {
+            if !store.isGenerating {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        Haptics.impact(.light)
+                        shouldDismissAfterCancel = true
+                        showCancelGenerationConfirm = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text("뒤로")
+                        }
+                    }
+                }
+            }
+        }
         .alert("코스 생성을 중지할까요?", isPresented: $showCancelGenerationConfirm) {
             Button("중지", role: .destructive) {
-                store.send(.cancelGenerationTapped)
+                if store.isGenerating {
+                    store.send(.cancelGenerationTapped)
+                }
+                if shouldDismissAfterCancel {
+                    dismiss()
+                }
+                shouldDismissAfterCancel = false
             }
-            Button("계속 생성", role: .cancel) {}
+            Button("계속 생성", role: .cancel) {
+                shouldDismissAfterCancel = false
+            }
         } message: {
             Text("지금 중지하면 다시 생성해야 해요.")
         }
@@ -93,6 +122,18 @@ public struct CourseGenerateView: View {
             }
             Button("취소", role: .cancel) { pendingDeleteId = nil }
         }
+    }
+
+    private var edgeBackSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 20, coordinateSpace: .local)
+            .onEnded { value in
+                guard !store.isGenerating else { return }
+                guard value.startLocation.x <= 24 else { return }
+                guard value.translation.width > 70, abs(value.translation.height) < 50 else { return }
+                Haptics.impact(.light)
+                shouldDismissAfterCancel = true
+                showCancelGenerationConfirm = true
+            }
     }
 
     // MARK: - Location

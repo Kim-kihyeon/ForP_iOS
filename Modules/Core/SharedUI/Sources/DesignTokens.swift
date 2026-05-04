@@ -101,17 +101,23 @@ public extension View {
     }
 
     func disableSwipeBack() -> some View {
-        self.background(SwipeBackDisabler())
+        self.background(SwipeBackDisabler(isDisabled: true))
+    }
+
+    func swipeBackDisabled(_ isDisabled: Bool) -> some View {
+        self.background(SwipeBackDisabler(isDisabled: isDisabled))
     }
 }
 
 private struct SwipeBackDisabler: UIViewControllerRepresentable {
+    let isDisabled: Bool
+
     func makeUIViewController(context: Context) -> UIViewController {
         UIViewController()
     }
     func updateUIViewController(_ vc: UIViewController, context: Context) {
         DispatchQueue.main.async {
-            vc.navigationController?.interactivePopGestureRecognizer?.isEnabled = false
+            vc.navigationController?.interactivePopGestureRecognizer?.isEnabled = !isDisabled
         }
     }
 }
