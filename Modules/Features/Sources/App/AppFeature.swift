@@ -58,7 +58,7 @@ public struct AppFeature {
                     state.authenticatedUserId = user.id
                     if state.route == .main {
                         state.home.user = user
-                    } else if user.preferredCategories.isEmpty {
+                    } else if !user.hasCompletedOnboarding {
                         state.onboarding = OnboardingFeature.State(user: user)
                         state.route = .onboarding
                     } else {
@@ -98,7 +98,7 @@ public struct AppFeature {
 
             case .login(.delegate(.loginSucceeded(let user))):
                 state.authenticatedUserId = user.id
-                if user.preferredCategories.isEmpty {
+                if !user.hasCompletedOnboarding {
                     state.onboarding = OnboardingFeature.State(user: user)
                     state.route = .onboarding
                 } else {
@@ -135,5 +135,12 @@ public struct AppFeature {
                 return .none
             }
         }
+    }
+}
+
+private extension User {
+    var hasCompletedOnboarding: Bool {
+        !nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }
