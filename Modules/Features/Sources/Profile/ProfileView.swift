@@ -9,8 +9,6 @@ public struct ProfileView: View {
     @State private var customBlacklistInput = ""
     @Environment(\.dismiss) private var dismiss
 
-    private let categories = PreferenceOptions.categories
-    private let themes = PreferenceOptions.themes
     private let blacklistPresets = PreferenceOptions.blacklistPresets
 
     public init(store: StoreOf<ProfileFeature>) {
@@ -24,9 +22,6 @@ public struct ProfileView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
                     basicSection
-                    preferredSection
-                    dislikedSection
-                    themeSection
                     blacklistSection
                 }
                 .padding(.horizontal, Spacing.md)
@@ -106,63 +101,6 @@ public struct ProfileView: View {
             }
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.md + 2)
-            .cardStyle()
-        }
-    }
-
-    // MARK: - Preferred
-
-    private var preferredSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("좋아하는 것")
-            categoryGrid(selected: $store.preferredCategories, exclude: store.dislikedCategories, accentColor: Brand.pink)
-        }
-    }
-
-    // MARK: - Disliked
-
-    private var dislikedSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("싫어하는 것")
-            categoryGrid(selected: $store.dislikedCategories, exclude: store.preferredCategories, accentColor: Color(.secondaryLabel))
-        }
-    }
-
-    // MARK: - Themes
-
-    private var themeSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("선호 분위기")
-            FlowLayout(spacing: 8) {
-                ForEach(themes, id: \.name) { item in
-                    let isSelected = store.preferredThemes.contains(item.name)
-                    Button {
-                        Haptics.selection()
-                        if isSelected {
-                            store.preferredThemes.removeAll { $0 == item.name }
-                        } else {
-                            store.preferredThemes.append(item.name)
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(item.emoji).font(.system(size: 13))
-                            Text(item.name).font(.system(size: 12, weight: .medium))
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .background(isSelected ? Brand.softPink : Color(.tertiarySystemFill))
-                        .foregroundStyle(isSelected ? Brand.pink : Color(.secondaryLabel))
-                        .clipShape(Capsule())
-                        .overlay {
-                            if isSelected {
-                                Capsule().stroke(Brand.pink.opacity(0.4), lineWidth: 1)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(Spacing.md)
             .cardStyle()
         }
     }
@@ -333,64 +271,6 @@ public struct ProfileView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Brand.pink.opacity(0.3), lineWidth: 1)
         }
-    }
-
-    // MARK: - Category Grid
-
-    private func categoryGrid(selected: Binding<[String]>, exclude: [String], accentColor: Color) -> some View {
-        let columns = [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
-        return LazyVGrid(columns: columns, spacing: 8) {
-            ForEach(categories) { item in
-                let isSelected = selected.wrappedValue.contains(item.name)
-                let isExcluded = exclude.contains(item.name)
-                Button {
-                    guard !isExcluded else { return }
-                    Haptics.selection()
-                    if isSelected {
-                        selected.wrappedValue.removeAll { $0 == item.name }
-                    } else {
-                        selected.wrappedValue.append(item.name)
-                    }
-                } label: {
-                    ZStack(alignment: .topTrailing) {
-                        VStack(spacing: 3) {
-                            Text(item.emoji).font(.system(size: 20))
-                            Text(item.name)
-                                .font(.system(size: 10, weight: .medium))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(
-                            isExcluded ? Color(.tertiarySystemFill).opacity(0.4) :
-                            isSelected ? accentColor.opacity(0.12) : Color(.tertiarySystemFill)
-                        )
-                        .foregroundStyle(
-                            isExcluded ? Color(.tertiaryLabel) :
-                            isSelected ? accentColor : Color(.secondaryLabel)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay {
-                            if isSelected {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(accentColor.opacity(0.5), lineWidth: 1.5)
-                            }
-                        }
-                        if isExcluded {
-                            Image(systemName: "minus.circle.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color(.tertiaryLabel))
-                                .padding(3)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(isExcluded)
-            }
-        }
-        .padding(Spacing.md)
-        .cardStyle()
     }
 
     // MARK: - Save Bar
