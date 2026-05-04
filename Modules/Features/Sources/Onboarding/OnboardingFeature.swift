@@ -11,10 +11,6 @@ public struct OnboardingFeature {
         public var locationSuggestions: [CoursePlace] = []
         public var isSearchingLocation = false
         public var selectedLocation: CoursePlace?
-        public var preferredCategories: [String] = []
-        public var dislikedCategories: [String] = []
-        public var foodBlacklist: [String] = []
-        public var preferredThemes: [String] = []
         public var isLoading = false
         @Presents public var alert: AlertState<Action.Alert>?
 
@@ -29,15 +25,10 @@ public struct OnboardingFeature {
         case binding(BindingAction<State>)
         case onAppear
         case randomNicknameTapped
-        case categoryTapped(String)
-        case blacklistToggled(String)
-        case blacklistCustomAdded(String)
-        case blacklistRemoved(String)
         case locationSearchDebounced
         case locationSuggestionsLoaded([CoursePlace])
         case locationSuggestionSelected(CoursePlace)
         case selectedLocationCleared
-        case themeToggled(String)
         case saveTapped
         case saveResponse(Result<Void, Error>)
         case alert(PresentationAction<Alert>)
@@ -117,41 +108,6 @@ public struct OnboardingFeature {
                 state.isSearchingLocation = false
                 return .cancel(id: "onboardingLocationSearch")
 
-            case .categoryTapped(let category):
-                let isPreferred = state.preferredCategories.contains(category)
-                let isDisliked = state.dislikedCategories.contains(category)
-                if !isPreferred && !isDisliked {
-                    state.preferredCategories.append(category)
-                } else if isPreferred {
-                    state.preferredCategories.removeAll { $0 == category }
-                    state.dislikedCategories.append(category)
-                } else {
-                    state.dislikedCategories.removeAll { $0 == category }
-                }
-                return .none
-
-            case .blacklistToggled(let item):
-                if state.foodBlacklist.contains(item) {
-                    state.foodBlacklist.removeAll { $0 == item }
-                } else {
-                    state.foodBlacklist.append(item)
-                }
-                return .none
-
-            case .blacklistCustomAdded(let item):
-                let trimmed = item.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty, !state.foodBlacklist.contains(trimmed) else { return .none }
-                state.foodBlacklist.append(trimmed)
-                return .none
-
-            case .blacklistRemoved(let item):
-                state.foodBlacklist.removeAll { $0 == item }
-                return .none
-
-            case .themeToggled(let item):
-                state.preferredThemes.toggle(item)
-                return .none
-
             case .saveTapped:
                 guard !state.nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     state.alert = AlertState { TextState("닉네임을 입력해주세요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("앱에서 사용할 닉네임을 입력해주세요") }
@@ -162,25 +118,13 @@ public struct OnboardingFeature {
                     return .none
                 }
                 guard state.selectedLocation != nil else {
-                    state.alert = AlertState { TextState("지역을 선택해주세요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("검색 결과에서 자주 가는 동네를 선택해주세요") }
-                    return .none
-                }
-                guard !state.preferredCategories.isEmpty || !state.dislikedCategories.isEmpty else {
-                    state.alert = AlertState { TextState("취향을 선택해주세요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("좋아하거나 피하고 싶은 카테고리를 하나 이상 선택해주세요") }
-                    return .none
-                }
-                guard !state.preferredThemes.isEmpty else {
-                    state.alert = AlertState { TextState("분위기를 선택해주세요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("선호하는 데이트 분위기를 하나 이상 선택해주세요") }
+                    state.alert = AlertState { TextState("지역을 선택해주세요") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState("정확한 코스를 위해 검색 결과에서 자주 가는 동네를 선택해주세요") }
                     return .none
                 }
                 state.isLoading = true
                 var user = state.user
                 user.nickname = state.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-                user.preferredCategories = state.preferredCategories
-                user.dislikedCategories = state.dislikedCategories
-                user.foodBlacklist = state.foodBlacklist
-                user.preferredThemes = state.preferredThemes
-                user.location = state.location
+                user.location = state.location.trimmingCharacters(in: .whitespacesAndNewlines)
                 return .run { [user] send in
                     await send(.saveResponse(
                         Result { try await userRepository.updateUser(user) }
@@ -191,11 +135,7 @@ public struct OnboardingFeature {
                 state.isLoading = false
                 var user = state.user
                 user.nickname = state.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-                user.preferredCategories = state.preferredCategories
-                user.dislikedCategories = state.dislikedCategories
-                user.foodBlacklist = state.foodBlacklist
-                user.preferredThemes = state.preferredThemes
-                user.location = state.location
+                user.location = state.location.trimmingCharacters(in: .whitespacesAndNewlines)
                 return .send(.delegate(.onboardingCompleted(user)))
 
             case .saveResponse(.failure(let error)):

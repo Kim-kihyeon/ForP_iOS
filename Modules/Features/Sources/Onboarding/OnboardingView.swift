@@ -7,7 +7,6 @@ public struct OnboardingView: View {
     @Bindable var store: StoreOf<OnboardingFeature>
     @State private var showIntro = true
     @State private var currentStep = 0
-    @State private var customBlacklistInput = ""
     @FocusState private var focusedField: OnboardingField?
 
     // Intro animations
@@ -20,15 +19,11 @@ public struct OnboardingView: View {
     @State private var ef6: CGFloat = 0
     @State private var buttonScale: CGFloat = 1.0
 
-    private let totalSteps = 4
-    private let categories = PreferenceOptions.categories
-    private let themes = PreferenceOptions.themes
-    private let blacklistPresets = PreferenceOptions.blacklistPresets
+    private let totalSteps = 1
 
     private enum OnboardingField: Hashable {
         case nickname
         case location
-        case blacklist
     }
 
     private enum ScrollTarget {
@@ -135,7 +130,7 @@ public struct OnboardingView: View {
                 Spacer()
 
                 VStack(spacing: 14) {
-                    Text("취향에 딱 맞는 코스를 만들어드려요")
+                    Text("몇 가지만 알려주면 바로 코스를 만들 수 있어요")
                         .font(.system(size: 14))
                         .foregroundStyle(.white.opacity(0.65))
                         .opacity(appeared ? 1 : 0)
@@ -144,7 +139,7 @@ public struct OnboardingView: View {
                     Button {
                         withAnimation(.easeInOut(duration: 0.4)) { showIntro = false }
                     } label: {
-                        Text("취향 설정하기")
+                        Text("시작하기")
                             .font(.system(size: 17, weight: .bold))
                             .foregroundStyle(Brand.pink)
                             .frame(maxWidth: .infinity)
@@ -195,16 +190,7 @@ public struct OnboardingView: View {
 
     @ViewBuilder
     private var currentPage: some View {
-        switch currentStep {
-        case 0:
-            locationPage
-        case 1:
-            categoryPage
-        case 2:
-            blacklistPage
-        default:
-            themePage
-        }
+        locationPage
     }
 
     // MARK: - Progress Bar
@@ -327,64 +313,6 @@ public struct OnboardingView: View {
         }
     }
 
-    private var categoryPage: some View {
-        pageContainer(icon: "heart.fill", title: "어떤 걸 좋아해요?", subtitle: "탭해서 선호 · 비선호를 표시해요") {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                HStack(spacing: 6) {
-                    Label("선호", systemImage: "hand.tap.fill")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Brand.pink)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Brand.softPink)
-                        .clipShape(Capsule())
-                    Text("→")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Text("비선호")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Brand.iconRed)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Brand.iconRed.opacity(0.1))
-                        .clipShape(Capsule())
-                    Text("→")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Text("해제")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-                categoryChipGrid
-            }
-        }
-    }
-
-    private var blacklistPage: some View {
-        pageContainer(icon: "nosign", title: "피하고 싶은 게 있나요?", subtitle: "알레르기나 제외할 음식을 설정해요") {
-            blacklistPicker
-        }
-    }
-
-    private var themePage: some View {
-        pageContainer(icon: "sparkles", title: "어떤 분위기를 좋아해요?", subtitle: "여러 개 선택할 수 있어요") {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], spacing: Spacing.sm) {
-                ForEach(themes, id: \.name) { item in
-                    let isSelected = store.preferredThemes.contains(item.name)
-                    HStack(spacing: 4) {
-                        Text(item.emoji).font(.system(size: 14))
-                        Text(item.name).font(Typography.caption)
-                    }
-                    .padding(.horizontal, Spacing.sm + 2)
-                    .padding(.vertical, Spacing.xs + 2)
-                    .frame(maxWidth: .infinity)
-                    .background(isSelected ? Brand.pink : Color(.secondarySystemBackground))
-                    .foregroundStyle(isSelected ? Color.white : Color.primary)
-                    .clipShape(Capsule())
-                    .onTapGesture { store.send(.themeToggled(item.name)) }
-                }
-            }
-        }
-    }
-
     private func pageContainer<Content: View>(
         icon: String,
         title: String,
@@ -439,111 +367,6 @@ public struct OnboardingView: View {
         }
     }
 
-    // MARK: - Category Chip Grid
-
-    private var categoryChipGrid: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], spacing: Spacing.sm) {
-            ForEach(categories, id: \.name) { item in
-                let isPreferred = store.preferredCategories.contains(item.name)
-                let isDisliked = store.dislikedCategories.contains(item.name)
-                HStack(spacing: 4) {
-                    Text(item.emoji).font(.system(size: 14))
-                    if isPreferred {
-                        Image(systemName: "heart.fill").font(.system(size: 8)).foregroundStyle(.white.opacity(0.8))
-                    } else if isDisliked {
-                        Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundStyle(.white.opacity(0.8))
-                    }
-                    Text(item.name).font(Typography.caption)
-                }
-                .padding(.horizontal, Spacing.sm + 2)
-                .padding(.vertical, Spacing.xs + 2)
-                .frame(maxWidth: .infinity)
-                .background(
-                    isPreferred ? Brand.pink :
-                    isDisliked ? Brand.iconRed :
-                    Color(.secondarySystemBackground)
-                )
-                .foregroundStyle((isPreferred || isDisliked) ? Color.white : Color.primary)
-                .clipShape(Capsule())
-                .onTapGesture { store.send(.categoryTapped(item.name)) }
-            }
-        }
-    }
-
-    private var blacklistPicker: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("절대 제외 음식/장소 · 선택사항")
-                .font(Typography.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text("알레르기나 피하고 싶은 음식을 추가해요")
-                .font(Typography.caption2)
-                .foregroundStyle(.tertiary)
-
-            FlowLayout(spacing: 8) {
-                ForEach(blacklistPresets, id: \.name) { item in
-                    let isSelected = store.foodBlacklist.contains(item.name)
-                    Button {
-                        Haptics.selection()
-                        store.send(.blacklistToggled(item.name))
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(item.emoji).font(.system(size: 13))
-                            Text(item.name).font(.system(size: 12, weight: .medium))
-                            if isSelected {
-                                Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
-                            }
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(isSelected ? Color(.systemRed).opacity(0.12) : Color(.tertiarySystemFill))
-                        .foregroundStyle(isSelected ? Color(.systemRed) : Color(.secondaryLabel))
-                        .clipShape(Capsule())
-                        .overlay {
-                            if isSelected {
-                                Capsule().stroke(Color(.systemRed).opacity(0.4), lineWidth: 1)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                ForEach(store.foodBlacklist.filter { item in !blacklistPresets.map(\.name).contains(item) }, id: \.self) { item in
-                    HStack(spacing: 4) {
-                        Text(item).font(.system(size: 12, weight: .medium))
-                        Button {
-                            store.send(.blacklistRemoved(item))
-                        } label: {
-                            Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
-                        }
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color(.systemRed).opacity(0.12))
-                    .foregroundStyle(Color(.systemRed))
-                    .clipShape(Capsule())
-                    .overlay { Capsule().stroke(Color(.systemRed).opacity(0.4), lineWidth: 1) }
-                }
-            }
-
-            HStack(spacing: 8) {
-                TextField("직접 입력 (예: 고수, 오이)", text: $customBlacklistInput)
-                    .font(.system(size: 14))
-                    .focused($focusedField, equals: .blacklist)
-                    .onSubmit { addCustomBlacklist() }
-                Button(action: addCustomBlacklist) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(customBlacklistInput.isEmpty ? Color(.tertiaryLabel) : Color(.systemRed))
-                }
-                .disabled(customBlacklistInput.isEmpty)
-            }
-            .padding(Spacing.sm)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .padding(.top, Spacing.sm)
-    }
-
     private func selectedLocationChip(_ place: CoursePlace) -> some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "mappin.circle.fill")
@@ -579,11 +402,6 @@ public struct OnboardingView: View {
         }
     }
 
-    private func addCustomBlacklist() {
-        store.send(.blacklistCustomAdded(customBlacklistInput))
-        customBlacklistInput = ""
-    }
-
     private var locationSearchBottomPadding: CGFloat {
         focusedField == .location && store.selectedLocation == nil ? 260 : 0
     }
@@ -603,12 +421,6 @@ public struct OnboardingView: View {
         case 0:
             return !store.nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
                 store.selectedLocation != nil
-        case 1:
-            return !store.preferredCategories.isEmpty || !store.dislikedCategories.isEmpty
-        case 2:
-            return true
-        case 3:
-            return !store.preferredThemes.isEmpty
         default: return true
         }
     }
@@ -670,13 +482,10 @@ public struct OnboardingView: View {
             if store.nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 return "닉네임을 입력하면 다음으로 갈 수 있어요"
             }
-            return "검색 결과에서 자주 가는 동네를 선택해주세요"
-        case 1:
-            return "좋아하거나 피하고 싶은 카테고리를 하나 이상 선택해주세요"
-        case 2:
-            return nil
-        case 3:
-            return "선호하는 분위기를 하나 이상 선택해주세요"
+            if store.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return "자주 가는 동네를 입력해주세요"
+            }
+            return "정확한 코스를 위해 검색 결과에서 동네를 선택해주세요"
         default:
             return nil
         }
