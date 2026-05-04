@@ -17,6 +17,7 @@ public struct CourseGenerateFeature {
         public var memo = ""
         public var date: Date = Date()
         public var isGenerating = false
+        public var isRandom = false
         public var errorMessage: String? = nil
         public var wishlistPlaces: [WishlistPlace] = []
         public var selectedWishlistIds: Set<UUID> = []
@@ -128,6 +129,14 @@ public struct CourseGenerateFeature {
                 state.selectedLocations.remove(at: index)
                 return .none
 
+            case .binding(\.isRandom):
+                if state.isRandom {
+                    state.selectedThemes = []
+                    state.memo = ""
+                    state.selectedWishlistIds = []
+                }
+                return .none
+
             case .binding:
                 return .none
 
@@ -188,7 +197,8 @@ public struct CourseGenerateFeature {
                     wishlistPlaces: selectedWishlist,
                     baseLatitude: baseLat,
                     baseLongitude: baseLon,
-                    searchRadius: searchRadius
+                    searchRadius: searchRadius,
+                    isRandom: state.isRandom
                 )
                 return .run { [options, user = state.user, partner = state.partner] send in
                     await send(.generateResponse(
@@ -224,7 +234,8 @@ public struct CourseGenerateFeature {
                     wishlistPlaces: selectedWishlist,
                     baseLatitude: baseLat,
                     baseLongitude: baseLon,
-                    searchRadius: searchRadius
+                    searchRadius: searchRadius,
+                    isRandom: state.isRandom
                 )
                 return .send(.delegate(.courseGenerated(plan, options)))
 
