@@ -81,7 +81,7 @@ let project = Project(
                 "CODE_SIGN_IDENTITY": "Apple Development",
                 "DEVELOPMENT_TEAM": "697ACQDW6C",
                 "PROVISIONING_PROFILE_SPECIFIER": "",
-                "MARKETING_VERSION": "1.0.1",
+                "MARKETING_VERSION": "1.0.2",
                 "CURRENT_PROJECT_VERSION": "2",
                 "OTHER_LDFLAGS": "-ObjC",
                 "DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym",
