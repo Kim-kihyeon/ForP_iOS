@@ -139,6 +139,7 @@ public struct CourseOptions: Equatable {
     public var searchRadius: Int
     public var lockedPlaces: [CoursePlace]
     public var excludedPlaces: [CoursePlace]
+    public var isRandom: Bool
 
     public init(
         location: String,
@@ -152,7 +153,8 @@ public struct CourseOptions: Equatable {
         baseLongitude: Double? = nil,
         searchRadius: Int = 2000,
         lockedPlaces: [CoursePlace] = [],
-        excludedPlaces: [CoursePlace] = []
+        excludedPlaces: [CoursePlace] = [],
+        isRandom: Bool = false
     ) {
         self.location = location
         self.themes = themes
@@ -166,5 +168,6 @@ public struct CourseOptions: Equatable {
         self.searchRadius = searchRadius
         self.lockedPlaces = lockedPlaces
         self.excludedPlaces = excludedPlaces
+        self.isRandom = isRandom
     }
 }

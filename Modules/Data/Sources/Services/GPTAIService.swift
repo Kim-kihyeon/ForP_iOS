@@ -65,12 +65,19 @@ public struct GPTAIService: AIServiceProtocol {
         날짜: \(dateString)
         날씨: \(options.weatherDescription ?? "정보 없음")
         장소 수: 총 \(options.placeCount * 2)개 생성, 그 중 \(options.placeCount)개 선택 (isSelected: true)
+        """
+        if options.isRandom {
+            prompt += "\n이번 코스 분위기: 완전 자유 (취향 조건 없음, AI가 재량껏 다양하고 재미있는 코스로 선정)"
+        } else {
+            prompt += """
+
         이번 코스 분위기: \(options.themes.isEmpty ? "자유" : options.themes.joined(separator: ", "))
         기본 선호 분위기: \(user.preferredThemes.isEmpty ? "없음" : user.preferredThemes.joined(separator: ", "))
         내 선호: \(user.preferredCategories.isEmpty ? "없음" : user.preferredCategories.joined(separator: ", "))
         내 비선호: \(user.dislikedCategories.isEmpty ? "없음" : user.dislikedCategories.joined(separator: ", "))
         절대 제외 (내): \(user.foodBlacklist.isEmpty ? "없음" : user.foodBlacklist.joined(separator: ", "))
         """
+        }
         if !options.memo.isEmpty {
             prompt += "\n요청사항 (최우선 반영): \(options.memo)"
         }
@@ -98,12 +105,14 @@ public struct GPTAIService: AIServiceProtocol {
             prompt += "\n이번에 제외할 기존 장소 (다시 추천 금지): \(excluded)"
         }
         if let partner, !partner.nickname.isEmpty {
-            prompt += """
+            if !options.isRandom {
+                prompt += """
 
             파트너(\(partner.nickname)) 선호: \(partner.preferredCategories.isEmpty ? "없음" : partner.preferredCategories.joined(separator: ", "))
             파트너 비선호: \(partner.dislikedCategories.isEmpty ? "없음" : partner.dislikedCategories.joined(separator: ", "))
             절대 제외 (파트너): \(partner.foodBlacklist.isEmpty ? "없음" : partner.foodBlacklist.joined(separator: ", "))
             """
+            }
             if !partner.notes.isEmpty {
                 prompt += "\n파트너 특이사항: \(partner.notes)"
             }
