@@ -12,7 +12,6 @@ public struct CourseResultView: View {
     @State private var tappedPlaceOrder: Int? = nil
     @State private var isReordering = false
     @State private var placesBeforeReorder: [CoursePlace] = []
-    @State private var showExitConfirm = false
     @State private var showCancelRegenerationConfirm = false
 
     private var coordinatePlaces: [(CoursePlace, CLLocationCoordinate2D)] {
@@ -119,10 +118,10 @@ public struct CourseResultView: View {
         }
         .navigationTitle(store.course.title)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(store.isRegenerating || !store.isSaved)
+        .navigationBarBackButtonHidden(store.isRegenerating)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
-        .disableSwipeBack()
+        .swipeBackDisabled(store.isRegenerating)
         .onAppear { store.send(.onAppear) }
         .onChange(of: store.course.places) { _, _ in
             let coords = coordinatePlaces.map { $0.1 }
@@ -130,12 +129,6 @@ public struct CourseResultView: View {
             mapCameraPosition = .region(mapRegion(for: coords))
         }
         .onDisappear { store.send(.viewDisappeared) }
-        .alert("코스를 저장하지 않고 나갈까요?", isPresented: $showExitConfirm) {
-            Button("나가기", role: .destructive) { store.send(.delegate(.dismiss)) }
-            Button("취소", role: .cancel) {}
-        } message: {
-            Text("저장하지 않으면 이 코스가 사라져요.")
-        }
         .alert("다시 추천을 중지할까요?", isPresented: $showCancelRegenerationConfirm) {
             Button("중지", role: .destructive) {
                 store.send(.cancelPartialRegenerationTapped)
@@ -145,21 +138,6 @@ public struct CourseResultView: View {
             Text("지금 중지하면 현재 코스를 그대로 유지해요.")
         }
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                if !store.isSaved && !store.isRegenerating {
-                    Button {
-                        showExitConfirm = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text("뒤로")
-                                .font(Typography.body)
-                        }
-                    }
-                    .tint(Brand.pink)
-                }
-            }
             ToolbarItem(placement: .primaryAction) {
                 if store.isPlaying {
                     HStack(spacing: 4) {
@@ -240,7 +218,7 @@ public struct CourseResultView: View {
             if store.course.isEnded && !store.isPlaying { endedBanner }
             if store.isPlaying { progressBar }
             timelinePlaces
-            if !store.isSaved && !store.isPlaying && !store.course.isEnded {
+            if !store.isPlaying && !store.course.isEnded {
                 regenerationControls
             }
             if !store.isPlaying { ratingsSection }
@@ -739,7 +717,7 @@ public struct CourseResultView: View {
 
     private func actionButtons(for place: CoursePlace) -> some View {
         HStack(spacing: 6) {
-            if !store.isSaved {
+            if !store.isPlaying && !store.course.isEnded {
                 let isLocked = store.lockedPlaceKeys.contains(placeIdentityKey(place))
                 Button {
                     Haptics.impact(.light)

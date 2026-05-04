@@ -34,8 +34,7 @@ public struct CourseResultFeature {
         public var placeCountNote: String? = nil
 
         public var canPartiallyRegenerate: Bool {
-            !isSaved &&
-                !isPlaying &&
+            !isPlaying &&
                 !course.isEnded &&
                 !isRegenerating &&
                 user != nil &&
@@ -105,7 +104,7 @@ public struct CourseResultFeature {
         case cancelPartialRegenerationTapped
         case partialRegenerateResponse(Result<CoursePlan, Error>)
 
-        public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate, confirmPartialRegenerate }
+        public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate }
         public enum Delegate: Equatable {
             case dismiss
             case deleted
@@ -131,9 +130,6 @@ public struct CourseResultFeature {
         Reduce { state, action in
             switch action {
             case .binding(\.course.title):
-                if state.course.title.count > 10 {
-                    state.course.title = String(state.course.title.prefix(10))
-                }
                 return .none
 
             case .binding:
@@ -222,9 +218,6 @@ public struct CourseResultFeature {
                         Result { try await courseRepository.deleteCourse(id: id) }
                     ))
                 }
-
-            case .alert(.presented(.confirmPartialRegenerate)):
-                return .send(.confirmedPartialRegenerate)
 
             case .alert:
                 return .none
@@ -472,7 +465,7 @@ public struct CourseResultFeature {
                 }
 
             case .togglePlaceLock(let place):
-                guard !state.isSaved, !state.isPlaying, !state.course.isEnded else { return .none }
+                guard !state.isPlaying, !state.course.isEnded else { return .none }
                 let key = placeIdentityKey(place)
                 if state.lockedPlaceKeys.contains(key) {
                     state.lockedPlaceKeys.remove(key)
@@ -483,20 +476,7 @@ public struct CourseResultFeature {
 
             case .partialRegenerateTapped:
                 guard state.canPartiallyRegenerate else { return .none }
-                let replaceCount = state.course.places.count - state.lockedPlaceKeys.count
-                state.alert = AlertState {
-                    TextState("다시 추천할까요?")
-                } actions: {
-                    ButtonState(role: .destructive, action: .confirmPartialRegenerate) {
-                        TextState("다시 추천")
-                    }
-                    ButtonState(role: .cancel) {
-                        TextState("취소")
-                    }
-                } message: {
-                    TextState("고정하지 않은 \(replaceCount)곳이 다른 장소로 바뀔 수 있어요.")
-                }
-                return .none
+                return .send(.confirmedPartialRegenerate)
 
             case .confirmedPartialRegenerate:
                 guard state.canPartiallyRegenerate,
@@ -549,7 +529,11 @@ public struct CourseResultFeature {
                         ? "고정한 장소를 제외하고 새 장소를 충분히 찾지 못했어요."
                         : "요청한 수보다 적게 찾았어요. 후보 장소에서 추가할 수 있어요."
                 }
-                return .none
+                guard state.isSaved else { return .none }
+                let course = state.course
+                return .run { _ in
+                    try? await saveCourseUseCase.execute(course)
+                }
 
             case .partialRegenerateResponse(.failure(let error)):
                 state.isRegenerating = false
