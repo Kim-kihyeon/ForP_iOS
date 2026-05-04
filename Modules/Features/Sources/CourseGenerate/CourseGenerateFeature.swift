@@ -24,7 +24,6 @@ public struct CourseGenerateFeature {
         public init(user: User, partner: Partner? = nil) {
             self.user = user
             self.partner = partner
-            self.selectedThemes = user.preferredThemes
             let savedLocation = user.location.trimmingCharacters(in: .whitespacesAndNewlines)
             if !savedLocation.isEmpty {
                 self.selectedLocations = [
@@ -227,19 +226,6 @@ public struct CourseGenerateFeature {
                     baseLongitude: baseLon,
                     searchRadius: searchRadius
                 )
-                if !state.selectedThemes.isEmpty {
-                    var updatedUser = state.user
-                    let merged = state.selectedThemes + updatedUser.preferredThemes.filter { !state.selectedThemes.contains($0) }
-                    updatedUser.preferredThemes = Array(merged.prefix(5))
-                    state.user = updatedUser
-                    return .merge(
-                        .send(.delegate(.courseGenerated(plan, options))),
-                        .send(.delegate(.userUpdated(updatedUser))),
-                        .run { [updatedUser, userRepository] _ in
-                            try? await userRepository.updateUser(updatedUser)
-                        }
-                    )
-                }
                 return .send(.delegate(.courseGenerated(plan, options)))
 
             case .generateResponse(.failure(let error)):

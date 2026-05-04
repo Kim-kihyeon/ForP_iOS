@@ -5,14 +5,16 @@ import Domain
 
 public struct CourseGenerateView: View {
     @Bindable var store: StoreOf<CourseGenerateFeature>
-    @Environment(\.dismiss) private var dismiss
-    @State private var pendingDeleteId: UUID? = nil
+    @State private var showAllThemes = false
     @State private var showCancelGenerationConfirm = false
-    @State private var shouldDismissAfterCancel = false
     @FocusState private var locationFocused: Bool
 
     public init(store: StoreOf<CourseGenerateFeature>) {
         self.store = store
+    }
+
+    private var canGenerate: Bool {
+        !store.selectedLocations.isEmpty
     }
 
     public var body: some View {
@@ -23,13 +25,13 @@ public struct CourseGenerateView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
                         locationSection
-                        dateSection
-                        placeCountSection
                         themeSection
+                        placeCountSection
+                        memoSection
                         if !store.wishlistPlaces.isEmpty {
                             wishlistSection
                         }
-                        memoSection
+                        dateSection
                     }
                     .padding(.horizontal, Spacing.md)
                     .padding(.top, Spacing.md)
@@ -44,7 +46,6 @@ public struct CourseGenerateView: View {
                     CourseLoadingView()
                     Button {
                         Haptics.impact(.light)
-                        shouldDismissAfterCancel = false
                         showCancelGenerationConfirm = true
                     } label: {
                         Text("취소")
@@ -60,44 +61,18 @@ public struct CourseGenerateView: View {
             }
         }
         .hideKeyboardOnTap()
-        .swipeBackDisabled(true)
-        .simultaneousGesture(edgeBackSwipeGesture)
+        .swipeBackDisabled(store.isGenerating)
         .onAppear { store.send(.onAppear) }
         .navigationTitle("코스 만들기")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
+        .navigationBarBackButtonHidden(store.isGenerating)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
-        .toolbar {
-            if !store.isGenerating {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        Haptics.impact(.light)
-                        shouldDismissAfterCancel = true
-                        showCancelGenerationConfirm = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text("뒤로")
-                        }
-                    }
-                }
-            }
-        }
         .alert("코스 생성을 중지할까요?", isPresented: $showCancelGenerationConfirm) {
             Button("중지", role: .destructive) {
-                if store.isGenerating {
-                    store.send(.cancelGenerationTapped)
-                }
-                if shouldDismissAfterCancel {
-                    dismiss()
-                }
-                shouldDismissAfterCancel = false
+                store.send(.cancelGenerationTapped)
             }
-            Button("계속 생성", role: .cancel) {
-                shouldDismissAfterCancel = false
-            }
+            Button("계속 생성", role: .cancel) {}
         } message: {
             Text("지금 중지하면 다시 생성해야 해요.")
         }
@@ -110,30 +85,6 @@ public struct CourseGenerateView: View {
         } message: {
             Text(store.errorMessage ?? "")
         }
-        .alert("찜 목록에서 삭제할까요?", isPresented: Binding(
-            get: { pendingDeleteId != nil },
-            set: { if !$0 { pendingDeleteId = nil } }
-        )) {
-            Button("삭제", role: .destructive) {
-                if let id = pendingDeleteId {
-                    store.send(.removeFromWishlist(id))
-                    pendingDeleteId = nil
-                }
-            }
-            Button("취소", role: .cancel) { pendingDeleteId = nil }
-        }
-    }
-
-    private var edgeBackSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 20, coordinateSpace: .local)
-            .onEnded { value in
-                guard !store.isGenerating else { return }
-                guard value.startLocation.x <= 24 else { return }
-                guard value.translation.width > 70, abs(value.translation.height) < 50 else { return }
-                Haptics.impact(.light)
-                shouldDismissAfterCancel = true
-                showCancelGenerationConfirm = true
-            }
     }
 
     // MARK: - Location
@@ -167,15 +118,22 @@ public struct CourseGenerateView: View {
                         }
 
                         if store.selectedLocations.count < 3 {
-                            HStack(spacing: 6) {
-                                TextField(
-                                    store.selectedLocations.isEmpty ? "홍대, 강남, 사당역..." : "장소 추가...",
-                                    text: $store.locationQuery
-                                )
-                                .font(Typography.body.weight(.medium))
-                                .focused($locationFocused)
-                                if store.isSearchingLocation {
-                                    ProgressView().scaleEffect(0.7)
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 6) {
+                                    TextField(
+                                        store.selectedLocations.isEmpty ? "홍대, 강남, 사당역..." : "동네 추가 입력...",
+                                        text: $store.locationQuery
+                                    )
+                                    .font(Typography.body.weight(.medium))
+                                    .focused($locationFocused)
+                                    if store.isSearchingLocation {
+                                        ProgressView().scaleEffect(0.7)
+                                    }
+                                }
+                                if store.selectedLocations.isEmpty {
+                                    Text("정확한 코스를 위해 검색 결과에서 동네를 선택해주세요")
+                                        .font(Typography.caption2)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
@@ -261,7 +219,7 @@ public struct CourseGenerateView: View {
                     .font(Typography.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                DatePicker("", selection: $store.date, in: Date()..., displayedComponents: .date)
+                DatePicker("", selection: $store.date, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .labelsHidden()
                     .environment(\.locale, Locale(identifier: "ko_KR"))
@@ -269,9 +227,9 @@ public struct CourseGenerateView: View {
             }
             let daysFromNow = Calendar.current.dateComponents([.day], from: Date(), to: store.date).day ?? 0
             HStack(spacing: 4) {
-                Image(systemName: daysFromNow <= 4 ? "cloud.sun.fill" : "thermometer.medium")
+                Image(systemName: daysFromNow >= 0 && daysFromNow <= 4 ? "cloud.sun.fill" : "thermometer.medium")
                     .font(.caption2)
-                Text(daysFromNow <= 4 ? "실제 날씨 예보가 코스에 반영돼요" : "계절 기반으로 반영돼요")
+                Text(daysFromNow >= 0 && daysFromNow <= 4 ? "실제 날씨 예보가 코스에 반영돼요" : "계절 기반으로 반영돼요")
                     .font(Typography.caption2)
             }
             .foregroundStyle(.secondary)
@@ -291,25 +249,25 @@ public struct CourseGenerateView: View {
                 Spacer()
                 HStack(spacing: Spacing.lg) {
                     Button {
-                        if store.placeCount > 2 {
+                        if store.placeCount > 1 {
                             store.send(.binding(.set(\.placeCount, store.placeCount - 1)))
                         }
                     } label: {
                         Image(systemName: "minus.circle.fill")
                             .font(.system(size: 28))
-                            .foregroundStyle(store.placeCount > 2 ? Brand.pink : Color(.tertiaryLabel))
+                            .foregroundStyle(store.placeCount > 1 ? Brand.pink : Color(.tertiaryLabel))
                     }
                     Text("\(store.placeCount)")
                         .font(.system(.title2, design: .rounded, weight: .bold))
                         .frame(minWidth: 24)
                     Button {
-                        if store.placeCount < 6 {
+                        if store.placeCount < 5 {
                             store.send(.binding(.set(\.placeCount, store.placeCount + 1)))
                         }
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 28))
-                            .foregroundStyle(store.placeCount < 6 ? Brand.pink : Color(.tertiaryLabel))
+                            .foregroundStyle(store.placeCount < 5 ? Brand.pink : Color(.tertiaryLabel))
                     }
                 }
             }
@@ -336,9 +294,10 @@ public struct CourseGenerateView: View {
                     .foregroundStyle(.secondary)
                 }
             }
+            let visibleThemes = showAllThemes ? availableThemes : Array(availableThemes.prefix(6))
             let columns = [GridItem(.adaptive(minimum: 78))]
             LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(availableThemes) { option in
+                ForEach(visibleThemes) { option in
                     let selected = store.selectedThemes.contains(option.name)
                     Button {
                         Haptics.selection()
@@ -374,6 +333,24 @@ public struct CourseGenerateView: View {
                 }
             }
             .padding(.leading, 0)
+            if availableThemes.count > 6 {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showAllThemes.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(showAllThemes ? "접기" : "더 보기")
+                        Image(systemName: showAllThemes ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .font(Typography.caption.weight(.semibold))
+                    .foregroundStyle(Brand.pink)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -383,7 +360,7 @@ public struct CourseGenerateView: View {
         FormCard {
             HStack(spacing: Spacing.md) {
                 iconBadge("bookmark.fill", color: Brand.iconOrange)
-                Text("찜한 장소 포함")
+                Text("가고 싶은 곳 참고하기")
                     .font(Typography.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -409,7 +386,8 @@ public struct CourseGenerateView: View {
                             Haptics.selection()
                             store.send(.toggleWishlistPlace(place.id))
                         } onDelete: {
-                            pendingDeleteId = place.id
+                            Haptics.selection()
+                            store.send(.toggleWishlistPlace(place.id))
                         }
                     }
                 }
@@ -418,7 +396,7 @@ public struct CourseGenerateView: View {
             .padding(.leading, 44)
 
             if store.selectedWishlistIds.count >= 3 {
-                Text("최대 3개 선택됐어요. 변경하려면 선택을 해제해주세요.")
+                    Text("최대 3개 선택됐어요. 변경하려면 선택을 해제해주세요.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .padding(.top, 2)
@@ -442,7 +420,7 @@ public struct CourseGenerateView: View {
                     Text("요청사항")
                         .font(Typography.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    TextField("실내 위주로, 예산 10만원, 프로포즈 예정...", text: $store.memo, axis: .vertical)
+                    TextField("예: 술집은 빼줘, 비 와서 실내 위주로, 너무 비싼 곳은 싫어", text: $store.memo, axis: .vertical)
                         .font(Typography.body)
                         .lineLimit(2...4)
                 }
@@ -463,17 +441,17 @@ public struct CourseGenerateView: View {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 16, weight: .semibold))
-                    Text("코스 생성하기")
+                    Text(store.placeCount == 1 ? "장소 추천받기" : "코스 만들기")
                         .font(Typography.body.weight(.bold))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.md)
-                .background(store.selectedLocations.isEmpty ? Color(.tertiaryLabel) : Brand.pink)
+                .background(canGenerate ? Brand.pink : Color(.tertiaryLabel))
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: store.selectedLocations.isEmpty ? .clear : Brand.pink.opacity(0.35), radius: 12, x: 0, y: 4)
+                .shadow(color: canGenerate ? Brand.pink.opacity(0.35) : .clear, radius: 12, x: 0, y: 4)
             }
-            .disabled(store.selectedLocations.isEmpty)
+            .disabled(!canGenerate)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.sm)
             .padding(.bottom, Spacing.lg)
@@ -521,14 +499,16 @@ private struct WishlistChip: View {
             .buttonStyle(.plain)
             .foregroundStyle(selected ? Brand.pink : (disabled ? Color(.tertiaryLabel) : .primary))
 
-            Button(action: selected ? onTap : onDelete) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(selected ? Brand.pink.opacity(0.7) : Color(.tertiaryLabel))
-                    .padding(.trailing, 8)
-                    .padding(.vertical, 7)
+            if selected {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Brand.pink.opacity(0.7))
+                        .padding(.trailing, 8)
+                        .padding(.vertical, 7)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .background(selected ? Brand.softPink : Color(.tertiarySystemFill))
         .clipShape(Capsule())
