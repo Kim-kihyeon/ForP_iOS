@@ -42,6 +42,7 @@ public struct AnniversaryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -165,19 +166,57 @@ public struct AnniversaryView: View {
 
     private var editSheet: some View {
         NavigationStack {
-            Form {
-                Section("이름") {
-                    TextField("예: 사귄 날, 첫 만남", text: $store.editingName)
-                }
-                Section("날짜") {
-                    DatePicker("", selection: $store.editingDate, displayedComponents: .date)
-                        .datePickerStyle(.graphical)
-                        .environment(\.locale, Locale(identifier: "ko_KR"))
-                        .labelsHidden()
+            ZStack {
+                Color(.systemGroupedBackground).ignoresSafeArea()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("이름")
+                                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 4)
+
+                            HStack(spacing: Spacing.md) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Brand.pink.opacity(0.12))
+                                        .frame(width: 36, height: 36)
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundStyle(Brand.pink)
+                                }
+                                TextField("예: 사귄 날, 첫 만남", text: $store.editingName)
+                                    .font(Typography.body)
+                            }
+                            .padding(Spacing.md)
+                            .cardStyle()
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("날짜")
+                                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 4)
+
+                            DatePicker("", selection: $store.editingDate, displayedComponents: .date)
+                                .datePickerStyle(.graphical)
+                                .environment(\.locale, Locale(identifier: "ko_KR"))
+                                .labelsHidden()
+                                .tint(Brand.pink)
+                                .padding(Spacing.sm)
+                                .cardStyle()
+                        }
+                    }
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.md)
                 }
             }
             .navigationTitle(store.editingId == nil ? "기념일 추가" : "기념일 수정")
             .navigationBarTitleDisplayMode(.inline)
+            .tint(Brand.pink)
+            .toolbarBackground(Brand.softPink, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("취소") { store.send(.cancelTapped) }
@@ -185,6 +224,7 @@ public struct AnniversaryView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("저장") { store.send(.saveTapped) }
                         .disabled(store.editingName.isEmpty)
+                        .fontWeight(.semibold)
                 }
             }
         }

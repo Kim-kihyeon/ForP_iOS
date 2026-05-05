@@ -14,44 +14,75 @@ public struct DefaultChecklistManageView: View {
 
             List {
                 Section {
-                    ForEach(items, id: \.self) { item in
-                        Text(item)
-                            .font(Typography.body)
-                    }
-                    .onDelete { offsets in
-                        items.remove(atOffsets: offsets)
-                        ChecklistStorage.save(items)
-                    }
-                    .onMove { source, destination in
-                        items.move(fromOffsets: source, toOffset: destination)
-                        ChecklistStorage.save(items)
+                    if items.isEmpty {
+                        HStack {
+                            Spacer()
+                            VStack(spacing: 8) {
+                                Image(systemName: "checklist")
+                                    .font(.system(size: 28, weight: .light))
+                                    .foregroundStyle(Color(.tertiaryLabel))
+                                Text("준비물을 추가해보세요")
+                                    .font(Typography.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 20)
+                            Spacer()
+                        }
+                        .listRowBackground(Color.clear)
+                    } else {
+                        ForEach(items, id: \.self) { item in
+                            HStack(spacing: Spacing.md) {
+                                Image(systemName: "circle")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(Color(.tertiaryLabel))
+                                Text(item)
+                                    .font(Typography.body)
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        .onDelete { offsets in
+                            items.remove(atOffsets: offsets)
+                            ChecklistStorage.save(items)
+                        }
+                        .onMove { source, destination in
+                            items.move(fromOffsets: source, toOffset: destination)
+                            ChecklistStorage.save(items)
+                        }
                     }
                 } header: {
                     Text("기본 준비물")
+                        .font(.system(.caption, design: .rounded, weight: .semibold))
                 }
+                .listRowBackground(Color(.secondarySystemGroupedBackground))
 
                 Section {
                     HStack(spacing: 10) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(newItem.isEmpty ? Color(.tertiaryLabel) : Brand.pink)
                         TextField("새 항목 추가", text: $newItem)
                             .font(Typography.body)
                             .focused($isInputFocused)
                             .submitLabel(.done)
                             .onSubmit { addItem() }
-                        Button { addItem() } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 22))
-                                .foregroundStyle(newItem.isEmpty ? Color(.systemFill) : Brand.pink)
+                        if !newItem.isEmpty {
+                            Button("추가") { addItem() }
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Brand.pink)
                         }
-                        .disabled(newItem.isEmpty)
                     }
+                    .padding(.vertical, 2)
                 }
+                .listRowBackground(Color(.secondarySystemGroupedBackground))
             }
             .scrollDismissesKeyboard(.interactively)
+            .scrollContentBackground(.hidden)
         }
         .navigationTitle("기본 준비물 관리")
         .navigationBarTitleDisplayMode(.inline)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 EditButton().tint(Brand.pink)

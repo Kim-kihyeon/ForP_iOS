@@ -81,6 +81,7 @@ public struct ProfileView: View {
         }
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 

@@ -81,6 +81,7 @@ public struct PartnerView: View {
         }
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 
@@ -239,7 +240,7 @@ public struct PartnerView: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(.caption2, design: .default, weight: .semibold))
+            .font(.system(.caption2, design: .rounded, weight: .semibold))
             .foregroundStyle(.secondary)
             .padding(.leading, 4)
     }

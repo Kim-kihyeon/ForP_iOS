@@ -36,6 +36,7 @@ public struct WishlistManageView: View {
         .navigationBarTitleDisplayMode(.inline)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             EditButton()
                 .tint(Brand.pink)
@@ -54,35 +55,35 @@ public struct WishlistManageView: View {
         HStack(spacing: Spacing.md) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(
-                        RadialGradient(
-                            colors: [Brand.softPink, Brand.pink.opacity(0.12)],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 18
-                        )
-                    )
-                    .frame(width: 36, height: 36)
+                    .fill(Brand.softPink)
+                    .frame(width: 40, height: 40)
                 Image(systemName: categoryIcon(place.category))
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(Brand.pink)
             }
-            .shadow(color: Brand.pink.opacity(0.15), radius: 6, x: 0, y: 2)
             VStack(alignment: .leading, spacing: 3) {
                 Text(place.placeName ?? place.keyword)
-                    .font(Typography.body.weight(.medium))
-                Text(place.category)
+                    .font(Typography.body.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(shortCategory(place.category))
                     .font(Typography.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.pink.opacity(0.8))
                 if let address = place.address, !address.isEmpty {
                     Text(address)
                         .font(Typography.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
+            Spacer()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+    }
+
+    private func shortCategory(_ category: String) -> String {
+        category.split(separator: ">").last
+            .map { String($0).trimmingCharacters(in: .whitespaces) }
+            ?? category
     }
 
     private var errorView: some View {

@@ -50,6 +50,7 @@ public struct PartnerConnectionView: View {
         .navigationBarTitleDisplayMode(.inline)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .onAppear { store.send(.onAppear) }
         .alert($store.scope(state: \.alert, action: \.alert))
     }

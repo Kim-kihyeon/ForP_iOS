@@ -21,7 +21,6 @@ public struct SettingsView: View {
                     VStack(spacing: 12) {
                         coupleSection
                         wishlistSection
-                        insightSection
                         notificationSection
                         accountSection
                     }
@@ -55,22 +54,26 @@ public struct SettingsView: View {
     private var brandHeader: some View {
         ZStack {
             LinearGradient(
-                colors: [Brand.pink.opacity(0.9), Brand.pink.opacity(0.55), Brand.iconOrange.opacity(0.4)],
+                colors: [
+                    Color(red: 0.90, green: 0.15, blue: 0.35),
+                    Brand.pink,
+                    Color(red: 1.0, green: 0.58, blue: 0.38)
+                ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
             Circle()
-                .fill(Color.white.opacity(0.12))
+                .fill(Color.white.opacity(0.1))
                 .frame(width: 200, height: 200)
-                .blur(radius: 60)
-                .offset(x: 80, y: -60)
+                .blur(radius: 50)
+                .offset(x: 100, y: -70)
 
             Circle()
                 .fill(Color.white.opacity(0.07))
                 .frame(width: 140, height: 140)
-                .blur(radius: 40)
-                .offset(x: -70, y: 50)
+                .blur(radius: 36)
+                .offset(x: -60, y: 60)
 
             HStack(spacing: Spacing.md) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -84,7 +87,7 @@ public struct SettingsView: View {
                 Spacer()
                 Image(systemName: "heart.fill")
                     .font(.system(size: 44))
-                    .foregroundStyle(.white.opacity(0.20))
+                    .foregroundStyle(.white.opacity(0.35))
             }
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.md)
@@ -97,7 +100,7 @@ public struct SettingsView: View {
 
     private var coupleSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("COUPLE")
+            sectionLabel("커플")
 
             FormCard {
                 if store.isLoadingPartner {
@@ -219,7 +222,7 @@ public struct SettingsView: View {
 
     private var wishlistSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("WISHLIST")
+            sectionLabel("내 기록")
 
             FormCard {
                 settingRow(
@@ -239,18 +242,12 @@ public struct SettingsView: View {
                 ) {
                     store.send(.checklistTapped)
                 }
-            }
-        }
-    }
 
-    private var insightSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("INSIGHT")
+                Divider().padding(.leading, 52)
 
-            FormCard {
                 settingRow(
-                    icon: "sparkles",
-                    iconColor: Brand.pink,
+                    icon: "map.fill",
+                    iconColor: Brand.iconBlue,
                     title: "취향 지도"
                 ) {
                     store.send(.tasteMapTapped)
@@ -261,7 +258,7 @@ public struct SettingsView: View {
 
     private var notificationSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("NOTIFICATIONS")
+            sectionLabel("알림")
 
             FormCard {
                 notificationToggleRow(
@@ -322,7 +319,7 @@ public struct SettingsView: View {
 
     private var accountSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionLabel("ACCOUNT")
+            sectionLabel("계정")
 
             FormCard {
                 settingRow(
