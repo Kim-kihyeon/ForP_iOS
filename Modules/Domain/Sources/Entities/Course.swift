@@ -141,6 +141,8 @@ public struct CourseOptions: Equatable {
     public var excludedPlaces: [CoursePlace]
     public var isRandom: Bool
 
+    public var learnedPreferences: LearnedPreferences?
+
     public init(
         location: String,
         themes: [String],
@@ -154,7 +156,8 @@ public struct CourseOptions: Equatable {
         searchRadius: Int = 2000,
         lockedPlaces: [CoursePlace] = [],
         excludedPlaces: [CoursePlace] = [],
-        isRandom: Bool = false
+        isRandom: Bool = false,
+        learnedPreferences: LearnedPreferences? = nil
     ) {
         self.location = location
         self.themes = themes
@@ -169,5 +172,87 @@ public struct CourseOptions: Equatable {
         self.lockedPlaces = lockedPlaces
         self.excludedPlaces = excludedPlaces
         self.isRandom = isRandom
+        self.learnedPreferences = learnedPreferences
     }
+}
+
+// MARK: - Learned Preferences
+
+public struct LearnedPreferences: Equatable, Sendable {
+    /// 전체 코스에서 자주 등장한 카테고리 (빈도 순)
+    public var frequentCategories: [String]
+    /// 별점 4+, 즐겨찾기, 데이트 완료 코스에서 추출한 선호 카테고리
+    public var stronglyLikedCategories: [String]
+    /// 별점 2 이하 코스에서 추출한 비선호 카테고리
+    public var impliedDislikedCategories: [String]
+    /// 실제 데이트 완료 횟수
+    public var completedDateCount: Int
+
+    public static let empty = LearnedPreferences(
+        frequentCategories: [], stronglyLikedCategories: [],
+        impliedDislikedCategories: [], completedDateCount: 0
+    )
+
+    public var isEmpty: Bool {
+        frequentCategories.isEmpty && stronglyLikedCategories.isEmpty && impliedDislikedCategories.isEmpty
+    }
+
+    public init(
+        frequentCategories: [String],
+        stronglyLikedCategories: [String],
+        impliedDislikedCategories: [String],
+        completedDateCount: Int
+    ) {
+        self.frequentCategories = frequentCategories
+        self.stronglyLikedCategories = stronglyLikedCategories
+        self.impliedDislikedCategories = impliedDislikedCategories
+        self.completedDateCount = completedDateCount
+    }
+}
+
+extension Array where Element == Course {
+    public func learnedPreferences() -> LearnedPreferences {
+        guard !isEmpty else { return .empty }
+
+        var freqMap: [String: Int] = [:]
+        var likedMap: [String: Int] = [:]
+        var dislikedMap: [String: Int] = [:]
+        var completedCount = 0
+
+        for course in self {
+            let cats = course.places.compactMap { _shortCategory($0.category) }
+            for cat in cats { freqMap[cat, default: 0] += 1 }
+
+            let rating = course.rating ?? course.partnerRating
+            let isPositive = course.isLiked || course.isEnded || (rating ?? 0) >= 4
+            let isNegative = rating != nil && rating! <= 2
+            if course.isEnded { completedCount += 1 }
+
+            for cat in cats {
+                if isPositive { likedMap[cat, default: 0] += 1 }
+                if isNegative { dislikedMap[cat, default: 0] += 1 }
+            }
+        }
+
+        let frequent: [String] = freqMap.sorted { $0.value > $1.value }.prefix(5).map(\.key)
+        let liked: [String] = likedMap.sorted { $0.value > $1.value }.prefix(3).map(\.key)
+        let disliked: [String] = dislikedMap.sorted { $0.value > $1.value }.prefix(3).map(\.key)
+            .filter { !liked.contains($0) }
+
+        return LearnedPreferences(
+            frequentCategories: frequent,
+            stronglyLikedCategories: liked,
+            impliedDislikedCategories: disliked,
+            completedDateCount: completedCount
+        )
+    }
+}
+
+private func _shortCategory(_ category: String) -> String? {
+    let name = category
+        .split(separator: ">")
+        .last
+        .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+        ?? category.trimmingCharacters(in: .whitespacesAndNewlines)
+    return name.isEmpty ? nil : name
 }

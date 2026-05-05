@@ -21,10 +21,12 @@ public struct CourseGenerateFeature {
         public var errorMessage: String? = nil
         public var wishlistPlaces: [WishlistPlace] = []
         public var selectedWishlistIds: Set<UUID> = []
+        public var learnedPreferences: LearnedPreferences? = nil
 
-        public init(user: User, partner: Partner? = nil) {
+        public init(user: User, partner: Partner? = nil, learnedPreferences: LearnedPreferences? = nil) {
             self.user = user
             self.partner = partner
+            self.learnedPreferences = learnedPreferences
             let savedLocation = user.location.trimmingCharacters(in: .whitespacesAndNewlines)
             if !savedLocation.isEmpty {
                 self.selectedLocations = [
@@ -198,7 +200,8 @@ public struct CourseGenerateFeature {
                     baseLatitude: baseLat,
                     baseLongitude: baseLon,
                     searchRadius: searchRadius,
-                    isRandom: state.isRandom
+                    isRandom: state.isRandom,
+                    learnedPreferences: state.learnedPreferences
                 )
                 return .run { [options, user = state.user, partner = state.partner] send in
                     await send(.generateResponse(
@@ -235,7 +238,8 @@ public struct CourseGenerateFeature {
                     baseLatitude: baseLat,
                     baseLongitude: baseLon,
                     searchRadius: searchRadius,
-                    isRandom: state.isRandom
+                    isRandom: state.isRandom,
+                    learnedPreferences: state.learnedPreferences
                 )
                 return .send(.delegate(.courseGenerated(plan, options)))
 
