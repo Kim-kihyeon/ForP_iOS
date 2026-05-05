@@ -202,6 +202,14 @@ public struct CourseResultView: View {
                 }
             }
             .frame(height: 280)
+            .clipShape(
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 0,
+                    bottomLeadingRadius: 16,
+                    bottomTrailingRadius: 16,
+                    topTrailingRadius: 0
+                )
+            )
             .onAppear {
                 mapCameraPosition = .region(mapRegion(for: coords))
             }
