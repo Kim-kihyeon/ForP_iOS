@@ -18,7 +18,12 @@ struct TasteMapView: View {
         var counts: [String: Int] = [:]
         for course in courses {
             for place in course.places {
-                counts[place.category, default: 0] += 1
+                for cat in allCategories {
+                    if place.category.contains(cat.name) {
+                        counts[cat.name, default: 0] += 1
+                        break
+                    }
+                }
             }
         }
         return counts
@@ -38,8 +43,22 @@ struct TasteMapView: View {
     private var insightText: String {
         let visited = sortedCategories.filter { $0.count > 0 }
         guard !visited.isEmpty else { return "아직 데이트 기록이 없어요" }
-        let top = visited.prefix(2).map { $0.name }.joined(separator: "과 ")
-        return "\(top)를 가장 자주 찾았어요"
+        if visited.count == 1 {
+            let eul = endsWithConsonant(visited[0].name) ? "을" : "를"
+            return "\(visited[0].name)\(eul) 가장 자주 찾았어요"
+        }
+        let first = visited[0].name
+        let second = visited[1].name
+        let connector = endsWithConsonant(first) ? "과 " : "와 "
+        let eul = endsWithConsonant(second) ? "을" : "를"
+        return "\(first)\(connector)\(second)\(eul) 가장 자주 찾았어요"
+    }
+
+    private func endsWithConsonant(_ str: String) -> Bool {
+        guard let last = str.unicodeScalars.last else { return false }
+        let code = last.value
+        guard code >= 0xAC00, code <= 0xD7A3 else { return false }
+        return (code - 0xAC00) % 28 != 0
     }
 
     var body: some View {
