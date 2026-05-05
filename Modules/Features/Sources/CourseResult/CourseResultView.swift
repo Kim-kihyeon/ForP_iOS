@@ -61,7 +61,8 @@ public struct CourseResultView: View {
                     visitedOrders: store.visitedOrders,
                     onVisit: { store.send(.placeVisited($0)) },
                     onDismiss: { store.send(.liveMapDismissed) },
-                    onStop: { store.send(.stopPlayTapped) }
+                    onStop: { store.send(.stopPlayTapped) },
+                    onSwap: store.course.candidates.isEmpty ? nil : { store.send(.swapNextPlace) }
                 )
                 .ignoresSafeArea()
             }
@@ -402,11 +403,15 @@ public struct CourseResultView: View {
             VStack(alignment: .leading, spacing: 8) {
                 requestSummaryRow(icon: "mappin.and.ellipse", text: options.location)
                 requestSummaryRow(icon: "number", text: "\(options.placeCount)곳")
-                if !options.themes.isEmpty {
-                    requestSummaryRow(icon: "sparkles", text: options.themes.joined(separator: " · "))
-                }
-                if !options.memo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    requestSummaryRow(icon: "text.alignleft", text: options.memo)
+                if options.isRandom {
+                    requestSummaryRow(icon: "dice", text: "완전 랜덤")
+                } else {
+                    if !options.themes.isEmpty {
+                        requestSummaryRow(icon: "sparkles", text: options.themes.joined(separator: " · "))
+                    }
+                    if !options.memo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        requestSummaryRow(icon: "text.alignleft", text: options.memo)
+                    }
                 }
             }
         }
@@ -1298,13 +1303,20 @@ private struct CourseShareCard: View {
                                     .foregroundStyle(.white)
                                     .lineLimit(1)
                                 Spacer()
-                                Text(place.category)
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.75))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(.white.opacity(0.18))
-                                    .clipShape(Capsule())
+                                let shortCategory = place.category
+                                    .split(separator: ">")
+                                    .last
+                                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                                    ?? place.category
+                                if !shortCategory.isEmpty {
+                                    Text(shortCategory)
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(.white.opacity(0.75))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(.white.opacity(0.18))
+                                        .clipShape(Capsule())
+                                }
                             }
                         }
                         if course.places.count > 5 {
