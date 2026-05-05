@@ -33,6 +33,8 @@ public struct HomeFeature {
         public var isLoadingMonthly = false
         public var showTasteMap = false
         public var showCalendar = false
+        public var isQuickGenerating = false
+        public var pendingQuickGenerateThemes: [String] = []
         @Presents public var alert: AlertState<Action.Alert>?
 
         public init(user: User) {
@@ -49,6 +51,10 @@ public struct HomeFeature {
         case loadAnniversariesResponse(Result<[Anniversary], Error>)
         case loadWeatherResponse(Result<WeatherInfo, Error>)
         case generateCourseTapped
+        case quickGenerateTapped([String])
+        case quickGenerateResponse(Result<CoursePlan, Error>)
+        case quickCourseReadyToShow(Course, CourseOptions)
+        case cancelQuickGenerate
         case courseReadyToShow(Course, String?, CourseOptions)
         case redateCourseReady(Course)
         case courseSelected(Course)
@@ -78,6 +84,7 @@ public struct HomeFeature {
     @Dependency(\.weatherService) var weatherService: any WeatherServiceProtocol
     @Dependency(\.placeRepository) var placeRepository
     @Dependency(\.courseRepository) var courseRepository: any CourseRepositoryProtocol
+    @Dependency(\.generateCourseUseCase) var generateCourseUseCase
 
     public init() {}
 
@@ -215,6 +222,81 @@ public struct HomeFeature {
 
             case .generateCourseTapped:
                 state.path.append(.courseGenerate(CourseGenerateFeature.State(user: state.user, partner: state.partner)))
+                return .none
+
+            case .quickGenerateTapped(let themes):
+                guard !state.isQuickGenerating else { return .none }
+                let location = state.user.location.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !location.isEmpty else { return .none }
+                state.isQuickGenerating = true
+                state.pendingQuickGenerateThemes = themes
+                let options = CourseOptions(
+                    location: location,
+                    themes: themes,
+                    placeCount: 3,
+                    mode: .ordered
+                )
+                return .run { [user = state.user, partner = state.partner] send in
+                    await send(.quickGenerateResponse(
+                        Result { try await generateCourseUseCase.execute(user: user, partner: partner, options: options) }
+                    ))
+                }
+                .cancellable(id: "quickCourseGeneration", cancelInFlight: true)
+
+            case .quickGenerateResponse(.success(let plan)):
+                state.isQuickGenerating = false
+                let userId = state.user.id
+                let existingPartnerId = state.partner?.userId
+                let themes = state.pendingQuickGenerateThemes
+                let location = state.user.location
+                return .run { send in
+                    let partnerId: UUID?
+                    if let existing = existingPartnerId {
+                        partnerId = existing
+                    } else if let conn = try? await partnerConnectionRepository.fetchConnection(userId: userId) {
+                        partnerId = conn.partnerId(myUserId: userId)
+                    } else {
+                        partnerId = nil
+                    }
+                    let title = themes.isEmpty ? "\(location) 데이트" : "\(themes.joined(separator: "·")) \(location) 데이트"
+                    let course = Course(
+                        userId: userId,
+                        partnerId: partnerId,
+                        title: title,
+                        mode: .ordered,
+                        places: plan.places,
+                        candidates: plan.candidates,
+                        outfitSuggestion: plan.outfitSuggestion,
+                        courseReason: plan.courseReason
+                    )
+                    let options = CourseOptions(location: location, themes: themes, placeCount: 3, mode: .ordered)
+                    await send(.quickCourseReadyToShow(course, options))
+                }
+
+            case .quickGenerateResponse(.failure(let error)):
+                state.isQuickGenerating = false
+                state.alert = AlertState { TextState("코스 생성 실패") } actions: { ButtonState(role: .cancel) { TextState("확인") } } message: { TextState(error.localizedDescription) }
+                return .none
+
+            case .cancelQuickGenerate:
+                state.isQuickGenerating = false
+                state.pendingQuickGenerateThemes = []
+                return .cancel(id: "quickCourseGeneration")
+
+            case .quickCourseReadyToShow(let course, let options):
+                state.pendingQuickGenerateThemes = []
+                var resultState = CourseResultFeature.State(
+                    course: course,
+                    user: state.user,
+                    partner: state.partner,
+                    generationOptions: options
+                )
+                resultState.placeCountNote = course.places.count < options.placeCount
+                    ? course.candidates.isEmpty
+                        ? "요청한 \(options.placeCount)곳 중 \(course.places.count)곳만 찾았어요. 해당 지역에서 장소를 충분히 찾지 못했어요."
+                        : "요청한 \(options.placeCount)곳 중 \(course.places.count)곳만 찾았어요. 후보 장소에서 추가할 수 있어요."
+                    : nil
+                state.path.append(.courseResult(resultState))
                 return .none
 
             case .courseSelected(let course):
