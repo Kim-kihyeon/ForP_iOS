@@ -25,14 +25,23 @@ public struct CourseGenerateView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
                         locationSection
-                        themeSection
-                        placeCountSection
-                        memoSection
-                        if !store.wishlistPlaces.isEmpty {
-                            wishlistSection
+                        randomSection
+                        if store.isRandom {
+                            randomActiveCard
+                        } else {
+                            themeSection
+                                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+                            memoSection
+                                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+                            if !store.wishlistPlaces.isEmpty {
+                                wishlistSection
+                                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+                            }
                         }
+                        placeCountSection
                         dateSection
                     }
+                    .animation(.easeInOut(duration: 0.22), value: store.isRandom)
                     .padding(.horizontal, Spacing.md)
                     .padding(.top, Spacing.md)
                     .padding(.bottom, Spacing.sm)
@@ -209,6 +218,88 @@ public struct CourseGenerateView: View {
         .overlay { Capsule().stroke(Brand.pink.opacity(0.4), lineWidth: 1) }
     }
 
+    // MARK: - Random
+
+    private var randomSection: some View {
+        HStack(spacing: Spacing.md) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(store.isRandom ? Brand.iconPurple.opacity(0.18) : Brand.iconPurple.opacity(0.12))
+                    .frame(width: 36, height: 36)
+                Image(systemName: store.isRandom ? "dice.fill" : "dice")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Brand.iconPurple)
+                    .symbolEffect(.bounce, value: store.isRandom)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("완전 랜덤")
+                    .font(Typography.caption2.weight(.semibold))
+                    .foregroundStyle(store.isRandom ? Brand.iconPurple : .secondary)
+                Text(store.isRandom ? "AI가 취향 무시하고 재량껏 코스를 짤게요" : "취향 설정 없이 AI가 알아서 골라줘요")
+                    .font(.system(size: 11))
+                    .foregroundStyle(store.isRandom ? Brand.iconPurple.opacity(0.75) : .secondary)
+                    .animation(.none, value: store.isRandom)
+            }
+            Spacer()
+            Toggle("", isOn: $store.isRandom)
+                .labelsHidden()
+                .tint(Brand.iconPurple)
+        }
+        .padding(Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            store.isRandom
+                ? Brand.iconPurple.opacity(0.07)
+                : Color(.systemBackground)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    store.isRandom ? Brand.iconPurple.opacity(0.35) : Color.clear,
+                    lineWidth: 1.5
+                )
+        )
+        .shadow(
+            color: store.isRandom ? Brand.iconPurple.opacity(0.12) : .black.opacity(0.06),
+            radius: 8, x: 0, y: 2
+        )
+        .animation(.easeInOut(duration: 0.2), value: store.isRandom)
+    }
+
+    private var randomActiveCard: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Brand.iconPurple.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "wand.and.stars")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(Brand.iconPurple)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("AI가 전부 정할게요")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Brand.iconPurple)
+                Text("테마·요청사항·찜 목록 없이 완전 새로운 코스")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Brand.iconPurple.opacity(0.65))
+            }
+            Spacer()
+        }
+        .padding(Spacing.md)
+        .background(Brand.iconPurple.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Brand.iconPurple.opacity(0.25), lineWidth: 1)
+        )
+        .transition(.asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.97, anchor: .top)),
+            removal: .opacity.combined(with: .scale(scale: 0.97, anchor: .top))
+        ))
+    }
+
     // MARK: - Date
 
     private var dateSection: some View {
@@ -242,7 +333,7 @@ public struct CourseGenerateView: View {
     private var placeCountSection: some View {
         FormCard {
             HStack(spacing: Spacing.md) {
-                iconBadge("mappin.and.ellipse", color: Brand.iconPurple)
+                iconBadge("mappin.and.ellipse", color: Brand.pink)
                 Text("몇 곳?")
                     .font(Typography.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
