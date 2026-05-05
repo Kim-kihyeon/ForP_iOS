@@ -33,37 +33,51 @@ public struct CourseLoadingView: View {
 
     public var body: some View {
         ZStack {
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .ignoresSafeArea()
+            LinearGradient(
+                colors: [
+                    Color(red: 0.90, green: 0.15, blue: 0.35),
+                    Brand.pink,
+                    Color(red: 1.0, green: 0.58, blue: 0.38)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            Circle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 280)
+                .blur(radius: 60)
+                .offset(x: 100, y: -200)
+
+            Circle()
+                .fill(Color.white.opacity(0.06))
+                .frame(width: 200)
+                .blur(radius: 50)
+                .offset(x: -80, y: 200)
 
             VStack(spacing: 52) {
                 ZStack {
-                    rippleRing(scale: ring1, size: 140, color: Brand.pink.opacity(0.12))
-                    rippleRing(scale: ring2, size: 108, color: Brand.pink.opacity(0.20))
-                    rippleRing(scale: ring3, size: 84, color: Brand.pink.opacity(0.30))
+                    rippleRing(scale: ring1, size: 140, color: Color.white.opacity(0.12))
+                    rippleRing(scale: ring2, size: 108, color: Color.white.opacity(0.18))
+                    rippleRing(scale: ring3, size: 84, color: Color.white.opacity(0.25))
 
                     Circle()
-                        .fill(RadialGradient(
-                            colors: [Brand.softPink, Brand.pink.opacity(0.06)],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: 36
-                        ))
+                        .fill(Color.white.opacity(0.2))
                         .frame(width: 74, height: 74)
-                        .shadow(color: Brand.pink.opacity(0.28), radius: 20, x: 0, y: 6)
 
                     Image(systemName: "sparkles")
                         .font(.system(size: 30, weight: .medium))
-                        .foregroundStyle(Brand.pink)
+                        .foregroundStyle(.white)
                         .offset(y: iconOffset)
+                        .symbolEffect(.pulse.wholeSymbol)
                 }
                 .frame(width: 160, height: 160)
 
                 VStack(spacing: 14) {
                     Text(messages[messageIndex])
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .id(messageIndex)
                         .transition(.asymmetric(
@@ -73,12 +87,12 @@ public struct CourseLoadingView: View {
 
                     Text("AI가 맞춤 데이트 코스를 만들고 있어요")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.75))
 
                     HStack(spacing: 7) {
                         ForEach(0..<5, id: \.self) { i in
                             Capsule()
-                                .fill(i == messageIndex % 5 ? Brand.pink : Brand.pink.opacity(0.2))
+                                .fill(i == messageIndex % 5 ? Color.white : Color.white.opacity(0.3))
                                 .frame(width: i == messageIndex % 5 ? 22 : 6, height: 6)
                                 .animation(.spring(response: 0.4, dampingFraction: 0.7), value: messageIndex)
                         }

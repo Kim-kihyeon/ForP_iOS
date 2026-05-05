@@ -51,22 +51,22 @@ public struct CourseGenerateView: View {
             }
 
             if store.isGenerating {
-                ZStack(alignment: .bottom) {
-                    CourseLoadingView()
-                    Button {
-                        Haptics.impact(.light)
-                        showCancelGenerationConfirm = true
-                    } label: {
-                        Text("취소")
-                            .font(Typography.body.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, Spacing.xl)
-                            .padding(.vertical, Spacing.sm)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
+                CourseLoadingView()
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        Button {
+                            Haptics.impact(.light)
+                            showCancelGenerationConfirm = true
+                        } label: {
+                            Text("취소")
+                                .font(Typography.body.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.85))
+                                .padding(.horizontal, Spacing.xl)
+                                .padding(.vertical, Spacing.sm)
+                                .background(Color.white.opacity(0.18))
+                                .clipShape(Capsule())
+                        }
+                        .padding(.bottom, Spacing.xl)
                     }
-                    .padding(.bottom, 60)
-                }
             }
         }
         .hideKeyboardOnTap()
@@ -75,8 +75,10 @@ public struct CourseGenerateView: View {
         .navigationTitle("코스 만들기")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(store.isGenerating)
+        .toolbar(store.isGenerating ? .hidden : .visible, for: .navigationBar)
         .tint(Brand.pink)
         .toolbarBackground(Brand.softPink, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .alert("코스 생성을 중지할까요?", isPresented: $showCancelGenerationConfirm) {
             Button("중지", role: .destructive) {
                 store.send(.cancelGenerationTapped)
@@ -87,10 +89,10 @@ public struct CourseGenerateView: View {
         }
         .alert("코스 생성 실패", isPresented: Binding(
             get: { store.errorMessage != nil },
-            set: { if !$0 { store.send(.binding(.set(\.errorMessage, nil))) } }
+            set: { if !$0 { store.send(.cancelGenerationTapped) } }
         )) {
             Button("다시 시도") { store.send(.retryTapped) }
-            Button("취소", role: .cancel) { store.send(.binding(.set(\.errorMessage, nil))) }
+            Button("취소", role: .cancel) { store.send(.cancelGenerationTapped) }
         } message: {
             Text(store.errorMessage ?? "")
         }
@@ -522,32 +524,28 @@ public struct CourseGenerateView: View {
     // MARK: - Generate Button
 
     private var generateButtonBar: some View {
-        VStack(spacing: 0) {
-            Divider().opacity(0.5)
-            Button {
-                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                Haptics.impact(.medium)
-                store.send(.generateTapped)
-            } label: {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text(store.placeCount == 1 ? "장소 추천받기" : "코스 만들기")
-                        .font(Typography.body.weight(.bold))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Spacing.md)
-                .background(canGenerate ? Brand.pink : Color(.tertiaryLabel))
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: canGenerate ? Brand.pink.opacity(0.35) : .clear, radius: 12, x: 0, y: 4)
+        Button {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            Haptics.impact(.medium)
+            store.send(.generateTapped)
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .semibold))
+                Text(store.placeCount == 1 ? "장소 추천받기" : "코스 만들기")
+                    .font(Typography.body.weight(.bold))
             }
-            .disabled(!canGenerate)
-            .padding(.horizontal, Spacing.lg)
-            .padding(.top, Spacing.sm)
-            .padding(.bottom, Spacing.lg)
-            .background(.ultraThinMaterial)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Spacing.md)
+            .background(canGenerate ? Brand.pink : Color(.tertiaryLabel))
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: canGenerate ? Brand.pink.opacity(0.35) : .clear, radius: 12, x: 0, y: 4)
         }
+        .disabled(!canGenerate)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm)
+        .background(.regularMaterial)
     }
 
     // MARK: - Helpers
