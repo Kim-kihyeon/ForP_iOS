@@ -132,7 +132,7 @@ struct MonthlyReportView: View {
             )
             statCard(
                 icon: "heart.text.square.fill",
-                iconColor: .orange,
+                iconColor: Brand.iconOrange,
                 label: "즐겨찾기",
                 value: "\(courses.filter { $0.isLiked }.count)개"
             )
@@ -255,7 +255,7 @@ struct MonthlyReportView: View {
             .padding(16)
             .background(
                 LinearGradient(
-                    colors: [Brand.softPink.opacity(0.5), Color(.systemBackground)],
+                    colors: [Brand.softPink, Color(.systemBackground)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )

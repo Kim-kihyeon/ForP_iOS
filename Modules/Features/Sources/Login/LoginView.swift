@@ -104,7 +104,7 @@ public struct LoginView: View {
                         .frame(height: 54)
                         .background(Brand.kakaoYellow)
                         .foregroundStyle(Color(red: 0.11, green: 0.09, blue: 0.09))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
                     .shadow(color: Brand.kakaoYellow.opacity(0.45), radius: 14, x: 0, y: 5)
 

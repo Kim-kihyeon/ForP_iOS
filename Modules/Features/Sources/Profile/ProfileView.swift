@@ -296,7 +296,7 @@ public struct ProfileView: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(.caption2, design: .default, weight: .semibold))
+            .font(.system(.caption2, design: .rounded, weight: .semibold))
             .foregroundStyle(.secondary)
             .padding(.leading, 4)
     }

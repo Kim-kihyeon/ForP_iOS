@@ -55,7 +55,7 @@ public struct SettingsView: View {
     private var brandHeader: some View {
         ZStack {
             LinearGradient(
-                colors: [Brand.pink.opacity(0.9), Brand.pink.opacity(0.55), Color(red: 1.0, green: 0.6, blue: 0.4).opacity(0.4)],
+                colors: [Brand.pink.opacity(0.9), Brand.pink.opacity(0.55), Brand.iconOrange.opacity(0.4)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -360,7 +360,7 @@ public struct SettingsView: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(.caption2, design: .default, weight: .semibold))
+            .font(.system(.caption2, design: .rounded, weight: .semibold))
             .foregroundStyle(.secondary)
             .padding(.leading, 4)
     }
