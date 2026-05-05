@@ -103,6 +103,7 @@ public struct CourseResultFeature {
         case confirmedPartialRegenerate
         case cancelPartialRegenerationTapped
         case partialRegenerateResponse(Result<CoursePlan, Error>)
+        case swapNextPlace
 
         public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate }
         public enum Delegate: Equatable {
@@ -549,6 +550,23 @@ public struct CourseResultFeature {
                     } message: {
                         TextState("고정한 장소를 유지한 채 다시 추천하지 못했어요. 잠시 후 다시 시도해주세요.")
                     }
+                }
+                return .none
+
+            case .swapNextPlace:
+                let sortedPlaces = state.course.places.sorted { $0.order < $1.order }
+                guard let next = sortedPlaces.first(where: { !state.visitedOrders.contains($0.order) }),
+                      !state.course.candidates.isEmpty,
+                      let placeIdx = state.course.places.firstIndex(where: { $0.order == next.order })
+                else { return .none }
+                var newPlace = state.course.candidates[0]
+                newPlace.order = next.order
+                let displaced = state.course.places[placeIdx]
+                state.course.places[placeIdx] = newPlace
+                state.course.candidates.removeFirst()
+                state.course.candidates.append(displaced)
+                state.course.candidates = state.course.candidates.enumerated().map { i, p in
+                    var updated = p; updated.order = i + 1; return updated
                 }
                 return .none
 

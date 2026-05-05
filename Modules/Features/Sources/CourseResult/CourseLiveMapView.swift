@@ -9,6 +9,7 @@ struct CourseLiveMapView: View {
     let onVisit: (Int) -> Void
     let onDismiss: () -> Void
     let onStop: () -> Void
+    let onSwap: (() -> Void)?
 
     @State private var position: MapCameraPosition = .automatic
 
@@ -127,6 +128,24 @@ struct CourseLiveMapView: View {
                             .lineLimit(1)
                     }
                     Spacer()
+                    if let onSwap {
+                        Button {
+                            Haptics.impact(.medium)
+                            onSwap()
+                        } label: {
+                            VStack(spacing: 2) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.system(size: 13, weight: .medium))
+                                Text("교체")
+                                    .font(.system(size: 10, weight: .semibold))
+                            }
+                            .foregroundStyle(Brand.pink)
+                            .padding(8)
+                            .background(Brand.softPink)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
                 HStack(spacing: 10) {
