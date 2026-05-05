@@ -42,6 +42,45 @@ public struct HomeView: View {
         }
         .onAppear { store.send(.onAppear) }
         .alert($store.scope(state: \.alert, action: \.alert))
+        .overlay {
+            if store.isQuickGenerating {
+                ZStack {
+                    Color.black.opacity(0.4).ignoresSafeArea()
+                    VStack(spacing: 20) {
+                        ZStack {
+                            Circle()
+                                .fill(Brand.softPink)
+                                .frame(width: 72, height: 72)
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 28, weight: .light))
+                                .foregroundStyle(Brand.pink)
+                        }
+                        VStack(spacing: 6) {
+                            Text("코스 만드는 중")
+                                .font(.system(size: 18, weight: .bold))
+                            Text("AI가 딱 맞는 장소를 고르고 있어요")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                        }
+                        ProgressView().tint(Brand.pink)
+                        Button {
+                            store.send(.cancelQuickGenerate)
+                        } label: {
+                            Text("취소")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 4)
+                    }
+                    .padding(36)
+                    .background(Color(.systemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 28))
+                    .shadow(color: .black.opacity(0.15), radius: 40, x: 0, y: 12)
+                    .padding(.horizontal, 44)
+                }
+            }
+        }
         .sheet(isPresented: Binding(
             get: { store.showMonthlyReport },
             set: { if !$0 { store.send(.monthlyReportDismissed) } }
@@ -77,36 +116,46 @@ public struct HomeView: View {
 
     // MARK: - Header
 
+    private var todayDateString: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.dateFormat = "M월 d일 EEEE"
+        return f.string(from: Date())
+    }
+
     private var headerSection: some View {
         VStack(spacing: 0) {
             HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("안녕하세요,")
-                        .font(Typography.caption)
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(todayDateString)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Brand.pink)
+                        .tracking(0.3)
                     Text(store.user.nickname)
-                        .font(.system(size: 26, weight: .bold, design: .default))
+                        .font(.system(size: 28, weight: .bold))
                 }
                 Spacer()
-                Button {
-                    store.send(.calendarTapped)
-                } label: {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 38, height: 38)
-                        .background(Color(.tertiarySystemFill))
-                        .clipShape(Circle())
-                }
-                Button {
-                    store.send(.settingsTapped)
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 38, height: 38)
-                        .background(Color(.tertiarySystemFill))
-                        .clipShape(Circle())
+                HStack(spacing: 6) {
+                    Button {
+                        store.send(.calendarTapped)
+                    } label: {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 38, height: 38)
+                            .background(Color(.tertiarySystemFill))
+                            .clipShape(Circle())
+                    }
+                    Button {
+                        store.send(.settingsTapped)
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 38, height: 38)
+                            .background(Color(.tertiarySystemFill))
+                            .clipShape(Circle())
+                    }
                 }
             }
             .padding(.horizontal, Spacing.lg)
@@ -126,10 +175,13 @@ public struct HomeView: View {
             .padding(.horizontal, Spacing.lg)
             .padding(.bottom, Spacing.md)
         }
-        .background(Color(.systemBackground))
-        .overlay(alignment: .bottom) {
-            Divider()
-        }
+        .background(
+            LinearGradient(
+                colors: [Brand.softPink, Color(.systemGroupedBackground)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 
     private func weatherStrip(_ weather: WeatherInfo) -> some View {
@@ -183,7 +235,7 @@ public struct HomeView: View {
                 courseListSection
             }
         }
-        .padding(.bottom, 100)
+        .padding(.bottom, 120)
     }
 
     // MARK: - Monthly Report Banner
@@ -193,25 +245,37 @@ public struct HomeView: View {
         return Button {
             store.send(.monthlyReportTapped)
         } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Brand.pink.opacity(0.12))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "chart.bar.fill")
-                        .font(.system(size: 14, weight: .medium))
+            HStack(spacing: 0) {
+                VStack(spacing: 1) {
+                    Text("\(month)")
+                        .font(.system(size: 24, weight: .black))
                         .foregroundStyle(Brand.pink)
+                    Text("월 리포트")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Brand.pink.opacity(0.7))
                 }
-                Text("\(month)월 데이트 리포트 보기")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.primary)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color(.tertiaryLabel))
+                .frame(width: 72)
+                .frame(maxHeight: .infinity)
+                .background(Brand.softPink)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("이번 달 데이트 돌아보기")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.primary)
+                        Text("장소 통계·방문 기록을 한눈에")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color(.tertiaryLabel))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
+                .background(Color(.systemBackground))
             }
-            .padding(12)
-            .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(.separator).opacity(colorScheme == .dark ? 1.0 : 0.5), lineWidth: 0.5))
             .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.04), radius: 6, x: 0, y: 2)
@@ -360,12 +424,12 @@ public struct HomeView: View {
             }
             .padding(12)
         }
-        .frame(width: 160, height: 110)
+        .frame(width: 160, height: 126)
         .background(
             LinearGradient(
-                colors: [Brand.softPink.opacity(0.35), Color(.systemBackground)],
+                colors: [Brand.softPink, Color(.systemBackground)],
                 startPoint: .top,
-                endPoint: .center
+                endPoint: .bottom
             )
         )
         .clipShape(RoundedRectangle(cornerRadius: 18))
@@ -390,15 +454,19 @@ public struct HomeView: View {
 
         return HStack(spacing: 14) {
             // 날짜 배지
-            VStack(spacing: 1) {
+            VStack(spacing: 0) {
                 Text(month)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Brand.pink)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+                    .background(Brand.pink.opacity(0.15))
                 Text(day)
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 22, weight: .black))
                     .foregroundStyle(.primary)
+                    .padding(.vertical, 6)
             }
-            .frame(width: 44, height: 52)
+            .frame(width: 44)
             .background(Brand.softPink)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
@@ -457,8 +525,12 @@ public struct HomeView: View {
         .padding(14)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(.separator).opacity(colorScheme == .dark ? 1.0 : 0.5), lineWidth: colorScheme == .dark ? 1.0 : 0.5))
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.05), radius: 8, x: 0, y: 2)
+        .overlay {
+            if colorScheme == .dark {
+                RoundedRectangle(cornerRadius: 20).stroke(Color(.separator), lineWidth: 1)
+            }
+        }
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.07), radius: 10, x: 0, y: 3)
     }
 
     // MARK: - Empty
@@ -517,31 +589,84 @@ public struct HomeView: View {
 
     // MARK: - Generate Button
 
+    private struct MoodOption {
+        let emoji: String
+        let label: String
+        let color: Color
+        let themes: [String]
+    }
+
+    private let moodOptions: [MoodOption] = [
+        MoodOption(emoji: "✨", label: "감성", color: Brand.iconPurple, themes: ["감성", "인스타감성"]),
+        MoodOption(emoji: "💕", label: "로맨틱", color: Brand.pink, themes: ["로맨틱", "분위기 있는"]),
+        MoodOption(emoji: "⚡️", label: "액티브", color: Brand.iconOrange, themes: ["야외", "액티브"]),
+        MoodOption(emoji: "🌿", label: "힐링", color: Brand.iconGreen, themes: ["조용한", "힐링"]),
+    ]
+
     private var generateButton: some View {
         VStack(spacing: 0) {
-            Divider().opacity(0.4)
-            Button {
-                Haptics.impact(.medium)
-                store.send(.generateCourseTapped)
-            } label: {
+            VStack(spacing: 8) {
                 HStack(spacing: 8) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 15, weight: .semibold))
-                    Text("코스 만들기")
-                        .font(.system(size: 16, weight: .bold))
+                    ForEach(moodOptions, id: \.label) { mood in
+                        moodChip(mood)
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
-                .background(Brand.pink)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .shadow(color: Brand.pink.opacity(0.35), radius: 12, x: 0, y: 4)
+                .padding(.horizontal, Spacing.lg)
+                Button {
+                    Haptics.impact(.medium)
+                    store.send(.generateCourseTapped)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("코스 만들기")
+                            .font(.system(size: 16, weight: .bold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+                    .background(Brand.pink)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: Brand.pink.opacity(0.35), radius: 12, x: 0, y: 4)
+                }
+                .padding(.horizontal, Spacing.lg)
             }
-            .padding(.horizontal, Spacing.lg)
             .padding(.top, 10)
             .padding(.bottom, Spacing.lg)
             .background(.ultraThinMaterial)
         }
+    }
+
+    private func moodChip(_ mood: MoodOption) -> some View {
+        Button {
+            Haptics.impact(.medium)
+            store.send(.quickGenerateTapped(mood.themes))
+        } label: {
+            VStack(spacing: 4) {
+                Text(mood.emoji)
+                    .font(.system(size: 20))
+                Text(mood.label)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(mood.color)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 11)
+            .background(
+                LinearGradient(
+                    colors: [mood.color.opacity(0.13), mood.color.opacity(0.05)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(mood.color.opacity(0.22), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(store.isQuickGenerating)
+        .opacity(store.isQuickGenerating ? 0.5 : 1)
     }
 
     // MARK: - Helpers
