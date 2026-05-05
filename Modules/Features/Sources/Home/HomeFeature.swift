@@ -35,6 +35,11 @@ public struct HomeFeature {
         public var showCalendar = false
         public var isQuickGenerating = false
         public var pendingQuickGenerateThemes: [String] = []
+        public var isEditingQuickLocation = false
+        public var quickLocationQuery = ""
+        public var quickLocationSuggestions: [CoursePlace] = []
+        public var isSearchingQuickLocation = false
+        public var quickLocationOverride: CoursePlace? = nil
         @Presents public var alert: AlertState<Action.Alert>?
 
         public init(user: User) {
@@ -55,6 +60,13 @@ public struct HomeFeature {
         case quickGenerateResponse(Result<CoursePlan, Error>)
         case quickCourseReadyToShow(Course, CourseOptions)
         case cancelQuickGenerate
+        case quickLocationEditTapped
+        case quickLocationQueryChanged(String)
+        case quickLocationSearchDebounced
+        case quickLocationSuggestionsLoaded([CoursePlace])
+        case quickLocationSuggestionSelected(CoursePlace)
+        case quickLocationCleared
+        case quickLocationEditDismissed
         case courseReadyToShow(Course, String?, CourseOptions)
         case redateCourseReady(Course)
         case courseSelected(Course)
@@ -62,6 +74,7 @@ public struct HomeFeature {
         case monthlyReportTapped
         case monthlyReportDismissed
         case loadMonthlyCoursesResponse(Result<[Course], Error>)
+        case tasteMapTapped
         case tasteMapDismissed
         case calendarTapped
         case calendarDismissed
@@ -200,6 +213,10 @@ public struct HomeFeature {
                 state.isLoadingMonthly = false
                 return .none
 
+            case .tasteMapTapped:
+                state.showTasteMap = true
+                return .none
+
             case .tasteMapDismissed:
                 state.showTasteMap = false
                 return .none
@@ -221,20 +238,36 @@ public struct HomeFeature {
                 return .none
 
             case .generateCourseTapped:
-                state.path.append(.courseGenerate(CourseGenerateFeature.State(user: state.user, partner: state.partner)))
+                let learned = state.recentCourses.learnedPreferences()
+                state.path.append(.courseGenerate(CourseGenerateFeature.State(
+                    user: state.user,
+                    partner: state.partner,
+                    learnedPreferences: learned.isEmpty ? nil : learned
+                )))
                 return .none
 
             case .quickGenerateTapped(let themes):
                 guard !state.isQuickGenerating else { return .none }
-                let location = state.user.location.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !location.isEmpty else { return .none }
+                let overridePlace = state.quickLocationOverride
+                let rawLocation = overridePlace.flatMap { $0.placeName ?? $0.keyword }
+                    ?? state.user.location
+                let location = rawLocation.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !location.isEmpty else {
+                    state.isEditingQuickLocation = true
+                    return .none
+                }
                 state.isQuickGenerating = true
+                state.isEditingQuickLocation = false
                 state.pendingQuickGenerateThemes = themes
+                let learned = state.recentCourses.learnedPreferences()
                 let options = CourseOptions(
                     location: location,
                     themes: themes,
                     placeCount: 3,
-                    mode: .ordered
+                    mode: .ordered,
+                    baseLatitude: overridePlace?.latitude,
+                    baseLongitude: overridePlace?.longitude,
+                    learnedPreferences: learned.isEmpty ? nil : learned
                 )
                 return .run { [user = state.user, partner = state.partner] send in
                     await send(.quickGenerateResponse(
@@ -282,6 +315,55 @@ public struct HomeFeature {
                 state.isQuickGenerating = false
                 state.pendingQuickGenerateThemes = []
                 return .cancel(id: "quickCourseGeneration")
+
+            case .quickLocationEditTapped:
+                state.isEditingQuickLocation = true
+                state.quickLocationQuery = ""
+                state.quickLocationSuggestions = []
+                return .none
+
+            case .quickLocationQueryChanged(let query):
+                state.quickLocationQuery = query
+                state.quickLocationSuggestions = []
+                guard query.count >= 2 else {
+                    state.isSearchingQuickLocation = false
+                    return .cancel(id: "quickLocationSearch")
+                }
+                state.isSearchingQuickLocation = true
+                return .run { send in
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                    await send(.quickLocationSearchDebounced)
+                }
+                .cancellable(id: "quickLocationSearch", cancelInFlight: true)
+
+            case .quickLocationSearchDebounced:
+                let query = state.quickLocationQuery
+                return .run { [placeRepository] send in
+                    let results = (try? await placeRepository.searchPlaces(keyword: query)) ?? []
+                    await send(.quickLocationSuggestionsLoaded(results))
+                }
+
+            case .quickLocationSuggestionsLoaded(let places):
+                state.isSearchingQuickLocation = false
+                state.quickLocationSuggestions = Array(places.prefix(5))
+                return .none
+
+            case .quickLocationSuggestionSelected(let place):
+                state.quickLocationOverride = place
+                state.isEditingQuickLocation = false
+                state.quickLocationQuery = ""
+                state.quickLocationSuggestions = []
+                return .cancel(id: "quickLocationSearch")
+
+            case .quickLocationCleared:
+                state.quickLocationOverride = nil
+                return .none
+
+            case .quickLocationEditDismissed:
+                state.isEditingQuickLocation = false
+                state.quickLocationQuery = ""
+                state.quickLocationSuggestions = []
+                return .cancel(id: "quickLocationSearch")
 
             case .quickCourseReadyToShow(let course, let options):
                 state.pendingQuickGenerateThemes = []

@@ -6,6 +6,8 @@ import Domain
 public struct HomeView: View {
     @Bindable var store: StoreOf<HomeFeature>
     @Environment(\.colorScheme) private var colorScheme
+    @FocusState private var quickLocationFocused: Bool
+    @State private var quickLocationText = ""
 
     public init(store: StoreOf<HomeFeature>) {
         self.store = store
@@ -18,15 +20,16 @@ public struct HomeView: View {
                     headerSection
                     contentSection
                 }
+                .animation(.easeInOut(duration: 0.2), value: store.isEditingQuickLocation)
             }
             .refreshable {
                 await store.send(.refresh).finish()
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                generateButton
+                generateBottomBar
             }
             .toolbar(.hidden, for: .navigationBar)
-            .background(Color(.systemGroupedBackground))
+            .background(Color(.systemBackground))
         } destination: { store in
             switch store.case {
             case .courseGenerate(let store): CourseGenerateView(store: store)
@@ -44,43 +47,14 @@ public struct HomeView: View {
         .alert($store.scope(state: \.alert, action: \.alert))
         .overlay {
             if store.isQuickGenerating {
-                ZStack {
-                    Color.black.opacity(0.4).ignoresSafeArea()
-                    VStack(spacing: 20) {
-                        ZStack {
-                            Circle()
-                                .fill(Brand.softPink)
-                                .frame(width: 72, height: 72)
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 28, weight: .light))
-                                .foregroundStyle(Brand.pink)
-                        }
-                        VStack(spacing: 6) {
-                            Text("코스 만드는 중")
-                                .font(.system(size: 18, weight: .bold))
-                            Text("AI가 딱 맞는 장소를 고르고 있어요")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.secondary)
-                        }
-                        ProgressView().tint(Brand.pink)
-                        Button {
-                            store.send(.cancelQuickGenerate)
-                        } label: {
-                            Text("취소")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.top, 4)
-                    }
-                    .padding(36)
-                    .background(Color(.systemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 28))
-                    .shadow(color: .black.opacity(0.15), radius: 40, x: 0, y: 12)
-                    .padding(.horizontal, 44)
-                }
+                QuickGenerateLoadingOverlay(
+                    themes: store.pendingQuickGenerateThemes,
+                    onCancel: { store.send(.cancelQuickGenerate) }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
             }
         }
+        .animation(.spring(response: 0.35), value: store.isQuickGenerating)
         .sheet(isPresented: Binding(
             get: { store.showMonthlyReport },
             set: { if !$0 { store.send(.monthlyReportDismissed) } }
@@ -124,161 +98,301 @@ public struct HomeView: View {
     }
 
     private var headerSection: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 18) {
             HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(todayDateString)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Brand.pink)
-                        .tracking(0.3)
                     Text(store.user.nickname)
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 22, weight: .bold))
                 }
                 Spacer()
-                HStack(spacing: 6) {
-                    Button {
-                        store.send(.calendarTapped)
-                    } label: {
-                        Image(systemName: "calendar")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 38, height: 38)
-                            .background(Color(.tertiarySystemFill))
-                            .clipShape(Circle())
-                    }
-                    Button {
-                        store.send(.settingsTapped)
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 38, height: 38)
-                            .background(Color(.tertiarySystemFill))
-                            .clipShape(Circle())
-                    }
+                Button {
+                    store.send(.settingsTapped)
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 38, height: 38)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(Circle())
                 }
             }
-            .padding(.horizontal, Spacing.lg)
-            .padding(.top, 16)
-            .padding(.bottom, 10)
 
-            Group {
-                if let weather = store.weather {
-                    weatherStrip(weather)
-                } else {
-                    Capsule()
-                        .fill(Color(.tertiarySystemFill))
-                        .frame(width: 180, height: 14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-            .padding(.horizontal, Spacing.lg)
-            .padding(.bottom, Spacing.md)
+            primaryHeroCard
         }
-        .background(
-            LinearGradient(
-                colors: [Brand.softPink, Color(.systemGroupedBackground)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
-    }
-
-    private func weatherStrip(_ weather: WeatherInfo) -> some View {
-        HStack(spacing: 8) {
-            Text(weatherEmoji(weather.condition))
-                .font(.system(size: 14))
-            Text("\(weather.temperature)°")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Brand.pink)
-            Text(weather.condition)
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-            Text("·")
-                .foregroundStyle(Color(.tertiaryLabel))
-            Text(weatherHint(weather))
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(Capsule())
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.top, 18)
+        .padding(.bottom, Spacing.lg)
     }
 
     // MARK: - Content
 
     @ViewBuilder
     private var contentSection: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 18) {
+            secondaryActionStrip
+                .padding(.horizontal, Spacing.lg)
+
             if let anniversary = store.upcomingAnniversary {
                 anniversaryCard(anniversary)
                     .padding(.horizontal, Spacing.lg)
-                    .padding(.top, Spacing.lg)
-                    .padding(.bottom, Spacing.sm)
             }
-
-            monthlyReportBanner
-                .padding(.horizontal, Spacing.lg)
-                .padding(.top, store.upcomingAnniversary == nil ? Spacing.lg : Spacing.sm)
-                .padding(.bottom, Spacing.sm)
 
             if store.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 80)
+                    .padding(.top, 40)
             } else if store.recentCourses.isEmpty {
                 emptyState
             } else {
                 courseListSection
             }
         }
-        .padding(.bottom, 120)
+        .padding(.top, Spacing.sm)
+        .padding(.bottom, 36)
     }
 
-    // MARK: - Monthly Report Banner
+    // MARK: - Hero
 
-    private var monthlyReportBanner: some View {
-        let month = Calendar.current.component(.month, from: Date())
-        return Button {
-            store.send(.monthlyReportTapped)
-        } label: {
-            HStack(spacing: 0) {
-                VStack(spacing: 1) {
-                    Text("\(month)")
-                        .font(.system(size: 24, weight: .black))
-                        .foregroundStyle(Brand.pink)
-                    Text("월 리포트")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Brand.pink.opacity(0.7))
-                }
-                .frame(width: 72)
-                .frame(maxHeight: .infinity)
-                .background(Brand.softPink)
+    private var effectiveLocationName: String {
+        if let override = store.quickLocationOverride {
+            return override.placeName ?? override.keyword
+        }
+        return store.user.location.isEmpty ? "동네 설정" : store.user.location
+    }
 
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("이번 달 데이트 돌아보기")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.primary)
-                        Text("장소 통계·방문 기록을 한눈에")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+    private var primaryHeroCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // 위치 선택 행
+            HStack(spacing: 8) {
+                Button {
+                    Haptics.selection()
+                    if store.isEditingQuickLocation {
+                        store.send(.quickLocationEditDismissed)
+                        quickLocationFocused = false
+                    } else {
+                        store.send(.quickLocationEditTapped)
+                        quickLocationFocused = true
                     }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Color(.tertiaryLabel))
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "mappin.circle.fill")
+                            .font(.system(size: 12))
+                        Text(effectiveLocationName)
+                            .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+                        Image(systemName: store.isEditingQuickLocation ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(store.isEditingQuickLocation ? 0.3 : 0.2))
+                    .clipShape(Capsule())
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 14)
-                .background(Color(.systemBackground))
+                .buttonStyle(.plain)
+
+                if store.quickLocationOverride != nil && !store.isEditingQuickLocation {
+                    Button {
+                        Haptics.selection()
+                        store.send(.quickLocationCleared)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Spacer()
             }
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(.separator).opacity(colorScheme == .dark ? 1.0 : 0.5), lineWidth: 0.5))
-            .shadow(color: .black.opacity(colorScheme == .dark ? 0.3 : 0.04), radius: 6, x: 0, y: 2)
+
+            if store.isEditingQuickLocation {
+                quickLocationSearchContent
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("오늘 뭐 하지?")
+                        .font(.system(size: 28, weight: .black))
+                        .foregroundStyle(.white)
+                    Text(heroSubtitle)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .lineLimit(2)
+                }
+
+                HStack(spacing: 8) {
+                    ForEach(moodOptions, id: \.label) { mood in
+                        moodChip(mood)
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.90, green: 0.15, blue: 0.35),
+                        Brand.pink,
+                        Color(red: 1.0, green: 0.58, blue: 0.38)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                Circle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 140, height: 140)
+                    .blur(radius: 20)
+                    .offset(x: 80, y: -40)
+                Circle()
+                    .fill(Color.white.opacity(0.06))
+                    .frame(width: 100, height: 100)
+                    .blur(radius: 16)
+                    .offset(x: -30, y: 50)
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: Color(red: 0.90, green: 0.15, blue: 0.35).opacity(0.35), radius: 18, x: 0, y: 8)
+        .onChange(of: store.isEditingQuickLocation) { _, isEditing in
+            if !isEditing { quickLocationText = "" }
+        }
+    }
+
+    @ViewBuilder
+    private var quickLocationSearchContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.8))
+                TextField(
+                    "",
+                    text: $quickLocationText,
+                    prompt: Text("동네 이름으로 검색...").foregroundStyle(.white.opacity(0.5))
+                )
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white)
+                .focused($quickLocationFocused)
+                .tint(.white)
+                .onChange(of: quickLocationText) { _, newValue in
+                    store.send(.quickLocationQueryChanged(newValue))
+                }
+
+                if store.isSearchingQuickLocation {
+                    ProgressView().tint(.white).scaleEffect(0.75)
+                } else if !quickLocationText.isEmpty {
+                    Button {
+                        quickLocationText = ""
+                        store.send(.quickLocationQueryChanged(""))
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button("취소") {
+                    store.send(.quickLocationEditDismissed)
+                    quickLocationFocused = false
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.2))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+            if !store.quickLocationSuggestions.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(Array(store.quickLocationSuggestions.enumerated()), id: \.offset) { index, place in
+                        Button {
+                            Haptics.selection()
+                            quickLocationText = ""
+                            store.send(.quickLocationSuggestionSelected(place))
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Brand.pink)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(place.placeName ?? place.keyword)
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                    if let address = place.address, !address.isEmpty {
+                                        Text(address)
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                        }
+                        .buttonStyle(.plain)
+
+                        if index < store.quickLocationSuggestions.count - 1 {
+                            Divider().padding(.leading, 38)
+                        }
+                    }
+                }
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+                .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: store.quickLocationSuggestions.count)
+    }
+
+    private var heroSubtitle: String {
+        if let weather = store.weather {
+            return "\(weather.temperature)° \(weather.condition), \(weatherHint(weather))"
+        }
+        return "지역과 분위기만 고르면 바로 추천해드릴게요"
+    }
+
+    private var secondaryActionStrip: some View {
+        HStack(spacing: 8) {
+            actionPill("리포트", systemImage: "chart.bar.fill", color: Brand.iconBlue) {
+                store.send(.monthlyReportTapped)
+            }
+            actionPill("취향 지도", systemImage: "map.fill", color: Brand.iconGreen) {
+                store.send(.tasteMapTapped)
+            }
+            actionPill("캘린더", systemImage: "calendar", color: Brand.iconOrange) {
+                store.send(.calendarTapped)
+            }
+        }
+    }
+
+    private func actionPill(_ title: String, systemImage: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(color)
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color(.separator).opacity(colorScheme == .dark ? 1.0 : 0.45), lineWidth: 0.5)
+            )
         }
         .buttonStyle(.plain)
     }
@@ -318,7 +432,7 @@ public struct HomeView: View {
             }
         }
         .padding(14)
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
@@ -427,13 +541,17 @@ public struct HomeView: View {
         .frame(width: 160, height: 126)
         .background(
             LinearGradient(
-                colors: [Brand.softPink, Color(.systemBackground)],
+                colors: [Brand.softPink, Color(.secondarySystemBackground)],
                 startPoint: .top,
                 endPoint: .bottom
             )
         )
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(.separator).opacity(colorScheme == .dark ? 1.0 : 0.5), lineWidth: colorScheme == .dark ? 1.0 : 0.5))
+        .overlay {
+            if colorScheme == .dark {
+                RoundedRectangle(cornerRadius: 18).stroke(Color(.separator), lineWidth: 1)
+            }
+        }
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.4 : 0.06), radius: 8, x: 0, y: 2)
     }
 
@@ -523,71 +641,58 @@ public struct HomeView: View {
                 .foregroundStyle(Color(.tertiaryLabel))
         }
         .padding(14)
-        .background(Color(.systemBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay {
             if colorScheme == .dark {
                 RoundedRectangle(cornerRadius: 20).stroke(Color(.separator), lineWidth: 1)
             }
         }
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.07), radius: 10, x: 0, y: 3)
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0 : 0.04), radius: 6, x: 0, y: 2)
     }
 
     // MARK: - Empty
 
     private var emptyState: some View {
-        VStack(spacing: 0) {
-            // 일러스트 영역
+        VStack(spacing: 18) {
             ZStack {
                 Circle()
                     .fill(Brand.softPink)
-                    .frame(width: 96, height: 96)
-                Image(systemName: "sparkles")
-                    .font(.system(size: 40, weight: .light))
+                    .frame(width: 86, height: 86)
+                Image(systemName: "map")
+                    .font(.system(size: 34, weight: .light))
                     .foregroundStyle(Brand.pink)
             }
-            .padding(.top, 56)
-            .padding(.bottom, 24)
+            .padding(.top, 36)
 
-            VStack(spacing: 8) {
-                Text("첫 데이트 코스를 만들어봐요")
-                    .font(.system(size: 20, weight: .bold))
-                Text("AI가 날씨, 취향, 동선까지\n완벽한 코스를 짜드려요")
+            VStack(spacing: 7) {
+                Text("아직 저장한 코스가 없어요")
+                    .font(.system(size: 19, weight: .bold))
+                Text("가볍게 하나 만들어두고\n마음에 안 드는 곳만 바꿔도 돼요")
                     .font(Typography.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-            .padding(.bottom, 32)
 
-            VStack(spacing: 14) {
-                emptyFeatureRow("location.fill", color: Brand.pink, text: "지역과 테마를 선택하면")
-                emptyFeatureRow("sparkles", color: Brand.iconOrange, text: "AI가 실제 장소를 추천해줘요")
-                emptyFeatureRow("map.fill", color: Brand.iconBlue, text: "동선까지 자동으로 최적화해줘요")
+            Button {
+                Haptics.impact(.medium)
+                store.send(.generateCourseTapped)
+            } label: {
+                Text("첫 코스 만들기")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 12)
+                    .background(Brand.pink)
+                    .clipShape(Capsule())
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 40)
+            .buttonStyle(.plain)
+            .padding(.bottom, 32)
         }
         .frame(maxWidth: .infinity)
     }
 
-    private func emptyFeatureRow(_ icon: String, color: Color, text: String) -> some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.12))
-                    .frame(width: 34, height: 34)
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(color)
-            }
-            Text(text)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.primary)
-            Spacer()
-        }
-    }
-
-    // MARK: - Generate Button
+    // MARK: - Quick Mood
 
     private struct MoodOption {
         let emoji: String
@@ -603,40 +708,6 @@ public struct HomeView: View {
         MoodOption(emoji: "🌿", label: "힐링", color: Brand.iconGreen, themes: ["조용한", "힐링"]),
     ]
 
-    private var generateButton: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 8) {
-                HStack(spacing: 8) {
-                    ForEach(moodOptions, id: \.label) { mood in
-                        moodChip(mood)
-                    }
-                }
-                .padding(.horizontal, Spacing.lg)
-                Button {
-                    Haptics.impact(.medium)
-                    store.send(.generateCourseTapped)
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text("코스 만들기")
-                            .font(.system(size: 16, weight: .bold))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
-                    .background(Brand.pink)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: Brand.pink.opacity(0.35), radius: 12, x: 0, y: 4)
-                }
-                .padding(.horizontal, Spacing.lg)
-            }
-            .padding(.top, 10)
-            .padding(.bottom, Spacing.lg)
-            .background(.ultraThinMaterial)
-        }
-    }
-
     private func moodChip(_ mood: MoodOption) -> some View {
         Button {
             Haptics.impact(.medium)
@@ -647,21 +718,15 @@ public struct HomeView: View {
                     .font(.system(size: 20))
                 Text(mood.label)
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(mood.color)
+                    .foregroundStyle(.white)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 11)
-            .background(
-                LinearGradient(
-                    colors: [mood.color.opacity(0.13), mood.color.opacity(0.05)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+            .background(Color.white.opacity(0.2))
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(mood.color.opacity(0.22), lineWidth: 1)
+                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -669,14 +734,33 @@ public struct HomeView: View {
         .opacity(store.isQuickGenerating ? 0.5 : 1)
     }
 
-    // MARK: - Helpers
+    // MARK: - Bottom Bar
 
-    private func weatherEmoji(_ condition: String) -> String {
-        if condition.contains("비") || condition.contains("rain") { return "🌧️" }
-        if condition.contains("눈") || condition.contains("snow") { return "❄️" }
-        if condition.contains("흐림") || condition.contains("cloud") || condition.contains("구름") { return "☁️" }
-        return "☀️"
+    private var generateBottomBar: some View {
+        Button {
+            Haptics.impact(.medium)
+            store.send(.generateCourseTapped)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "wand.and.stars")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("코스 만들기")
+                    .font(.system(size: 16, weight: .bold))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(Brand.pink)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: Brand.pink.opacity(0.3), radius: 10, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm)
+        .background(.regularMaterial)
     }
+
+    // MARK: - Helpers
 
     private func weatherHint(_ weather: WeatherInfo) -> String {
         if weather.condition.contains("비") || weather.condition.contains("rain") { return "실내 코스 어때요?" }
@@ -685,5 +769,137 @@ public struct HomeView: View {
         if weather.temperature <= 3 { return "따뜻한 실내 데이트 어때요?" }
         if weather.temperature >= 18 { return "야외 데이트 딱 좋은 날씨" }
         return "선선한 날씨, 산책 코스 어때요?"
+    }
+}
+
+// MARK: - Quick Generate Loading Overlay
+
+private struct QuickGenerateLoadingOverlay: View {
+    let themes: [String]
+    let onCancel: () -> Void
+
+    @State private var pulseScale: CGFloat = 1.0
+    @State private var dotOffsets: [CGFloat] = [0, 0, 0]
+    @State private var glowOpacity: Double = 0.3
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+                .background(.ultraThinMaterial)
+
+            VStack(spacing: 30) {
+                // 아이콘 + 링 애니메이션
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.07))
+                        .frame(width: 136, height: 136)
+                        .scaleEffect(pulseScale)
+                    Circle()
+                        .fill(Color.white.opacity(0.11))
+                        .frame(width: 104, height: 104)
+                        .scaleEffect(pulseScale * 0.97)
+                    Circle()
+                        .fill(Color.white.opacity(0.18))
+                        .frame(width: 76, height: 76)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 32, weight: .medium))
+                        .foregroundStyle(.white)
+                        .symbolEffect(.pulse.wholeSymbol)
+                }
+
+                VStack(spacing: 10) {
+                    // 선택한 무드 태그
+                    if !themes.isEmpty {
+                        HStack(spacing: 6) {
+                            ForEach(themes.prefix(3), id: \.self) { theme in
+                                Text(theme)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Color.white.opacity(0.22))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                    }
+                    Text("코스 만드는 중")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text("AI가 딱 맞는 장소를 고르고 있어요")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.78))
+                }
+
+                // 바운싱 도트
+                HStack(spacing: 10) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 7, height: 7)
+                            .offset(y: dotOffsets[i])
+                    }
+                }
+
+                Button(action: onCancel) {
+                    Text("취소")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.18))
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(40)
+            .frame(maxWidth: 320)
+            .background(
+                ZStack {
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.90, green: 0.15, blue: 0.35),
+                            Brand.pink,
+                            Color(red: 1.0, green: 0.58, blue: 0.38)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    Circle()
+                        .fill(Color.white.opacity(0.1))
+                        .frame(width: 200)
+                        .blur(radius: 50)
+                        .offset(x: 60, y: -60)
+                    Circle()
+                        .fill(Color.white.opacity(glowOpacity))
+                        .frame(width: 120)
+                        .blur(radius: 30)
+                        .offset(x: -50, y: 60)
+                }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 32))
+            .shadow(
+                color: Color(red: 0.90, green: 0.15, blue: 0.35).opacity(0.5),
+                radius: 48, x: 0, y: 20
+            )
+            .padding(.horizontal, 32)
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                pulseScale = 1.1
+            }
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+                glowOpacity = 0.08
+            }
+            for i in 0..<3 {
+                withAnimation(
+                    .easeInOut(duration: 0.55)
+                    .repeatForever(autoreverses: true)
+                    .delay(Double(i) * 0.18)
+                ) {
+                    dotOffsets[i] = -7
+                }
+            }
+        }
     }
 }
