@@ -24,6 +24,10 @@ public struct HomeFeature {
         public var partner: Partner? = nil
         public var recentCourses: [Course] = []
         public var likedCourses: [Course] { recentCourses.filter { $0.isLiked } }
+        public var inProgressCourse: Course? = nil
+        public var displayRecentCourses: [Course] {
+            recentCourses.filter { $0.id != inProgressCourse?.id }
+        }
         public var upcomingAnniversary: Anniversary? = nil
         public var allAnniversaries: [Anniversary] = []
         public var weather: WeatherInfo? = nil
@@ -52,6 +56,7 @@ public struct HomeFeature {
         case onAppear
         case refresh
         case loadCoursesResponse(Result<[Course], Error>)
+        case loadInProgressCourseResponse(Result<Course?, Error>)
         case loadPartnerResponse(Result<Partner?, Error>)
         case loadAnniversariesResponse(Result<[Anniversary], Error>)
         case loadWeatherResponse(Result<WeatherInfo, Error>)
@@ -79,6 +84,8 @@ public struct HomeFeature {
         case calendarTapped
         case calendarDismissed
         case calendarCourseSelected(Course)
+        case courseDeepLinkOpened(UUID)
+        case courseDeepLinkLoaded(Result<Course, Error>)
         case alert(PresentationAction<Alert>)
         case delegate(Delegate)
 
@@ -116,6 +123,9 @@ public struct HomeFeature {
                             Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
                         ))
                     }
+                    await send(.loadInProgressCourseResponse(
+                        Result { try await courseRepository.fetchInProgressCourse(userId: userId) }
+                    ))
                     if shouldLoadPartner {
                         await send(.loadPartnerResponse(Result {
                             try await fetchEffectivePartnerUseCase.execute(userId: userId)
@@ -144,6 +154,9 @@ public struct HomeFeature {
                     await send(.loadCoursesResponse(
                         Result { try await fetchRecentCoursesUseCase.execute(userId: userId) }
                     ))
+                    await send(.loadInProgressCourseResponse(
+                        Result { try await courseRepository.fetchInProgressCourse(userId: userId) }
+                    ))
                     await send(.loadAnniversariesResponse(
                         Result { try await anniversaryRepository.fetchAnniversaries(userId: userId) }
                     ))
@@ -152,6 +165,13 @@ public struct HomeFeature {
             case .loadCoursesResponse(.success(let courses)):
                 state.isLoading = false
                 state.recentCourses = courses
+                return .none
+
+            case .loadInProgressCourseResponse(.success(let course)):
+                state.inProgressCourse = course
+                return .none
+
+            case .loadInProgressCourseResponse(.failure):
                 return .none
 
             case .loadPartnerResponse(.success(let partner)):
@@ -385,6 +405,39 @@ public struct HomeFeature {
                 state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true, user: state.user, partner: state.partner)))
                 return .none
 
+            case .courseDeepLinkOpened(let id):
+                if let course = state.recentCourses.first(where: { $0.id == id }) ?? (state.inProgressCourse?.id == id ? state.inProgressCourse : nil) {
+                    state.path.removeAll()
+                    state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true, user: state.user, partner: state.partner)))
+                    return .none
+                }
+                return .run { send in
+                    await send(.courseDeepLinkLoaded(Result {
+                        try await courseRepository.fetchCourse(id: id)
+                    }))
+                }
+
+            case .courseDeepLinkLoaded(.success(let course)):
+                state.path.removeAll()
+                state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true, user: state.user, partner: state.partner)))
+                if course.status == .inProgress {
+                    state.inProgressCourse = course
+                }
+                if let idx = state.recentCourses.firstIndex(where: { $0.id == course.id }) {
+                    state.recentCourses[idx] = course
+                } else {
+                    state.recentCourses.insert(course, at: 0)
+                }
+                return .none
+
+            case .courseDeepLinkLoaded(.failure(let error)):
+                state.alert = AlertState { TextState("코스를 열 수 없어요") } actions: {
+                    ButtonState(role: .cancel) { TextState("확인") }
+                } message: {
+                    TextState(error.localizedDescription)
+                }
+                return .none
+
             case .settingsTapped:
                 state.path.append(.settings(SettingsFeature.State()))
                 return .none
@@ -439,6 +492,11 @@ public struct HomeFeature {
             case .path(.popFrom(id: let id)):
                 if case .courseResult(let courseState) = state.path[id: id], courseState.isSaved {
                     let course = courseState.course
+                    if course.status == .inProgress {
+                        state.inProgressCourse = course
+                    } else if state.inProgressCourse?.id == course.id {
+                        state.inProgressCourse = nil
+                    }
                     if let idx = state.recentCourses.firstIndex(where: { $0.id == course.id }) {
                         state.recentCourses[idx] = course
                     } else {
@@ -449,6 +507,11 @@ public struct HomeFeature {
 
             case .path(.element(_, action: .courseResult(.delegate(.courseUpdated(let course))))):
                 state.path.removeAll()
+                if course.status == .inProgress {
+                    state.inProgressCourse = course
+                } else if state.inProgressCourse?.id == course.id {
+                    state.inProgressCourse = nil
+                }
                 if let idx = state.recentCourses.firstIndex(where: { $0.id == course.id }) {
                     state.recentCourses[idx] = course
                 } else {

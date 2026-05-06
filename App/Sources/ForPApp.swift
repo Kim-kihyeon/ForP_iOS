@@ -101,6 +101,8 @@ struct ForPApp: App {
                 .onOpenURL { url in
                     if AuthApi.isKakaoTalkLoginUrl(url) {
                         _ = AuthController.handleOpenUrl(url: url)
+                    } else {
+                        store.send(.openURL(url))
                     }
                 }
                 .onChange(of: scenePhase) { _, newPhase in

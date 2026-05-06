@@ -135,6 +135,11 @@ public struct HomeView: View {
             secondaryActionStrip
                 .padding(.horizontal, Spacing.lg)
 
+            if let course = store.inProgressCourse {
+                inProgressCourseCard(course)
+                    .padding(.horizontal, Spacing.lg)
+            }
+
             if let anniversary = store.upcomingAnniversary {
                 anniversaryCard(anniversary)
                     .padding(.horizontal, Spacing.lg)
@@ -144,7 +149,7 @@ public struct HomeView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity)
                     .padding(.top, 40)
-            } else if store.recentCourses.isEmpty {
+            } else if store.recentCourses.isEmpty && store.inProgressCourse == nil {
                 emptyState
             } else {
                 courseListSection
@@ -347,9 +352,18 @@ public struct HomeView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
                 .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            } else if shouldShowQuickLocationNoResults {
+                SearchNoResultsView(message: "동네 이름을 조금 다르게 입력해보세요")
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             }
         }
         .animation(.easeInOut(duration: 0.18), value: store.quickLocationSuggestions.count)
+    }
+
+    private var shouldShowQuickLocationNoResults: Bool {
+        store.quickLocationQuery.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 &&
+        !store.isSearchingQuickLocation &&
+        store.quickLocationSuggestions.isEmpty
     }
 
     private var heroSubtitle: String {
@@ -398,6 +412,54 @@ public struct HomeView: View {
     }
 
     // MARK: - Anniversary
+
+    private func inProgressCourseCard(_ course: Course) -> some View {
+        Button {
+            Haptics.impact(.medium)
+            store.send(.courseSelected(course))
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.white.opacity(0.22))
+                        .frame(width: 52, height: 52)
+                    Image(systemName: "figure.walk")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("진행 중인 데이트")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.78))
+                    Text(course.title)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    Text("\(course.visitedOrders.count)/\(course.places.count)곳 완료")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.78))
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+            .padding(16)
+            .background(
+                LinearGradient(
+                    colors: [Brand.pink, Color(red: 1.0, green: 0.58, blue: 0.38)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: Brand.pink.opacity(0.22), radius: 14, x: 0, y: 6)
+        }
+        .buttonStyle(.plain)
+    }
 
     private func anniversaryCard(_ anniversary: Anniversary) -> some View {
         let days = anniversary.daysUntilThisYear
@@ -469,12 +531,13 @@ public struct HomeView: View {
                 .padding(.bottom, Spacing.xl)
             }
 
-            VStack(alignment: .leading, spacing: 10) {
+            if !store.displayRecentCourses.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
                 sectionLabel("최근 코스", systemImage: "clock", color: .secondary)
                     .padding(.horizontal, Spacing.lg)
 
                 VStack(spacing: 8) {
-                    ForEach(store.recentCourses, id: \.id) { course in
+                    ForEach(store.displayRecentCourses, id: \.id) { course in
                         Button {
                             store.send(.courseSelected(course))
                         } label: {
@@ -485,7 +548,8 @@ public struct HomeView: View {
                     }
                 }
             }
-            .padding(.top, store.likedCourses.isEmpty ? Spacing.lg : 0)
+                .padding(.top, store.likedCourses.isEmpty ? Spacing.lg : 0)
+            }
         }
     }
 
@@ -598,7 +662,15 @@ public struct HomeView: View {
                             .font(.system(size: 10))
                             .foregroundStyle(Brand.pink)
                     }
-                    if course.isEnded {
+                    if course.status == .inProgress {
+                        Text("진행중")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Brand.pink)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Brand.softPink)
+                            .clipShape(Capsule())
+                    } else if course.isEnded {
                         Text("종료")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(.secondary)
