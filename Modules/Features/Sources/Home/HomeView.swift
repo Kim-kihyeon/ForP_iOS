@@ -76,6 +76,16 @@ public struct HomeView: View {
             )
         }
         .sheet(isPresented: Binding(
+            get: { store.showFootprints },
+            set: { if !$0 { store.send(.footprintsDismissed) } }
+        )) {
+            FootprintMapView(
+                courses: store.footprintCourses,
+                isLoading: store.isLoadingFootprints,
+                onDismiss: { store.send(.footprintsDismissed) }
+            )
+        }
+        .sheet(isPresented: Binding(
             get: { store.showCalendar },
             set: { if !$0 { store.send(.calendarDismissed) } }
         )) {
@@ -380,6 +390,9 @@ public struct HomeView: View {
             }
             actionPill("취향 지도", systemImage: "map.fill", color: Brand.iconGreen) {
                 store.send(.tasteMapTapped)
+            }
+            actionPill("발자국", systemImage: "point.topleft.down.curvedto.point.bottomright.up", color: Brand.iconPurple) {
+                store.send(.footprintsTapped)
             }
             actionPill("캘린더", systemImage: "calendar", color: Brand.iconOrange) {
                 store.send(.calendarTapped)

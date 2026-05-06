@@ -36,6 +36,9 @@ public struct HomeFeature {
         public var monthlyCourses: [Course] = []
         public var isLoadingMonthly = false
         public var showTasteMap = false
+        public var showFootprints = false
+        public var footprintCourses: [Course] = []
+        public var isLoadingFootprints = false
         public var showCalendar = false
         public var isQuickGenerating = false
         public var pendingQuickGenerateThemes: [String] = []
@@ -81,6 +84,9 @@ public struct HomeFeature {
         case loadMonthlyCoursesResponse(Result<[Course], Error>)
         case tasteMapTapped
         case tasteMapDismissed
+        case footprintsTapped
+        case footprintsDismissed
+        case loadFootprintCoursesResponse(Result<[Course], Error>)
         case calendarTapped
         case calendarDismissed
         case calendarCourseSelected(Course)
@@ -237,6 +243,28 @@ public struct HomeFeature {
 
             case .tasteMapDismissed:
                 state.showTasteMap = false
+                return .none
+
+            case .footprintsTapped:
+                state.showFootprints = true
+                state.isLoadingFootprints = true
+                return .run { [userId = state.user.id] send in
+                    await send(.loadFootprintCoursesResponse(
+                        Result { try await fetchRecentCoursesUseCase.execute(userId: userId, limit: 80) }
+                    ))
+                }
+
+            case .footprintsDismissed:
+                state.showFootprints = false
+                return .none
+
+            case .loadFootprintCoursesResponse(.success(let courses)):
+                state.isLoadingFootprints = false
+                state.footprintCourses = courses
+                return .none
+
+            case .loadFootprintCoursesResponse(.failure):
+                state.isLoadingFootprints = false
                 return .none
 
             case .calendarTapped:
