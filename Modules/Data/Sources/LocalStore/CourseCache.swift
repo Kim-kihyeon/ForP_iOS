@@ -20,6 +20,8 @@ final class CourseCache {
     var partnerRating: Int?
     var partnerReview: String?
     var isEnded: Bool = false
+    var statusRaw: String = CourseStatus.planned.rawValue
+    var visitedOrdersData: Data = Data()
 
     init(from course: Course) throws {
         self.id = course.id
@@ -38,11 +40,14 @@ final class CourseCache {
         self.partnerRating = course.partnerRating
         self.partnerReview = course.partnerReview
         self.isEnded = course.isEnded
+        self.statusRaw = course.status.rawValue
+        self.visitedOrdersData = try JSONEncoder().encode(course.visitedOrders)
     }
 
     func toDomain() throws -> Course {
         let places = try JSONDecoder().decode([CoursePlace].self, from: placesData)
         let candidates = (try? JSONDecoder().decode([CoursePlace].self, from: candidatesData)) ?? []
+        let visitedOrders = (try? JSONDecoder().decode([Int].self, from: visitedOrdersData)) ?? []
         return Course(
             id: id,
             userId: userId,
@@ -59,7 +64,9 @@ final class CourseCache {
             review: review,
             partnerRating: partnerRating,
             partnerReview: partnerReview,
-            isEnded: isEnded
+            isEnded: isEnded,
+            status: CourseStatus(rawValue: statusRaw) ?? (isEnded ? .completed : .planned),
+            visitedOrders: visitedOrders
         )
     }
 }

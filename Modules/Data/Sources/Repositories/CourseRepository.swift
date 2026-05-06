@@ -12,6 +12,29 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
         self.modelContext = modelContext
     }
 
+    public func fetchCourse(id: UUID) async throws -> Course {
+        do {
+            let row: CourseFetchRow = try await supabase
+                .from("courses")
+                .select()
+                .eq("id", value: id)
+                .single()
+                .execute()
+                .value
+            return row.toDomain()
+        } catch {
+            return try await MainActor.run {
+                let descriptor = FetchDescriptor<CourseCache>(
+                    predicate: #Predicate { $0.id == id }
+                )
+                guard let cache = try modelContext.fetch(descriptor).first else {
+                    throw error
+                }
+                return try cache.toDomain()
+            }
+        }
+    }
+
     public func fetchRecentCourses(userId: UUID, limit: Int) async throws -> [Course] {
         do {
             let rows: [CourseFetchRow] = try await supabase
@@ -31,6 +54,30 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
                 )
                 let cached = try modelContext.fetch(descriptor)
                 return try cached.prefix(limit).map { try $0.toDomain() }
+            }
+        }
+    }
+
+    public func fetchInProgressCourse(userId: UUID) async throws -> Course? {
+        do {
+            let rows: [CourseFetchRow] = try await supabase
+                .from("courses")
+                .select()
+                .or("user_id.eq.\(userId),partner_id.eq.\(userId)")
+                .eq("status", value: CourseStatus.inProgress.rawValue)
+                .order("created_at", ascending: false)
+                .limit(1)
+                .execute()
+                .value
+            return rows.first?.toDomain()
+        } catch {
+            return try await MainActor.run {
+                let inProgressStatus = CourseStatus.inProgress.rawValue
+                let descriptor = FetchDescriptor<CourseCache>(
+                    predicate: #Predicate { $0.userId == userId && $0.statusRaw == inProgressStatus },
+                    sortBy: [SortDescriptor(\.date, order: .reverse)]
+                )
+                return try modelContext.fetch(descriptor).first?.toDomain()
             }
         }
     }
@@ -99,6 +146,65 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
         }
     }
 
+    public func startCourse(id: UUID, userId: UUID, visitedOrders: [Int]) async throws {
+        struct StartUpdate: Encodable {
+            let status: String
+            let visitedOrders: [Int]
+            let isEnded: Bool
+
+            enum CodingKeys: String, CodingKey {
+                case status
+                case visitedOrders = "visited_orders"
+                case isEnded = "is_ended"
+            }
+        }
+
+        let update = StartUpdate(
+            status: CourseStatus.inProgress.rawValue,
+            visitedOrders: visitedOrders,
+            isEnded: false
+        )
+        try await supabase
+            .from("courses")
+            .update(update)
+            .eq("id", value: id)
+            .execute()
+
+        try await MainActor.run {
+            let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+            if let cache = try modelContext.fetch(descriptor).first {
+                cache.statusRaw = CourseStatus.inProgress.rawValue
+                cache.visitedOrdersData = try JSONEncoder().encode(visitedOrders)
+                cache.isEnded = false
+                try modelContext.save()
+            }
+        }
+    }
+
+    public func updateVisitedOrders(id: UUID, visitedOrders: [Int]) async throws {
+        struct VisitedUpdate: Encodable {
+            let visitedOrders: [Int]
+
+            enum CodingKeys: String, CodingKey {
+                case visitedOrders = "visited_orders"
+            }
+        }
+
+        try await supabase
+            .from("courses")
+            .update(VisitedUpdate(visitedOrders: visitedOrders))
+            .eq("id", value: id)
+            .execute()
+
+        try await MainActor.run {
+            let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+            if let cache = try modelContext.fetch(descriptor).first {
+                cache.visitedOrdersData = try JSONEncoder().encode(visitedOrders)
+                try modelContext.save()
+            }
+        }
+    }
+
     public func updateTitle(id: UUID, title: String) async throws {
         try await supabase
             .from("courses")
@@ -156,11 +262,44 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
         try await supabase
             .rpc("end_course", params: ["course_id": id])
             .execute()
+        try await supabase
+            .from("courses")
+            .update(["status": CourseStatus.completed.rawValue])
+            .eq("id", value: id)
+            .execute()
 
         try await MainActor.run {
             let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
             if let cache = try modelContext.fetch(descriptor).first {
                 cache.isEnded = true
+                cache.statusRaw = CourseStatus.completed.rawValue
+                try modelContext.save()
+            }
+        }
+    }
+
+    public func cancelCourse(id: UUID) async throws {
+        struct CancelUpdate: Encodable {
+            let status: String
+            let isEnded: Bool
+
+            enum CodingKeys: String, CodingKey {
+                case status
+                case isEnded = "is_ended"
+            }
+        }
+
+        try await supabase
+            .from("courses")
+            .update(CancelUpdate(status: CourseStatus.cancelled.rawValue, isEnded: true))
+            .eq("id", value: id)
+            .execute()
+
+        try await MainActor.run {
+            let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+            if let cache = try modelContext.fetch(descriptor).first {
+                cache.isEnded = true
+                cache.statusRaw = CourseStatus.cancelled.rawValue
                 try modelContext.save()
             }
         }
@@ -231,6 +370,8 @@ private struct CourseInsertRow: Encodable {
     let courseReason: String
     let isLiked: Bool
     let isEnded: Bool
+    let status: String
+    let visitedOrders: [Int]
 
     enum CodingKeys: String, CodingKey {
         case id, title, mode, date, places, candidates
@@ -240,6 +381,8 @@ private struct CourseInsertRow: Encodable {
         case courseReason = "course_reason"
         case isLiked = "is_liked"
         case isEnded = "is_ended"
+        case status
+        case visitedOrders = "visited_orders"
     }
 
     init(from course: Course) {
@@ -257,6 +400,8 @@ private struct CourseInsertRow: Encodable {
         courseReason = course.courseReason
         isLiked = course.isLiked
         isEnded = course.isEnded
+        status = course.status.rawValue
+        visitedOrders = course.visitedOrders
     }
 }
 
@@ -278,9 +423,12 @@ private struct CourseFetchRow: Decodable {
     let partnerRating: Int?
     let partnerReview: String?
     let isEnded: Bool?
+    let status: String?
+    let visitedOrders: [Int]?
 
     enum CodingKeys: String, CodingKey {
         case id, title, mode, date, places, candidates, rating, review
+        case status
         case userId = "user_id"
         case partnerId = "partner_id"
         case createdAt = "created_at"
@@ -290,6 +438,7 @@ private struct CourseFetchRow: Decodable {
         case partnerRating = "partner_rating"
         case partnerReview = "partner_review"
         case isEnded = "is_ended"
+        case visitedOrders = "visited_orders"
     }
 
     func toDomain() -> Course {
@@ -315,7 +464,9 @@ private struct CourseFetchRow: Decodable {
             review: review,
             partnerRating: partnerRating,
             partnerReview: partnerReview,
-            isEnded: isEnded ?? false
+            isEnded: isEnded ?? false,
+            status: status.flatMap(CourseStatus.init(rawValue:)),
+            visitedOrders: visitedOrders ?? []
         )
     }
 }

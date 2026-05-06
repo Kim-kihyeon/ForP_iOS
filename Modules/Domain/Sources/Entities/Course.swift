@@ -5,6 +5,13 @@ public enum CourseMode: String, Codable, Equatable {
     case list
 }
 
+public enum CourseStatus: String, Codable, Equatable {
+    case planned
+    case inProgress = "in_progress"
+    case completed
+    case cancelled
+}
+
 public struct CoursePlace: Codable, Equatable {
     public var order: Int
     public var category: String
@@ -17,6 +24,7 @@ public struct CoursePlace: Codable, Equatable {
     public var longitude: Double?
     public var kakaoPlaceId: String?
     public var kakaoPlaceURL: String?
+    public var memo: String?
 
     public init(
         order: Int,
@@ -29,7 +37,8 @@ public struct CoursePlace: Codable, Equatable {
         latitude: Double? = nil,
         longitude: Double? = nil,
         kakaoPlaceId: String? = nil,
-        kakaoPlaceURL: String? = nil
+        kakaoPlaceURL: String? = nil,
+        memo: String? = nil
     ) {
         self.order = order
         self.category = category
@@ -42,6 +51,7 @@ public struct CoursePlace: Codable, Equatable {
         self.longitude = longitude
         self.kakaoPlaceId = kakaoPlaceId
         self.kakaoPlaceURL = kakaoPlaceURL
+        self.memo = memo
     }
 }
 
@@ -62,6 +72,8 @@ public struct Course: Identifiable, Codable, Equatable {
     public var partnerRating: Int?
     public var partnerReview: String?
     public var isEnded: Bool
+    public var status: CourseStatus
+    public var visitedOrders: [Int]
 
     public init(
         id: UUID = UUID(),
@@ -79,7 +91,9 @@ public struct Course: Identifiable, Codable, Equatable {
         review: String? = nil,
         partnerRating: Int? = nil,
         partnerReview: String? = nil,
-        isEnded: Bool = false
+        isEnded: Bool = false,
+        status: CourseStatus? = nil,
+        visitedOrders: [Int] = []
     ) {
         self.id = id
         self.userId = userId
@@ -97,6 +111,8 @@ public struct Course: Identifiable, Codable, Equatable {
         self.partnerRating = partnerRating
         self.partnerReview = partnerReview
         self.isEnded = isEnded
+        self.status = status ?? (isEnded ? .completed : .planned)
+        self.visitedOrders = visitedOrders
     }
 }
 
