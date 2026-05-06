@@ -29,10 +29,6 @@ let project = Project(
                     [
                         "CFBundleURLSchemes": ["kakao$(KAKAO_APP_KEY)"],
                         "CFBundleURLName": "kakao",
-                    ],
-                    [
-                        "CFBundleURLSchemes": ["forp"],
-                        "CFBundleURLName": "forp",
                     ]
                 ],
                 "LSApplicationQueriesSchemes": ["kakaokompassauth", "kakaoauth", "kakaolink", "kakaomap"],

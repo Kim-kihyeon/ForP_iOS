@@ -36,13 +36,8 @@ public struct CourseResultView: View {
         if let reason = store.course.courseReason.isEmpty ? nil : store.course.courseReason {
             text += "\n\n💡 \(reason)"
         }
-        text += "\n\nForP에서 열기: \(courseAppLink.absoluteString)"
         text += "\n\n— ForP 앱으로 만든 데이트 코스 🩷"
         return text
-    }
-
-    private var courseAppLink: URL {
-        URL(string: "forp://course/\(store.course.id.uuidString)")!
     }
 
     private var placeColors: [Color] {
@@ -172,9 +167,6 @@ public struct CourseResultView: View {
                         }
                         ShareLink(item: shareText) {
                             Label("텍스트로 공유", systemImage: "doc.text")
-                        }
-                        ShareLink(item: courseAppLink) {
-                            Label("앱 링크로 공유", systemImage: "link")
                         }
                     } label: {
                         Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .medium))

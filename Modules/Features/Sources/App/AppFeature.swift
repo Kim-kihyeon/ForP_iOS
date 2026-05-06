@@ -27,7 +27,6 @@ public struct AppFeature {
         case onAppear
         case sessionChecked(Result<User?, Error>)
         case fcmTokenReceived(String)
-        case openURL(URL)
         case login(LoginFeature.Action)
         case onboarding(OnboardingFeature.Action)
         case home(HomeFeature.Action)
@@ -90,22 +89,6 @@ public struct AppFeature {
                     state.pendingFCMToken = token
                     return .none
                 }
-
-            case .openURL(let url):
-                let courseIdString: String?
-                if url.scheme == "forp", url.host == "course" {
-                    courseIdString = url.pathComponents.dropFirst().first
-                } else {
-                    courseIdString = nil
-                }
-                guard let courseIdString,
-                      let id = UUID(uuidString: courseIdString) else {
-                    return .none
-                }
-                if state.route == .main {
-                    return .send(.home(.courseDeepLinkOpened(id)))
-                }
-                return .none
 
             case .sessionChecked(.failure):
                 if state.route == .splash {

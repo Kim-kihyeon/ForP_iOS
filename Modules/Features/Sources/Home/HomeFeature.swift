@@ -84,8 +84,6 @@ public struct HomeFeature {
         case calendarTapped
         case calendarDismissed
         case calendarCourseSelected(Course)
-        case courseDeepLinkOpened(UUID)
-        case courseDeepLinkLoaded(Result<Course, Error>)
         case alert(PresentationAction<Alert>)
         case delegate(Delegate)
 
@@ -403,39 +401,6 @@ public struct HomeFeature {
 
             case .courseSelected(let course):
                 state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true, user: state.user, partner: state.partner)))
-                return .none
-
-            case .courseDeepLinkOpened(let id):
-                if let course = state.recentCourses.first(where: { $0.id == id }) ?? (state.inProgressCourse?.id == id ? state.inProgressCourse : nil) {
-                    state.path.removeAll()
-                    state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true, user: state.user, partner: state.partner)))
-                    return .none
-                }
-                return .run { send in
-                    await send(.courseDeepLinkLoaded(Result {
-                        try await courseRepository.fetchCourse(id: id)
-                    }))
-                }
-
-            case .courseDeepLinkLoaded(.success(let course)):
-                state.path.removeAll()
-                state.path.append(.courseResult(CourseResultFeature.State(course: course, isSaved: true, user: state.user, partner: state.partner)))
-                if course.status == .inProgress {
-                    state.inProgressCourse = course
-                }
-                if let idx = state.recentCourses.firstIndex(where: { $0.id == course.id }) {
-                    state.recentCourses[idx] = course
-                } else {
-                    state.recentCourses.insert(course, at: 0)
-                }
-                return .none
-
-            case .courseDeepLinkLoaded(.failure(let error)):
-                state.alert = AlertState { TextState("코스를 열 수 없어요") } actions: {
-                    ButtonState(role: .cancel) { TextState("확인") }
-                } message: {
-                    TextState(error.localizedDescription)
-                }
                 return .none
 
             case .settingsTapped:
