@@ -10,6 +10,7 @@ struct CourseLiveMapView: View {
     let onDismiss: () -> Void
     let onStop: () -> Void
     let onSwap: (() -> Void)?
+    let onOpenPlace: (CoursePlace) -> Void
 
     @State private var position: MapCameraPosition = .automatic
 
@@ -160,6 +161,22 @@ struct CourseLiveMapView: View {
                             .padding(.vertical, Spacing.md)
                             .background(Color(.systemFill))
                             .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
+                    Button {
+                        Haptics.impact(.light)
+                        onOpenPlace(next)
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "map.fill")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("카카오맵")
+                                .font(Typography.body.weight(.semibold))
+                        }
+                        .foregroundStyle(Brand.pink)
+                        .frame(width: 104)
+                        .padding(.vertical, Spacing.md)
+                        .background(Brand.softPink)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
                     }
                     Button {
                         Haptics.impact(.medium)

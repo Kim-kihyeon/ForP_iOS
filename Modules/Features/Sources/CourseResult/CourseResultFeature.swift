@@ -24,6 +24,7 @@ public struct CourseResultFeature {
         public var showCompletion = false
         public var completionRating = 0
         public var completionReview = ""
+        public var inProgressConflictCourse: Course? = nil
 
         public var allVisited: Bool {
             !course.places.isEmpty && course.places.allSatisfy { visitedOrders.contains($0.order) }
@@ -57,6 +58,8 @@ public struct CourseResultFeature {
             self.user = user
             self.partner = partner
             self.generationOptions = generationOptions
+            self.visitedOrders = Set(course.visitedOrders)
+            self.isPlaying = course.status == .inProgress && !course.isEnded
         }
     }
 
@@ -73,6 +76,10 @@ public struct CourseResultFeature {
         case delegate(Delegate)
         // 진행 모드
         case startPlayTapped
+        case inProgressCourseLoaded(Result<Course?, Error>)
+        case startCourseResponse(Result<Void, Error>)
+        case confirmReplaceInProgress
+        case openConflictCourse
         case stopPlayTapped
         case departureTapped
         case departureDismissed
@@ -99,13 +106,15 @@ public struct CourseResultFeature {
         case bookmarkPlace(CoursePlace)
         case bookmarksLoaded([WishlistPlace])
         case togglePlaceLock(CoursePlace)
+        case placeMemoChanged(Int, String)
+        case placeMemoCommitted(Int)
         case partialRegenerateTapped
         case confirmedPartialRegenerate
         case cancelPartialRegenerationTapped
         case partialRegenerateResponse(Result<CoursePlan, Error>)
         case swapNextPlace
 
-        public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate }
+        public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate, confirmReplaceInProgress, openConflictCourse }
         public enum Delegate: Equatable {
             case dismiss
             case deleted
@@ -211,6 +220,12 @@ public struct CourseResultFeature {
                 state.showCompletion = true
                 return .none
 
+            case .alert(.presented(.confirmReplaceInProgress)):
+                return .send(.confirmReplaceInProgress)
+
+            case .alert(.presented(.openConflictCourse)):
+                return .send(.openConflictCourse)
+
             case .alert(.presented(.confirmDelete)):
                 state.isDeleting = true
                 let id = state.course.id
@@ -249,11 +264,118 @@ public struct CourseResultFeature {
                 )
 
             case .startPlayTapped:
+                guard state.isSaved, let userId = state.user?.id else {
+                    state.isPlaying = true
+                    state.showLiveMap = true
+                    state.visitedOrders = []
+                    state.course.visitedOrders = []
+                    state.completionRating = 0
+                    state.completionReview = ""
+                    return .none
+                }
+                return .run { send in
+                    await send(.inProgressCourseLoaded(
+                        Result { try await courseRepository.fetchInProgressCourse(userId: userId) }
+                    ))
+                }
+
+            case .inProgressCourseLoaded(.success(let active)):
+                if let active, active.id != state.course.id {
+                    state.inProgressConflictCourse = active
+                    state.alert = AlertState {
+                        TextState("진행 중인 데이트가 있어요")
+                    } actions: {
+                        ButtonState(action: .confirmReplaceInProgress) {
+                            TextState("이 코스 시작")
+                        }
+                        ButtonState(action: .openConflictCourse) {
+                            TextState("기존 코스로 돌아가기")
+                        }
+                        ButtonState(role: .cancel) {
+                            TextState("취소")
+                        }
+                    } message: {
+                        TextState("'\(active.title)'을 종료하고 이 코스를 시작할까요?")
+                    }
+                    return .none
+                }
+
+                if active?.id == state.course.id {
+                    state.visitedOrders = Set(active?.visitedOrders ?? state.course.visitedOrders)
+                    state.course.visitedOrders = Array(state.visitedOrders).sorted()
+                } else {
+                    state.visitedOrders = []
+                    state.course.visitedOrders = []
+                }
+                state.isPlaying = true
+                state.showLiveMap = true
+                state.course.status = .inProgress
+                state.course.isEnded = false
+                state.completionRating = 0
+                state.completionReview = ""
+                let id = state.course.id
+                let userId = state.user?.id
+                let visited = state.course.visitedOrders
+                return .run { send in
+                    guard let userId else { return }
+                    await send(.startCourseResponse(Result {
+                        try await courseRepository.startCourse(id: id, userId: userId, visitedOrders: visited)
+                    }))
+                }
+
+            case .inProgressCourseLoaded(.failure(let error)):
+                state.alert = AlertState { TextState("시작 실패") } actions: {
+                    ButtonState(role: .cancel) { TextState("확인") }
+                } message: {
+                    TextState(error.localizedDescription)
+                }
+                return .none
+
+            case .confirmReplaceInProgress:
+                let previousId = state.inProgressConflictCourse?.id
+                state.inProgressConflictCourse = nil
                 state.isPlaying = true
                 state.showLiveMap = true
                 state.visitedOrders = []
+                state.course.visitedOrders = []
+                state.course.status = .inProgress
+                state.course.isEnded = false
                 state.completionRating = 0
                 state.completionReview = ""
+                let id = state.course.id
+                let userId = state.user?.id
+                return .run { send in
+                    if let previousId {
+                        try? await courseRepository.cancelCourse(id: previousId)
+                    }
+                    guard let userId else { return }
+                    await send(.startCourseResponse(Result {
+                        try await courseRepository.startCourse(id: id, userId: userId, visitedOrders: [])
+                    }))
+                }
+
+            case .openConflictCourse:
+                guard let course = state.inProgressConflictCourse else { return .none }
+                state.inProgressConflictCourse = nil
+                state.course = course
+                state.isSaved = true
+                state.isPlaying = course.status == .inProgress && !course.isEnded
+                state.visitedOrders = Set(course.visitedOrders)
+                state.showLiveMap = state.isPlaying
+                return .none
+
+            case .startCourseResponse(.success):
+                return .none
+
+            case .startCourseResponse(.failure(let error)):
+                state.isPlaying = false
+                state.showLiveMap = false
+                state.course.status = state.course.isEnded ? .completed : .planned
+                state.alert = AlertState { TextState("시작 실패") } actions: {
+                    ButtonState(role: .cancel) { TextState("확인") }
+                } message: {
+                    TextState(error.localizedDescription)
+                }
                 return .none
 
             case .stopPlayTapped:
@@ -306,13 +428,21 @@ public struct CourseResultFeature {
                         state.showCompletion = true
                     }
                 }
-                return .none
+                state.course.visitedOrders = Array(state.visitedOrders).sorted()
+                let id = state.course.id
+                let visited = state.course.visitedOrders
+                guard state.isSaved else { return .none }
+                return .run { _ in
+                    try? await courseRepository.updateVisitedOrders(id: id, visitedOrders: visited)
+                }
 
             case .saveReviewTapped:
                 state.showCompletion = false
                 state.isPlaying = false
                 state.showLiveMap = false
-                state.visitedOrders = []
+                let completedOrders = state.course.places.map(\.order).sorted()
+                state.visitedOrders = Set(completedOrders)
+                state.course.visitedOrders = completedOrders
                 let rating = state.completionRating
                 let review = state.completionReview
                 let isCreator = state.isCreator
@@ -325,6 +455,7 @@ public struct CourseResultFeature {
                     state.course.partnerReview = review.isEmpty ? nil : review
                 }
                 state.course.isEnded = true
+                state.course.status = .completed
                 return .run { send in
                     if rating > 0 {
                         if isCreator {
@@ -342,8 +473,11 @@ public struct CourseResultFeature {
                 state.showCompletion = false
                 state.isPlaying = false
                 state.showLiveMap = false
-                state.visitedOrders = []
+                let completedOrders = state.course.places.map(\.order).sorted()
+                state.visitedOrders = Set(completedOrders)
+                state.course.visitedOrders = completedOrders
                 state.course.isEnded = true
+                state.course.status = .completed
                 let id = state.course.id
                 return .run { send in
                     await send(.endDateResponse(Result {
@@ -426,6 +560,7 @@ public struct CourseResultFeature {
 
             case .courseEndedRemotely:
                 state.course.isEnded = true
+                state.course.status = .completed
                 state.isPlaying = false
                 state.showLiveMap = false
                 return .cancel(id: CancelID.realtime)
@@ -474,6 +609,19 @@ public struct CourseResultFeature {
                     state.lockedPlaceKeys.insert(key)
                 }
                 return .none
+
+            case .placeMemoChanged(let order, let memo):
+                guard let index = state.course.places.firstIndex(where: { $0.order == order }) else { return .none }
+                let trimmed = memo.trimmingCharacters(in: .whitespacesAndNewlines)
+                state.course.places[index].memo = trimmed.isEmpty ? nil : memo
+                return .none
+
+            case .placeMemoCommitted:
+                guard state.isSaved else { return .none }
+                let course = state.course
+                return .run { _ in
+                    try? await saveCourseUseCase.execute(course)
+                }
 
             case .partialRegenerateTapped:
                 guard state.canPartiallyRegenerate else { return .none }

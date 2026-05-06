@@ -36,8 +36,13 @@ public struct CourseResultView: View {
         if let reason = store.course.courseReason.isEmpty ? nil : store.course.courseReason {
             text += "\n\n💡 \(reason)"
         }
+        text += "\n\nForP에서 열기: \(courseAppLink.absoluteString)"
         text += "\n\n— ForP 앱으로 만든 데이트 코스 🩷"
         return text
+    }
+
+    private var courseAppLink: URL {
+        URL(string: "forp://course/\(store.course.id.uuidString)")!
     }
 
     private var placeColors: [Color] {
@@ -62,7 +67,8 @@ public struct CourseResultView: View {
                     onVisit: { store.send(.placeVisited($0)) },
                     onDismiss: { store.send(.liveMapDismissed) },
                     onStop: { store.send(.stopPlayTapped) },
-                    onSwap: store.course.candidates.isEmpty ? nil : { store.send(.swapNextPlace) }
+                    onSwap: store.course.candidates.isEmpty ? nil : { store.send(.swapNextPlace) },
+                    onOpenPlace: { openKakaoMap(place: $0) }
                 )
                 .ignoresSafeArea()
             }
@@ -167,6 +173,9 @@ public struct CourseResultView: View {
                         ShareLink(item: shareText) {
                             Label("텍스트로 공유", systemImage: "doc.text")
                         }
+                        ShareLink(item: courseAppLink) {
+                            Label("앱 링크로 공유", systemImage: "link")
+                        }
                     } label: {
                         Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .medium))
                     }
@@ -225,7 +234,10 @@ public struct CourseResultView: View {
                 requestSummaryCard(options)
             }
             if store.course.isEnded && !store.isPlaying { endedBanner }
-            if store.isPlaying { progressBar }
+            if store.isPlaying {
+                progressBar
+                currentProgressCard
+            }
             timelinePlaces
             if !store.isPlaying && !store.course.isEnded {
                 regenerationControls
@@ -472,6 +484,84 @@ public struct CourseResultView: View {
         .cardStyle()
     }
 
+    private var nextPlayingPlace: CoursePlace? {
+        store.course.places
+            .sorted { $0.order < $1.order }
+            .first { !store.visitedOrders.contains($0.order) }
+    }
+
+    @ViewBuilder
+    private var currentProgressCard: some View {
+        if let place = nextPlayingPlace {
+            HStack(alignment: .center, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Brand.softPink)
+                        .frame(width: 46, height: 46)
+                    Text("\(place.order)")
+                        .font(.system(size: 18, weight: .black, design: .rounded))
+                        .foregroundStyle(Brand.pink)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("다음 장소")
+                        .font(Typography.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(place.placeName ?? place.keyword)
+                        .font(Typography.body.weight(.bold))
+                        .lineLimit(1)
+                    if let address = displayAddress(for: place) {
+                        Text(address)
+                            .font(Typography.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                Button {
+                    Haptics.impact(.light)
+                    openKakaoMap(place: place)
+                } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: "map.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("열기")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundStyle(Brand.pink)
+                    .padding(8)
+                    .background(Brand.softPink)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    Haptics.impact(.medium)
+                    store.send(.placeVisited(place.order))
+                } label: {
+                    Text("도착")
+                        .font(Typography.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(Brand.pink)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(Spacing.md)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Brand.pink.opacity(0.18), lineWidth: 1)
+            )
+            .shadow(color: Brand.pink.opacity(0.08), radius: 10, x: 0, y: 3)
+        }
+    }
+
     // MARK: - Timeline
 
     private var timelinePlaces: some View {
@@ -711,6 +801,30 @@ public struct CourseResultView: View {
                                 .lineLimit(2)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                    }
+
+                    if store.isSaved {
+                        TextField(
+                            "한 줄 메모",
+                            text: Binding(
+                                get: { place.memo ?? "" },
+                                set: { store.send(.placeMemoChanged(place.order, $0)) }
+                            )
+                        )
+                        .font(Typography.caption)
+                        .textInputAutocapitalization(.never)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .submitLabel(.done)
+                        .onSubmit {
+                            store.send(.placeMemoCommitted(place.order))
+                        }
+                    } else if let memo = place.memo, !memo.isEmpty {
+                        Label(memo, systemImage: "note.text")
+                            .font(Typography.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
