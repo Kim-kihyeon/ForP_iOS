@@ -192,8 +192,18 @@ public struct CourseGenerateView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 4)
                 .padding(.top, 4)
+            } else if shouldShowLocationNoResults {
+                SearchNoResultsView(message: "가까운 역이나 동네 이름으로 다시 검색해보세요")
+                    .padding(.top, 4)
             }
         }
+    }
+
+    private var shouldShowLocationNoResults: Bool {
+        store.locationQuery.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 &&
+        !store.isSearchingLocation &&
+        store.locationSuggestions.isEmpty &&
+        store.selectedLocations.count < 3
     }
 
     private func locationChip(_ name: String, index: Int) -> some View {

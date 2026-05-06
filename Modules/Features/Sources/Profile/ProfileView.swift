@@ -234,9 +234,18 @@ public struct ProfileView: View {
                     }
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else if shouldShowLocationNoResults {
+                    SearchNoResultsView(message: "가까운 역이나 동네 이름으로 다시 검색해보세요")
                 }
             }
         }
+    }
+
+    private var shouldShowLocationNoResults: Bool {
+        store.location.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 &&
+        !store.isSearchingLocation &&
+        store.selectedLocation == nil &&
+        store.locationSuggestions.isEmpty
     }
 
     private func selectedLocationChip(_ place: CoursePlace) -> some View {

@@ -306,6 +306,9 @@ public struct OnboardingView: View {
                             .background(Color(.secondarySystemBackground))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                             .id(ScrollTarget.locationSuggestions)
+                        } else if shouldShowLocationNoResults {
+                            SearchNoResultsView(message: "가까운 역이나 동네 이름으로 다시 검색해보세요")
+                                .id(ScrollTarget.locationSuggestions)
                         }
                     }
                 }
@@ -407,7 +410,14 @@ public struct OnboardingView: View {
     }
 
     private var locationSuggestionsScrollTarget: String? {
-        focusedField == .location && !store.locationSuggestions.isEmpty ? ScrollTarget.locationSuggestions : nil
+        focusedField == .location && (!store.locationSuggestions.isEmpty || shouldShowLocationNoResults) ? ScrollTarget.locationSuggestions : nil
+    }
+
+    private var shouldShowLocationNoResults: Bool {
+        store.location.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 &&
+        !store.isSearchingLocation &&
+        store.selectedLocation == nil &&
+        store.locationSuggestions.isEmpty
     }
 
     // MARK: - Bottom Bar
