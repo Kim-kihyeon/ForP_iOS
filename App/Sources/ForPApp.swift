@@ -31,7 +31,10 @@ struct ForPApp: App {
         let supabase = SupabaseClient(
             supabaseURL: supabaseURL,
             supabaseKey: Secrets.supabaseAnonKey,
-            options: .init(auth: .init(emitLocalSessionAsInitialSession: true))
+            options: .init(auth: .init(
+                storage: KeychainLocalStorage(service: "com.kihyeon.ForP.supabase.auth"),
+                emitLocalSessionAsInitialSession: true
+            ))
         )
 
         let kakaoProvider = MoyaProviderFactory.make(

@@ -10,10 +10,12 @@ public final class UserRepository: UserRepositoryProtocol {
     }
 
     public func fetchCurrentUser() async throws -> Domain.User {
+        let authUser = try await supabase.auth.user()
+        let userId = authUser.id
         let row: UserRow = try await supabase
             .from("users")
             .select()
-            .eq("id", value: try await supabase.auth.user().id)
+            .eq("id", value: userId)
             .single()
             .execute()
             .value
@@ -24,7 +26,8 @@ public final class UserRepository: UserRepositoryProtocol {
         let row = UserRow(from: user)
         try await supabase
             .from("users")
-            .upsert(row)
+            .update(row)
+            .eq("id", value: user.id)
             .execute()
     }
 

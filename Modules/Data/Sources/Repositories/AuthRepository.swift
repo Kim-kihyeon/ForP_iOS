@@ -26,21 +26,17 @@ public final class AuthRepository: AuthRepositoryProtocol {
                     headers: ["Authorization": "Bearer \(anonKey)"],
                     body: ["accessToken": kakaoToken.accessToken]
                 ))
-            try await supabase.auth.setSession(
+            let session = try await supabase.auth.setSession(
                 accessToken: response.accessToken,
                 refreshToken: response.refreshToken
             )
-            let userId = UUID(uuidString: response.userId) ?? UUID()
+            let userId = session.user.id
             let user = Domain.User(
                 id: userId,
                 email: email.isEmpty ? response.email : email,
                 nickname: nickname
             )
-            _ = try? await supabase.from("users").upsert(UserRow(from: user), ignoreDuplicates: true).execute()
-            if let row = try? await supabase.from("users").select().eq("id", value: userId).single().execute().value as UserRow {
-                return row.toDomain()
-            }
-            return user
+            return try await fetchUserRow(id: userId, fallback: user)
         } catch {
             throw error
         }
@@ -62,8 +58,7 @@ public final class AuthRepository: AuthRepositoryProtocol {
             preferredThemes: [],
             location: ""
         )
-        _ = try? await supabase.from("users").upsert(UserRow(from: user), ignoreDuplicates: true).execute()
-        return user
+        return try await fetchUserRow(id: authUser.id, fallback: user)
     }
 
     public func logout() async throws {
@@ -97,13 +92,7 @@ public final class AuthRepository: AuthRepositoryProtocol {
     }
 
     public func hasValidSession() async -> Bool {
-        do {
-            _ = try await supabase.auth.session
-            _ = try await supabase.auth.user()
-            return true
-        } catch {
-            return false
-        }
+        return supabase.auth.currentSession != nil
     }
 
     // MARK: - Private
@@ -150,5 +139,21 @@ public final class AuthRepository: AuthRepositoryProtocol {
                 else { continuation.resume(returning: user) }
             }
         }
+    }
+
+    private func fetchUserRow(id: UUID, fallback: Domain.User) async throws -> Domain.User {
+        if let row: UserRow = try? await supabase
+            .from("users")
+            .select()
+            .eq("id", value: id)
+            .single()
+            .execute()
+            .value {
+            return row.toDomain()
+        }
+
+        var user = fallback
+        user.id = id
+        return user
     }
 }
