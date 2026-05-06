@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "LaunchIconMark.png",
+      "filename" : "ForP_icon_transparent_border.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "LaunchIconMark@2x.png",
+      "filename" : "ForP_icon_transparent_border 1.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "LaunchIconMark@3x.png",
+      "filename" : "ForP_icon_transparent_border 2.png",
       "idiom" : "universal",
       "scale" : "3x"
     }
@@ -19,8 +19,5 @@
   "info" : {
     "author" : "xcode",
     "version" : 1
-  },
-  "properties" : {
-    "template-rendering-intent" : "original"
   }
 }

@@ -4,7 +4,6 @@
     <dependencies>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="24063"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
-        <capability name="System colors in document resources" minToolsVersion="11.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -16,17 +15,19 @@
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="SplashAppIcon" translatesAutoresizingMaskIntoConstraints="NO" id="kEx-a0-xHZ">
-                                <rect key="frame" x="136.66666666666666" y="366" width="119.99999999999997" height="120"/>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="AppIconImage" translatesAutoresizingMaskIntoConstraints="NO" id="xx7-nD-LJN">
+                                <rect key="frame" x="136.66666666666666" y="391" width="119.99999999999997" height="120"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="120" id="IYY-e0-GZF"/>
+                                    <constraint firstAttribute="height" constant="120" id="eIO-pl-20p"/>
+                                </constraints>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <color key="backgroundColor" red="0.90000000000000002" green="0.14999999999999999" blue="0.34999999999999998" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
-                            <constraint firstItem="kEx-a0-xHZ" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="Q3B-4y-UKo"/>
-                            <constraint firstItem="kEx-a0-xHZ" firstAttribute="width" constant="120" id="Xsi-tW-Ran"/>
-                            <constraint firstItem="kEx-a0-xHZ" firstAttribute="height" constant="120" id="YUa-Xp-uN4"/>
-                            <constraint firstItem="kEx-a0-xHZ" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="moa-c2-u7t"/>
+                            <constraint firstItem="xx7-nD-LJN" firstAttribute="centerY" secondItem="6Tk-OE-BBY" secondAttribute="centerY" id="5BS-bT-LM8"/>
+                            <constraint firstItem="xx7-nD-LJN" firstAttribute="centerX" secondItem="6Tk-OE-BBY" secondAttribute="centerX" id="IgL-9u-z43"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -36,9 +37,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="SplashAppIcon" width="1024" height="1024"/>
-        <systemColor name="systemBackgroundColor">
-            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-        </systemColor>
+        <image name="AppIconImage" width="341.33334350585938" height="341.33334350585938"/>
     </resources>
 </document>

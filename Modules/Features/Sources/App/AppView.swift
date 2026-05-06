@@ -30,8 +30,6 @@ public struct AppView: View {
 
 private struct SplashView: View {
     @State private var appeared = false
-    @State private var ringScale: CGFloat = 0.85
-    @State private var ringOpacity: Double = 0
     @State private var glowOpacity: Double = 0.2
     @State private var dotOffsets: [CGFloat] = [0, 0, 0]
 
@@ -63,36 +61,6 @@ private struct SplashView: View {
                 .offset(x: -100, y: 200)
 
             VStack(spacing: 28) {
-                // 아이콘 영역
-                ZStack {
-                    // 외곽 펄스 링
-                    Circle()
-                        .stroke(Color.white.opacity(0.15), lineWidth: 1.5)
-                        .frame(width: 176, height: 176)
-                        .scaleEffect(ringScale)
-                        .opacity(ringOpacity)
-
-                    Circle()
-                        .stroke(Color.white.opacity(0.25), lineWidth: 1)
-                        .frame(width: 148, height: 148)
-                        .scaleEffect(ringScale * 0.97)
-                        .opacity(ringOpacity)
-
-                    // 아이콘 배경 원
-                    Circle()
-                        .fill(Color.white.opacity(0.18))
-                        .frame(width: 124, height: 124)
-
-                    Image("SplashAppIcon")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 96, height: 96)
-                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                        .shadow(color: .black.opacity(0.18), radius: 20, x: 0, y: 8)
-                }
-                .scaleEffect(appeared ? 1 : 0.78)
-                .opacity(appeared ? 1 : 0)
-
                 // 텍스트
                 VStack(spacing: 10) {
                     Text("ForP")
@@ -125,10 +93,6 @@ private struct SplashView: View {
         .onAppear {
             withAnimation(.spring(response: 0.55, dampingFraction: 0.72)) {
                 appeared = true
-            }
-            withAnimation(.easeOut(duration: 0.6).delay(0.2)) {
-                ringScale = 1.12
-                ringOpacity = 1
             }
             withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
                 glowOpacity = 0.08
