@@ -66,7 +66,7 @@ public struct AnniversaryView: View {
         EmptyStateView(
             icon: "calendar.badge.plus",
             title: "아직 기념일이 없어요",
-            subtitle: "우리 둘만의 소중한 날을\n기록해보세요",
+            subtitle: "까먹기엔 아까운 날부터\n하나씩 챙겨볼게요",
             actionTitle: "기념일 추가"
         ) {
             store.send(.addTapped)

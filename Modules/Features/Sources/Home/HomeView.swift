@@ -753,7 +753,7 @@ public struct HomeView: View {
             VStack(spacing: 7) {
                 Text("아직 저장한 코스가 없어요")
                     .font(.system(size: 19, weight: .bold))
-                Text("가볍게 하나 만들어두고\n마음에 안 드는 곳만 바꿔도 돼요")
+                Text("일단 하나 만들어두고\n마음에 안 드는 곳만 바꿔도 돼요")
                     .font(Typography.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -908,10 +908,10 @@ private struct QuickGenerateLoadingOverlay: View {
                             }
                         }
                     }
-                    Text("코스 만드는 중")
+                    Text("코스 고르는 중")
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(.white)
-                    Text("AI가 딱 맞는 장소를 고르고 있어요")
+                    Text("너무 뻔한 곳은 살짝 빼고 있어요")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.white.opacity(0.78))
                 }

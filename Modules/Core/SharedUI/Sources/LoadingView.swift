@@ -22,11 +22,11 @@ public struct CourseLoadingView: View {
     @State private var iconOffset: CGFloat = 0
 
     private let messages = [
-        "맛집을 살펴보고 있어요",
-        "최적 동선을 그리고 있어요",
-        "코스를 완성하고 있어요",
-        "설레는 순간을 준비 중이에요",
-        "딱 맞는 장소를 고르고 있어요",
+        "너무 뻔한 곳은 살짝 빼고 있어요",
+        "동선이 꼬이지 않게 맞춰보고 있어요",
+        "오늘 분위기에 맞는 곳만 고르는 중이에요",
+        "괜찮은 후보만 남겨보고 있어요",
+        "마지막 조합을 다듬고 있어요",
     ]
 
     public init() {}
@@ -85,7 +85,7 @@ public struct CourseLoadingView: View {
                             removal: .opacity.combined(with: .offset(y: -10))
                         ))
 
-                    Text("AI가 맞춤 데이트 코스를 만들고 있어요")
+                    Text("조건에 맞는 장소를 차분히 고르고 있어요")
                         .font(.system(size: 13))
                         .foregroundStyle(.white.opacity(0.75))
 
@@ -135,8 +135,8 @@ public struct CourseRegenerationLoadingView: View {
 
     private let messages = [
         "고정한 장소는 그대로 둘게요",
-        "겹치지 않는 후보를 찾고 있어요",
-        "새로운 조합으로 다시 맞추는 중이에요",
+        "비슷한 곳은 조용히 피해볼게요",
+        "이번엔 조금 다른 분위기로 맞추는 중이에요",
         "동선이 자연스러운지 확인하고 있어요",
     ]
 
@@ -177,7 +177,7 @@ public struct CourseRegenerationLoadingView: View {
                         .id(messageIndex)
                         .transition(.opacity.combined(with: .offset(y: 8)))
 
-                    Text("비슷한 장소는 빼고 새 코스를 구성하고 있어요")
+                    Text("고정한 곳은 지키고, 나머지만 새로 보고 있어요")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

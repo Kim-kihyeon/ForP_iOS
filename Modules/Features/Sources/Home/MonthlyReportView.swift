@@ -275,7 +275,7 @@ struct MonthlyReportView: View {
                 .foregroundStyle(Color(.tertiaryLabel))
             Text("이번 달엔 아직 데이트가 없어요")
                 .font(.system(size: 17, weight: .semibold))
-            Text("코스를 만들고 함께 다녀봐요")
+            Text("한 번 다녀오면 이번 달 이야기가 생겨요")
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
         }
