@@ -20,6 +20,30 @@ struct FootprintMapView: View {
         return footprints.first { $0.id == selectedFootprintId } ?? footprints.first
     }
 
+    private var totalVisitCount: Int {
+        footprints.reduce(0) { $0 + $1.visitCount }
+    }
+
+    private var revisitCount: Int {
+        footprints.filter { $0.visitCount > 1 }.count
+    }
+
+    private var latestFootprint: FootprintPlace? {
+        footprints.max { $0.latestDate < $1.latestDate }
+    }
+
+    private var sortedFootprints: [FootprintPlace] {
+        footprints.sorted { lhs, rhs in
+            if lhs.latestDate != rhs.latestDate {
+                return lhs.latestDate > rhs.latestDate
+            }
+            if lhs.visitCount != rhs.visitCount {
+                return lhs.visitCount > rhs.visitCount
+            }
+            return lhs.placeName.localizedStandardCompare(rhs.placeName) == .orderedAscending
+        }
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -32,13 +56,16 @@ struct FootprintMapView: View {
                 }
             }
             .background(Color(.systemBackground))
-            .navigationTitle("우리 발자국")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("발자국")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("닫기") { onDismiss() }
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Brand.pink)
+                    Button { onDismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -48,7 +75,7 @@ struct FootprintMapView: View {
         VStack(spacing: 14) {
             ProgressView()
                 .tint(Brand.pink)
-            Text("다녀온 곳을 모으고 있어요")
+            Text("다녀온 곳을 차곡차곡 모으고 있어요")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.secondary)
         }
@@ -69,7 +96,7 @@ struct FootprintMapView: View {
             VStack(spacing: 7) {
                 Text("아직 발자국이 없어요")
                     .font(.system(size: 20, weight: .bold))
-                Text("코스를 다녀오면 장소가 자동으로 쌓여요")
+                Text("첫 코스를 다녀오면 여기부터 하나씩 쌓여요")
                     .font(Typography.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -88,18 +115,7 @@ struct FootprintMapView: View {
             )
             .frame(height: 360)
             .overlay(alignment: .topLeading) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(footprints.count)곳")
-                        .font(.system(size: 18, weight: .black))
-                    Text("다녀온 장소가 자동으로 쌓여요")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .padding(14)
+                mapSummaryOverlay
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if let selectedFootprint {
@@ -117,19 +133,70 @@ struct FootprintMapView: View {
         }
     }
 
+    private var mapSummaryOverlay: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                mapStatPill(value: "\(footprints.count)", label: "장소")
+                mapStatPill(value: "\(totalVisitCount)", label: "방문")
+                if revisitCount > 0 {
+                    mapStatPill(value: "\(revisitCount)", label: "재방문")
+                }
+            }
+
+            if let latestFootprint {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Brand.pink)
+                    Text("최근")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundStyle(Brand.pink)
+                    Text(latestFootprint.placeName)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.regularMaterial)
+                .clipShape(Capsule())
+            }
+        }
+        .padding(14)
+    }
+
+    private func mapStatPill(value: String, label: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(value)
+                .font(.system(size: 16, weight: .black, design: .rounded))
+                .foregroundStyle(Brand.pink)
+            Text(label)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .background(.regularMaterial)
+        .clipShape(Capsule())
+    }
+
     private var recentList: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 6) {
-                    Image(systemName: "clock.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text("최근 발자국")
-                        .font(.system(size: 15, weight: .bold))
-                }
-                .padding(.top, Spacing.lg)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("최근 발자국")
+                            .font(.system(size: 18, weight: .bold))
+                        Text("최근 다녀온 곳부터 모아봤어요")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
 
-                ForEach(footprints.sorted { $0.latestDate > $1.latestDate }) { footprint in
+                    Spacer()
+                }
+                .padding(.top, 18)
+
+                ForEach(sortedFootprints) { footprint in
                     Button {
                         Haptics.selection()
                         selectedFootprintId = footprint.id
@@ -141,16 +208,22 @@ struct FootprintMapView: View {
                 }
             }
             .padding(.horizontal, Spacing.lg)
-            .padding(.bottom, 28)
+            .padding(.bottom, 30)
         }
     }
 
     private func selectedCard(_ footprint: FootprintPlace) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 13) {
             ZStack {
                 Circle()
-                    .fill(Brand.pink)
-                    .frame(width: 42, height: 42)
+                    .fill(
+                        LinearGradient(
+                            colors: [Brand.pink, Brand.iconPurple],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 46, height: 46)
                 Image(systemName: "mappin.fill")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
@@ -158,7 +231,7 @@ struct FootprintMapView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(footprint.placeName)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text("\(footprint.latestCourseTitle) · \(footprint.dateText)")
@@ -169,31 +242,25 @@ struct FootprintMapView: View {
 
             Spacer()
 
-            if footprint.visitCount > 1 {
-                Text("\(footprint.visitCount)번")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(Brand.pink)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(Brand.softPink)
-                    .clipShape(Capsule())
-            }
+            visitBadge(for: footprint, isSelectedCard: true)
         }
-        .padding(14)
+        .padding(15)
         .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
         .shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 4)
     }
 
     private func footprintRow(_ footprint: FootprintPlace) -> some View {
-        HStack(spacing: 12) {
+        let isSelected = selectedFootprintId == footprint.id
+
+        return HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 13)
-                    .fill(Brand.softPink)
+                    .fill(isSelected ? Brand.pink : Brand.softPink)
                     .frame(width: 44, height: 44)
                 Image(systemName: "mappin.circle.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Brand.pink)
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(isSelected ? .white : Brand.pink)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -211,8 +278,12 @@ struct FootprintMapView: View {
 
             if footprint.visitCount > 1 {
                 Text("\(footprint.visitCount)회")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 11, weight: .black, design: .rounded))
+                    .foregroundStyle(Brand.pink)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Brand.softPink)
+                    .clipShape(Capsule())
             }
 
             Image(systemName: "chevron.right")
@@ -220,8 +291,42 @@ struct FootprintMapView: View {
                 .foregroundStyle(Color(.tertiaryLabel))
         }
         .padding(14)
-        .background(Color(.secondarySystemBackground))
+        .background(isSelected ? Brand.softPink.opacity(0.65) : Color(.secondarySystemBackground))
+        .overlay {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Brand.pink.opacity(0.35), lineWidth: 1)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 18))
+    }
+
+    @ViewBuilder
+    private func visitBadge(for footprint: FootprintPlace, isSelectedCard: Bool) -> some View {
+        if footprint.visitCount > 1 {
+            VStack(alignment: .trailing, spacing: 3) {
+                Text("\(footprint.visitCount)회")
+                    .font(.system(size: isSelectedCard ? 15 : 11, weight: .black, design: .rounded))
+                    .foregroundStyle(Brand.pink)
+                if isSelectedCard {
+                    Text("방문")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, isSelectedCard ? 10 : 8)
+            .padding(.vertical, isSelectedCard ? 7 : 5)
+            .background(Brand.softPink)
+            .clipShape(isSelectedCard ? AnyShape(RoundedRectangle(cornerRadius: 12)) : AnyShape(Capsule()))
+        } else if isSelectedCard {
+            Text("최근")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(Color(.tertiarySystemFill))
+                .clipShape(Capsule())
+        }
     }
 
     private func regionFitting(_ coordinates: [CLLocationCoordinate2D]) -> MKCoordinateRegion {
