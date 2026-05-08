@@ -53,7 +53,8 @@ public struct GenerateCourseUseCase {
             optionsWithWeather.weatherDescription = weather.description
         }
 
-        let plan = try await aiService.generateCoursePlan(user: user, partner: partner, options: optionsWithWeather)
+        let rawPlan = try await aiService.generateCoursePlan(user: user, partner: partner, options: optionsWithWeather)
+        let plan = filterPlanByMemoRestriction(rawPlan, memo: options.memo)
         Self.logger.info("AI course plan received selected=\(plan.places.count) candidates=\(plan.candidates.count) weather=\(optionsWithWeather.weatherDescription != nil)")
         // 이미 확보한 좌표 재사용 (re-geocode 불필요)
         let resolvedCoord = resolved
@@ -62,7 +63,15 @@ public struct GenerateCourseUseCase {
         var enrichedSelected: [CoursePlace] = []
         var usedPlaceIds = Set(options.lockedPlaces.compactMap(\.kakaoPlaceId))
         let excludedKeys = Set((options.lockedPlaces + options.excludedPlaces).map(placeIdentityKey))
-        let lockedSpecificTypes = Set(options.lockedPlaces.compactMap(specificFoodTypeKey))
+        // "X만" 제약이 있으면 X 타입은 lockedSpecificTypes에서 제외
+        // (막창 고정 후 "막창만 추천" → 막창을 차단하면 안 됨)
+        let memoConstraint = extractOnlyConstraint(from: options.memo)
+        var lockedSpecificTypes = Set(options.lockedPlaces.compactMap(specificFoodTypeKey))
+        if let c = memoConstraint {
+            lockedSpecificTypes = lockedSpecificTypes.filter {
+                !$0.lowercased().contains(c) && !c.contains($0.lowercased())
+            }
+        }
         var selectedSearchFailures = 0
         for place in plan.places {
             let results = await searchWithFallback(place: place, lat: resolvedCoord.lat, lon: resolvedCoord.lon, radius: options.searchRadius)
@@ -86,6 +95,7 @@ public struct GenerateCourseUseCase {
                 if !match.category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     updated.category = match.category
                 }
+                updated.reason = verifiedReason(generated: place, match: match)
                 updated.menu = nil
                 enrichedSelected.append(updated)
                 usedPlaceIds.insert(placeId)
@@ -121,6 +131,7 @@ public struct GenerateCourseUseCase {
                 if !match.category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     updated.category = match.category
                 }
+                updated.reason = verifiedReason(generated: place, match: match)
                 updated.menu = nil
                 enrichedCandidates.append(updated)
                 usedPlaceIds.insert(placeId)
@@ -137,7 +148,7 @@ public struct GenerateCourseUseCase {
             enrichedSelected.append(contentsOf: fill)
         }
 
-        guard !enrichedSelected.isEmpty else {
+        guard enrichedSelected.count >= options.placeCount else {
             Self.logger.error("Course generation failed no_places_found location=\(options.location, privacy: .private) selectedFailures=\(selectedSearchFailures) candidateFailures=\(candidateSearchFailures)")
             throw CourseGenerationError.noPlacesFound(options.location)
         }
@@ -178,6 +189,10 @@ public struct GenerateCourseUseCase {
     ) -> Bool {
         guard let id = match.kakaoPlaceId else { return false }
         guard !usedPlaceIds.contains(id), !excludedKeys.contains(placeIdentityKey(match)) else { return false }
+        guard passesBasicPlaceQuality(match) else { return false }
+        guard isCategoryCompatible(generated: generated, match: match) else { return false }
+        guard isChainAcceptable(generated: generated, match: match) else { return false }
+        guard isSpecificFoodTypeCompatible(generated: generated, match: match) else { return false }
         guard !lockedSpecificTypes.isEmpty else { return true }
 
         let generatedType = specificFoodTypeKey(generated)
@@ -185,6 +200,127 @@ public struct GenerateCourseUseCase {
         return [generatedType, matchedType]
             .compactMap { $0 }
             .allSatisfy { !lockedSpecificTypes.contains($0) }
+    }
+
+    private func eunNeun(_ word: String) -> String {
+        guard let last = word.last else { return "은(는)" }
+        let value = last.unicodeScalars.first!.value
+        guard value >= 0xAC00, value <= 0xD7A3 else { return "은(는)" }
+        return (value - 0xAC00) % 28 != 0 ? "은" : "는"
+    }
+
+    private func verifiedReason(generated: CoursePlace, match: CoursePlace) -> String {
+        let matchedName = match.placeName ?? generated.keyword
+        let gptReason = generated.reason.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // GPT reason이 충분히 구체적이면 우선 사용 (검증된 장소명으로 치환)
+        if gptReason.count >= 25 {
+            if let genName = generated.placeName, !genName.isEmpty, genName != matchedName {
+                return gptReason.replacingOccurrences(of: genName, with: matchedName)
+            }
+            return gptReason
+        }
+
+        let p = eunNeun(matchedName)
+        let specificType = specificFoodTypeKey(generated)
+
+        switch expectedPlaceKind(generated) {
+        case .restaurant:
+            if let type = specificType {
+                let variants = [
+                    "\(matchedName)\(p) \(type) 코스에 딱 맞는 장소예요.",
+                    "\(type) 자리로 \(matchedName)\(p) 이 지역에서 찾은 선택이에요.",
+                    "\(matchedName)\(p) \(type)을 즐기기에 좋은 장소라 코스에 넣었어요.",
+                ]
+                return variants.randomElement()!
+            }
+            let variants = [
+                "\(matchedName)\(p) 코스 흐름에 잘 맞는 식사 장소예요.",
+                "\(matchedName)\(p) 동선 안에서 찾은 이 지역 식사 장소예요.",
+                "식사 자리로 \(matchedName)\(p) 코스에 자연스럽게 어울려요.",
+            ]
+            return variants.randomElement()!
+        case .cafe:
+            let variants = [
+                "\(matchedName)\(p) 코스 중간에 여유롭게 쉬어가기 좋은 카페예요.",
+                "\(matchedName)\(p) 대화하기 좋은 분위기라 코스에 넣었어요.",
+                "잠깐 앉아 이야기 나누기 좋은 \(matchedName)\(p) 코스 사이에 딱이에요.",
+            ]
+            return variants.randomElement()!
+        case .bar:
+            let variants = [
+                "\(matchedName)\(p) 코스 마무리로 분위기 있게 머물기 좋아요.",
+                "저녁 마지막으로 \(matchedName)\(p) 가볍게 한 잔 하기 좋은 장소예요.",
+                "\(matchedName)\(p) 마무리 분위기를 살려줄 장소예요.",
+            ]
+            return variants.randomElement()!
+        case .activity:
+            let variants = [
+                "\(matchedName)\(p) 식사 사이에 분위기를 바꿔줄 수 있어요.",
+                "\(matchedName)\(p) 코스에 색다른 경험을 더해줄 장소예요.",
+                "코스 중간에 \(matchedName)\(p) 넣으면 흐름이 살아나요.",
+            ]
+            return variants.randomElement()!
+        case .any:
+            let variants = [
+                "\(matchedName)\(p) 이 지역 코스에 잘 어울리는 장소예요.",
+                "\(matchedName)\(p) 동선과 분위기가 맞는 실제 장소예요.",
+            ]
+            return variants.randomElement()!
+        }
+    }
+
+    // MARK: - Memo Restriction Filter
+
+    /// memo에 "X만 추천/해줘" 패턴이 있으면 해당 타입이 아닌 GPT 생성 장소를 사전 제거.
+    /// GPT가 프롬프트 규칙을 어겼을 때의 코드 레벨 안전망.
+    private func filterPlanByMemoRestriction(_ plan: CoursePlan, memo: String) -> CoursePlan {
+        guard let constraint = extractOnlyConstraint(from: memo) else { return plan }
+
+        func isAllowed(_ place: CoursePlace) -> Bool {
+            var words: [String] = [place.keyword.lowercased()]
+            if let type = specificFoodTypeKey(place) {
+                let aliasKeywords = findFoodTypeAlias(for: type)?.keywords ?? [type]
+                words.append(contentsOf: aliasKeywords)
+            }
+            return words.contains { w in w.contains(constraint) || constraint.contains(w) }
+        }
+
+        return CoursePlan(
+            places: plan.places.filter(isAllowed),
+            candidates: plan.candidates.filter(isAllowed),
+            outfitSuggestion: plan.outfitSuggestion,
+            courseReason: plan.courseReason
+        )
+    }
+
+    /// "막창집만 추천" → "막창", "용봉탕만 해줘" → "용봉탕" 추출.
+    /// 1순위: "X만 추천/해줘/주세요/넣어줘" 명시 패턴 (오탐 가장 적음)
+    /// 2순위: 알려진 alias 키워드 + "만" (동사 없이 "막창만"만 써도 감지, 오탐 방지를 위해 known type만)
+    private func extractOnlyConstraint(from memo: String) -> String? {
+        let suffixes = ["집만 추천", "만 추천", "집만 해줘", "만 해줘",
+                        "집만 주세요", "만 주세요", "집만 넣어", "만 넣어", "집만"]
+        for suffix in suffixes {
+            guard let range = memo.range(of: suffix) else { continue }
+            let word = String(memo[..<range.lowerBound])
+                .components(separatedBy: .whitespacesAndNewlines)
+                .last?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if word.count >= 2 { return word.lowercased() }
+        }
+        // 알려진 alias 키워드에 한해 bare "X만" 감지 ("강남만" 같은 위치 오탐 방지)
+        let lowerMemo = memo.lowercased()
+        for alias in foodTypeAliases {
+            for kw in alias.keywords {
+                let pattern = kw + "만"
+                if lowerMemo == pattern || lowerMemo.hasSuffix(" " + pattern) ||
+                   lowerMemo.hasSuffix("\n" + pattern) || lowerMemo.contains(pattern + " ") ||
+                   lowerMemo.contains(pattern + "\n") {
+                    return kw
+                }
+            }
+        }
+        return nil
     }
 
     private func mergeLockedPlaces(locked: [CoursePlace], replacements: [CoursePlace], totalCount: Int) -> [CoursePlace] {
@@ -228,23 +364,27 @@ public struct GenerateCourseUseCase {
         return "text:\(name)|\(address)"
     }
 
+    // GPT가 명시한 foodType 우선, 없으면 keyword에서만 추론 (reason 제외 — false positive 방지)
     private func specificFoodTypeKey(_ place: CoursePlace) -> String? {
-        let text = [
-            place.placeName,
-            place.keyword,
-            place.category,
-            place.menu,
-            place.reason,
-        ]
-        .compactMap { $0 }
-        .joined(separator: " ")
-        .lowercased()
-
-        return foodTypeAliases.first { alias in
-            alias.keywords.contains { text.contains($0) }
-        }?.type
+        if let foodType = place.foodType, !foodType.isEmpty { return foodType }
+        let text = [place.keyword, place.placeName]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .lowercased()
+        return foodTypeAliases.first { $0.keywords.contains { text.contains($0) } }?.type
     }
 
+    /// foodType 문자열로 alias를 찾음. 정확한 type 매치 → keyword 포함 여부 → 부분 문자열 순으로 시도.
+    /// GPT가 "막창집", "스시"처럼 alias type과 다르게 내려줄 때도 올바른 alias를 찾을 수 있게 함.
+    private func findFoodTypeAlias(for type: String) -> (type: String, keywords: [String])? {
+        let n = type.lowercased()
+        if let exact = foodTypeAliases.first(where: { $0.type.lowercased() == n }) { return exact }
+        if let byKw  = foodTypeAliases.first(where: { $0.keywords.contains { kw in n == kw || n.contains(kw) || kw.contains(n) } }) { return byKw }
+        if let bySub = foodTypeAliases.first(where: { n.contains($0.type.lowercased()) || $0.type.lowercased().contains(n) }) { return bySub }
+        return nil
+    }
+
+    // foodType → 카카오 검색 fallback 키워드 매핑 (타입 감지 목적 아님)
     private var foodTypeAliases: [(type: String, keywords: [String])] {
         [
             ("훠궈", ["훠궈", "하이디라오", "haidilao", "hot pot", "hotpot"]),
@@ -253,7 +393,8 @@ public struct GenerateCourseUseCase {
             ("양꼬치", ["양꼬치"]),
             ("샤브샤브", ["샤브샤브"]),
             ("초밥", ["초밥", "스시", "sushi"]),
-            ("사시미", ["사시미", "회"]),
+            // "회" 단독 제거: "기회", "이 기회에" 등 GPT reason에 흔히 등장하는 단어와 충돌
+            ("사시미", ["사시미", "횟집", "회요리", "활어"]),
             ("오마카세", ["오마카세"]),
             ("라멘", ["라멘", "라면"]),
             ("우동", ["우동"]),
@@ -264,15 +405,38 @@ public struct GenerateCourseUseCase {
             ("스테이크", ["스테이크"]),
             ("리조또", ["리조또"]),
             ("와인바", ["와인바", "와인 바"]),
-            ("삼겹살", ["삼겹살"]),
-            ("고깃집", ["고깃집", "고기집", "구이"]),
-            ("갈비", ["갈비"]),
-            ("곱창", ["곱창"]),
+            // 세부 고기 유형 — 고깃집(generic)보다 반드시 앞에 위치
+            // 주의: 특정 유형의 keyword가 다른 유형 keyword의 substring이면 더 긴 쪽을 먼저
+            // (예: "닭갈비"는 "갈비"를 포함하므로 갈비보다 앞에 위치해야 함)
             ("막창", ["막창"]),
+            ("대창", ["대창", "소대창"]),
+            ("곱창", ["곱창"]),
+            ("곱도리탕", ["곱도리탕"]),
+            ("닭갈비", ["닭갈비"]),  // "갈비" 앞에 위치 — "닭갈비" 텍스트에 "갈비" 포함
+            ("갈비탕", ["갈비탕"]),  // "갈비" 앞에 위치 — "갈비탕" 텍스트에 "갈비" 포함
+            ("갈비", ["갈비"]),
+            ("삼겹살", ["삼겹살"]),
+            ("닭발", ["닭발"]),
+            ("닭볶음탕", ["닭볶음탕", "닭도리탕"]),
+            ("찜닭", ["찜닭"]),
+            ("닭한마리", ["닭한마리"]),
             ("족발", ["족발"]),
             ("보쌈", ["보쌈"]),
-            ("곱도리탕", ["곱도리탕"]),
-            ("닭갈비", ["닭갈비"]),
+            // "구이" 제거: 막창구이·삼겹살구이처럼 다른 세부 유형에도 붙어 오탐 유발
+            ("고깃집", ["고깃집", "고기집"]),
+            ("꼼장어", ["꼼장어"]),  // "장어" 앞에 위치 — "꼼장어" 텍스트에 "장어" 포함
+            ("장어", ["장어", "민물장어", "뱀장어"]),
+            ("낙지", ["낙지"]),
+            ("감자탕", ["감자탕"]),
+            ("부대찌개", ["부대찌개"]),
+            ("순대", ["순대"]),
+            ("해장국", ["해장국"]),
+            ("설렁탕", ["설렁탕"]),
+            ("삼계탕", ["삼계탕"]),
+            ("칼국수", ["칼국수"]),
+            ("국밥", ["국밥"]),
+            ("냉면", ["냉면"]),
+            ("불고기", ["불고기"]),
             ("치킨", ["치킨"]),
             ("버거", ["버거", "햄버거"]),
             ("타코", ["타코"]),
@@ -291,38 +455,321 @@ public struct GenerateCourseUseCase {
     // 지역 입력 파싱: 단일 지역은 그대로, 복합 표현은 중간점 계산
     // gptLocation: GPT 프롬프트/키워드에 사용할 단순 지명
     private func searchWithFallback(place: CoursePlace, lat: Double, lon: Double, radius: Int) async -> [CoursePlace] {
-        for keyword in fallbackKeywords(for: place) {
-            // 1차: 반경 검색
-            let radiusResults = (try? await placeRepository.searchPlaces(keyword: keyword, latitude: lat, longitude: lon, radius: radius)) ?? []
-            if !radiusResults.isEmpty { return radiusResults }
+        let keywords = fallbackKeywords(for: place)
+        let firstTier = await searchCandidatePool(keywords: keywords, lat: lat, lon: lon, radius: radius)
+        if !firstTier.isEmpty { return rankedCourseCandidates(firstTier) }
 
-            // 2차: 반경 2배 확장
-            let widerResults = (try? await placeRepository.searchPlaces(keyword: keyword, latitude: lat, longitude: lon, radius: radius * 2)) ?? []
-            if !widerResults.isEmpty { return widerResults }
-        }
+        let secondTierRadius = min(max(radius * 2, 3_000), isFoodLike(place) ? 5_000 : 8_000)
+        let secondTier = await searchCandidatePool(keywords: keywords, lat: lat, lon: lon, radius: secondTierRadius)
+        if !secondTier.isEmpty { return rankedCourseCandidates(secondTier) }
 
-        // 3차: 최대 반경(20km)으로 확장 검색 — 필터 유지
-        for keyword in fallbackKeywords(for: place) {
-            let results = (try? await placeRepository.searchPlaces(keyword: keyword, latitude: lat, longitude: lon, radius: 20_000)) ?? []
-            if !results.isEmpty { return results }
+        guard !isFoodLike(place) else { return [] }
+
+        // 비음식 활동만 넓게 확장한다. 음식점은 멀리 있는 애매한 후보보다 실패가 낫다.
+        let finalTier = await searchCandidatePool(keywords: keywords, lat: lat, lon: lon, radius: 20_000)
+        return rankedCourseCandidates(finalTier)
+    }
+
+    private func searchCandidatePool(keywords: [String], lat: Double, lon: Double, radius: Int) async -> [CoursePlace] {
+        var seen = Set<String>()
+        var pool: [CoursePlace] = []
+        for keyword in keywords {
+            let results = (try? await placeRepository.searchPlaces(keyword: keyword, latitude: lat, longitude: lon, radius: radius)) ?? []
+            for place in results {
+                let key = placeIdentityKey(place)
+                guard seen.insert(key).inserted else { continue }
+                pool.append(place)
+            }
         }
-        return []
+        return pool
     }
 
     private func fallbackKeywords(for place: CoursePlace) -> [String] {
-        let location = place.keyword.components(separatedBy: .whitespacesAndNewlines).first ?? place.keyword
+        let location = place.keyword
+            .components(separatedBy: .whitespacesAndNewlines).first ?? place.keyword
+
+        // 특정 음식 유형 확인 (foodType 우선, 없으면 keyword 추론)
+        // "막창"이면 fallback도 막창 키워드만, 범용 키워드로 절대 확장하지 않음.
+        if let foodType = specificFoodTypeKey(place),
+           let alias = findFoodTypeAlias(for: foodType) {
+            var keywords: [String] = [place.keyword]
+            for kw in alias.keywords.prefix(3) {
+                let candidate = "\(location) \(kw)"
+                if candidate != place.keyword { keywords.append(candidate) }
+            }
+            var seen = Set<String>()
+            return keywords
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty && seen.insert($0).inserted }
+        }
+
+        // 카페/디저트/브런치/베이커리 계열 — 카페 범주 안에서만 fallback
+        let text = [place.category, place.keyword, place.reason, place.menu]
+            .compactMap { $0 }.joined(separator: " ").lowercased()
+        let isCafeLike = text.contains("카페") || text.contains("디저트") ||
+                         text.contains("브런치") || text.contains("베이커리")
+        if isCafeLike {
+            var seen = Set<String>()
+            return [place.keyword, "\(location) 카페", "\(location) 디저트 카페"]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty && seen.insert($0).inserted }
+        }
+
+        // 일반 음식점 (특정 유형 없음) — 카테고리 수준 fallback만 허용
         let category = normalizedCategory(place.category)
-        let candidates = [
-            place.keyword,
-            "\(location) \(category)",
-            "\(location) 데이트",
-            "\(location) 맛집",
-            location,
-        ]
-        var seen = Set<String>()
-        return candidates
+        if isFoodLike(place) {
+            var seen = Set<String>()
+            return [
+                place.keyword,
+                category == "맛집" ? "\(location) 음식점" : "\(location) \(category)",
+                "\(location) 음식점",
+            ]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && seen.insert($0).inserted }
+        }
+
+        // 활동/전시 등 비음식 장소
+        var seen = Set<String>()
+        return [place.keyword, "\(location) \(category)", "\(location) 데이트", location]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+
+    private func rankedCourseCandidates(_ places: [CoursePlace]) -> [CoursePlace] {
+        places
+            .filter(passesBasicPlaceQuality)
+            .sorted { lhs, rhs in
+                let lhsScore = placeQualityScore(lhs)
+                let rhsScore = placeQualityScore(rhs)
+                if lhsScore != rhsScore { return lhsScore > rhsScore }
+                return (lhs.placeName ?? lhs.keyword).localizedStandardCompare(rhs.placeName ?? rhs.keyword) == .orderedAscending
+            }
+    }
+
+    private func passesBasicPlaceQuality(_ place: CoursePlace) -> Bool {
+        let name = place.placeName ?? place.keyword
+        guard !isGenericSearchLikePlaceName(name) else { return false }
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        return true
+    }
+
+    private func placeQualityScore(_ place: CoursePlace) -> Int {
+        let name = place.placeName ?? place.keyword
+        let category = place.category
+        var score = 0
+
+        score += min(category.components(separatedBy: ">").count, 4)
+        if category.contains("음식점") || category.contains("카페") { score += 2 }
+        if name.count >= 3 { score += 2 }
+        if name.count >= 5 { score += 1 }
+        if name.contains("본점") || name.contains("직영") { score += 1 }
+        if isGenericSearchLikePlaceName(name) { score -= 10 }
+        if category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { score -= 2 }
+        if category.contains("기타") { score -= 2 }
+        if isChainCafe(place) { score -= 5 }
+        if isFastFoodChain(place) { score -= 4 }
+        return score
+    }
+
+    private func isCategoryCompatible(generated: CoursePlace, match: CoursePlace) -> Bool {
+        guard isSpecificCafeCompatible(generated: generated, match: match) else { return false }
+        let expected = expectedPlaceKind(generated)
+        guard expected != .any else { return true }
+        let category = match.category
+        switch expected {
+        case .restaurant:
+            return category.contains("음식점")
+        case .cafe:
+            if category.contains("카페") { return true }
+            // 브런치 요청은 카카오에서 "음식점 > 양식" 등으로 분류될 수 있어 음식점 카테고리도 허용
+            let genText = [generated.category, generated.keyword, generated.reason, generated.menu]
+                .compactMap { $0 }.joined(separator: " ").lowercased()
+            return genText.contains("브런치") && category.contains("음식점")
+        case .bar:
+            return category.contains("술집") || category.contains("주점")
+        case .activity:
+            return !category.contains("음식점") && !category.contains("카페")
+        case .any:
+            return true
+        }
+    }
+
+    private func isSpecificCafeCompatible(generated: CoursePlace, match: CoursePlace) -> Bool {
+        let generatedText = [
+            generated.category,
+            generated.keyword,
+            generated.reason,
+            generated.menu,
+        ]
+        .compactMap { $0 }
+        .joined(separator: " ")
+        .lowercased()
+
+        guard generatedText.contains("브런치") else { return true }
+
+        let matchedText = [
+            match.placeName,
+            match.category,
+            match.keyword,
+        ]
+        .compactMap { $0 }
+        .joined(separator: " ")
+        .lowercased()
+
+        return matchedText.contains("브런치") ||
+            matchedText.contains("베이커리") ||
+            matchedText.contains("레스토랑") ||
+            matchedText.contains("양식") ||
+            matchedText.contains("카페")
+    }
+
+    /// GPT가 지정한 음식 유형과 매칭 장소의 유형이 일치해야 함.
+    /// - genType: foodType 우선, 없으면 keyword 추론 (specificFoodTypeKey)
+    /// - matchText: Kakao placeName·category만 — match.keyword는 우리가 보낸 검색어라 항상 일치해 의미 없음
+    private func isSpecificFoodTypeCompatible(generated: CoursePlace, match: CoursePlace) -> Bool {
+        guard let genType = specificFoodTypeKey(generated) else { return true }
+        let matchText = [match.placeName, match.category]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .lowercased()
+        let keywords = findFoodTypeAlias(for: genType)?.keywords ?? [genType]
+        return keywords.contains { matchText.contains($0) }
+    }
+
+    private func isChainAcceptable(generated: CoursePlace, match: CoursePlace) -> Bool {
+        guard isChainCafe(match) else { return true }
+
+        let text = [
+            generated.category,
+            generated.keyword,
+            generated.reason,
+            generated.menu,
+        ]
+        .compactMap { $0 }
+        .joined(separator: " ")
+        .lowercased()
+
+        let requiresLocalMood = [
+            "브런치", "감성", "트렌디", "분위기", "데이트", "디저트",
+            "로스터리", "베이커리", "대화", "오붓",
+            "와인", "로맨틱", "특별한", "힐링", "아늑", "야경", "루프탑",
+            "핸드드립", "스페셜티", "싱글오리진",
+        ].contains { text.contains($0) }
+        if requiresLocalMood { return false }
+
+        let allowsSimpleCafe = [
+            "커피", "카페", "휴식", "가볍", "잠깐", "저렴", "가성비",
+            "테이크아웃",
+        ].contains { text.contains($0) }
+        return allowsSimpleCafe
+    }
+
+    private func isChainCafe(_ place: CoursePlace) -> Bool {
+        let name = place.placeName ?? place.keyword
+        let chainKeywords = [
+            "메가커피", "메가MGC커피", "컴포즈커피", "빽다방", "이디야", "스타벅스",
+            "투썸플레이스", "할리스", "커피빈", "폴바셋", "엔제리너스", "파스쿠찌",
+            "공차", "더벤티", "매머드커피", "커피에반하다", "커피베이", "탐앤탐스",
+            "요거프레소", "하삼동커피", "텐퍼센트커피",
+        ]
+        return chainKeywords.contains { name.localizedCaseInsensitiveContains($0) }
+    }
+
+    // 패스트푸드/베이커리 체인 — 데이트 코스에 어울리지 않는 장소 감점용
+    private func isFastFoodChain(_ place: CoursePlace) -> Bool {
+        let name = place.placeName ?? place.keyword
+        let keywords = [
+            "맥도날드", "KFC", "케이에프씨", "롯데리아", "버거킹", "맘스터치",
+            "파파이스", "노브랜드버거", "서브웨이",
+            "파리바게뜨", "뚜레쥬르", "베스킨라빈스", "배스킨라빈스", "던킨도너츠", "던킨",
+            "한솥도시락",
+        ]
+        return keywords.contains { name.localizedCaseInsensitiveContains($0) }
+    }
+
+    private enum ExpectedPlaceKind {
+        case restaurant
+        case cafe
+        case bar
+        case activity
+        case any
+    }
+
+    private func expectedPlaceKind(_ place: CoursePlace) -> ExpectedPlaceKind {
+        let text = [
+            place.category,
+            place.keyword,
+            place.reason,
+            place.menu,
+        ]
+        .compactMap { $0 }
+        .joined(separator: " ")
+        .lowercased()
+
+        if text.contains("카페") || text.contains("디저트") || text.contains("브런치") || text.contains("베이커리") {
+            return .cafe
+        }
+        // "바"는 파스타바/주스바/샐러드바 등 false positive가 있어 제거
+        // 명확한 술집 신호어만 사용
+        let barSignals = [
+            "술집", "와인바", "와인 바", "칵테일바", "칵테일 바", "이자카야",
+            "호프", "맥주집", "펍", "포차", "주점", "소주바", "라운지바",
+        ]
+        if barSignals.contains(where: { text.contains($0) }) {
+            return .bar
+        }
+        if isFoodLike(place) {
+            return .restaurant
+        }
+        if text.contains("전시") || text.contains("문화") || text.contains("공원") || text.contains("산책") || text.contains("영화") {
+            return .activity
+        }
+        return .any
+    }
+
+    private func isFoodLike(_ place: CoursePlace) -> Bool {
+        let text = [
+            place.category,
+            place.keyword,
+            place.reason,
+            place.menu,
+        ]
+        .compactMap { $0 }
+        .joined(separator: " ")
+        .lowercased()
+
+        let foodSignals = [
+            "맛집", "음식", "식당", "한식", "중식", "일식", "양식", "분식",
+            "고기", "브런치", "디저트", "카페", "술집", "레스토랑",
+            "파스타", "피자", "라멘", "초밥", "스시",
+            // "바" 제거: 파스타바/주스바 등 food가 아닌 케이스 포함될 수 있음
+            // 와인바/이자카야 등은 specificFoodTypeKey에서 처리됨
+        ]
+        return foodSignals.contains { text.contains($0) } || specificFoodTypeKey(place) != nil
+    }
+
+    private func isGenericSearchLikePlaceName(_ name: String) -> Bool {
+        let normalized = name
+            .folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .joined()
+            .lowercased()
+
+        let genericNames: Set<String> = [
+            "맛집", "한식맛집", "중식맛집", "일식맛집", "양식맛집", "고기맛집",
+            "카페맛집", "데이트맛집", "브런치맛집", "디저트맛집", "술집맛집",
+            "맛집추천", "한식", "중식", "일식", "양식", "분식", "음식점",
+            "카페", "브런치", "디저트", "술집", "밥집",
+        ]
+        if genericNames.contains(normalized) { return true }
+
+        let genericSuffixes = ["맛집", "추천", "데이트"]
+        let genericPrefixes = ["한식", "중식", "일식", "양식", "고기", "카페", "브런치", "디저트", "술집", "밥집"]
+        return genericPrefixes.contains { prefix in
+            genericSuffixes.contains { suffix in
+                normalized == "\(prefix)\(suffix)"
+            }
+        }
     }
 
     private func normalizedCategory(_ category: String) -> String {
