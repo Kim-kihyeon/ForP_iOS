@@ -221,9 +221,9 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
         }
     }
 
-    public func updateRating(id: UUID, rating: Int, review: String) async throws {
+    public func updateRating(id: UUID, rating: Int?, review: String) async throws {
         struct RatingUpdate: Encodable {
-            let rating: Int
+            let rating: Int?
             let review: String
         }
         try await supabase
@@ -242,20 +242,30 @@ public final class CourseRepository: CourseRepositoryProtocol, @unchecked Sendab
         }
     }
 
-    public func updatePartnerRating(id: UUID, rating: Int, review: String) async throws {
-        struct Params: Encodable {
-            let courseId: UUID
-            let pRating: Int
-            let pReview: String
+    public func updatePartnerRating(id: UUID, rating: Int?, review: String) async throws {
+        struct PartnerRatingUpdate: Encodable {
+            let partnerRating: Int?
+            let partnerReview: String
+
             enum CodingKeys: String, CodingKey {
-                case courseId = "course_id"
-                case pRating = "p_rating"
-                case pReview = "p_review"
+                case partnerRating = "partner_rating"
+                case partnerReview = "partner_review"
             }
         }
         try await supabase
-            .rpc("update_partner_rating", params: Params(courseId: id, pRating: rating, pReview: review))
+            .from("courses")
+            .update(PartnerRatingUpdate(partnerRating: rating, partnerReview: review))
+            .eq("id", value: id)
             .execute()
+
+        try await MainActor.run {
+            let descriptor = FetchDescriptor<CourseCache>(predicate: #Predicate { $0.id == id })
+            if let cache = try modelContext.fetch(descriptor).first {
+                cache.partnerRating = rating
+                cache.partnerReview = review.isEmpty ? nil : review
+                try modelContext.save()
+            }
+        }
     }
 
     public func endCourse(id: UUID) async throws {

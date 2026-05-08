@@ -112,7 +112,6 @@ public struct CourseResultFeature {
         case confirmedPartialRegenerate
         case cancelPartialRegenerationTapped
         case partialRegenerateResponse(Result<CoursePlan, Error>)
-        case swapNextPlace
 
         public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate, confirmReplaceInProgress, openConflictCourse }
         public enum Delegate: Equatable {
@@ -425,15 +424,25 @@ public struct CourseResultFeature {
                 } else {
                     state.visitedOrders.insert(order)
                     if state.allVisited && !state.course.isEnded {
+                        state.isPlaying = false
+                        state.showLiveMap = false
                         state.showCompletion = true
+                        state.course.isEnded = true
+                        state.course.status = .completed
                     }
                 }
                 state.course.visitedOrders = Array(state.visitedOrders).sorted()
                 let id = state.course.id
                 let visited = state.course.visitedOrders
+                let shouldComplete = state.course.status == .completed && state.course.isEnded
                 guard state.isSaved else { return .none }
-                return .run { _ in
+                return .run { send in
                     try? await courseRepository.updateVisitedOrders(id: id, visitedOrders: visited)
+                    if shouldComplete {
+                        await send(.endDateResponse(Result {
+                            try await courseRepository.endCourse(id: id)
+                        }))
+                    }
                 }
 
             case .saveReviewTapped:
@@ -444,7 +453,7 @@ public struct CourseResultFeature {
                 state.visitedOrders = Set(completedOrders)
                 state.course.visitedOrders = completedOrders
                 let rating = state.completionRating
-                let review = state.completionReview
+                let review = state.completionReview.trimmingCharacters(in: .whitespacesAndNewlines)
                 let isCreator = state.isCreator
                 let id = state.course.id
                 if isCreator {
@@ -457,11 +466,11 @@ public struct CourseResultFeature {
                 state.course.isEnded = true
                 state.course.status = .completed
                 return .run { send in
-                    if rating > 0 {
+                    if rating > 0 || !review.isEmpty {
                         if isCreator {
-                            try? await courseRepository.updateRating(id: id, rating: rating, review: review)
+                            try? await courseRepository.updateRating(id: id, rating: rating > 0 ? rating : nil, review: review)
                         } else {
-                            try? await courseRepository.updatePartnerRating(id: id, rating: rating, review: review)
+                            try? await courseRepository.updatePartnerRating(id: id, rating: rating > 0 ? rating : nil, review: review)
                         }
                     }
                     await send(.endDateResponse(Result {
@@ -545,12 +554,28 @@ public struct CourseResultFeature {
                 guard let userId = currentUserId() else { return .none }
                 state.isCreator = state.course.userId == userId
                 let courseId = state.course.id
+                let shouldAutoComplete = state.isSaved &&
+                    state.course.status == .inProgress &&
+                    !state.course.isEnded &&
+                    !state.course.places.isEmpty &&
+                    state.course.places.allSatisfy { state.visitedOrders.contains($0.order) }
+                if shouldAutoComplete {
+                    state.course.isEnded = true
+                    state.course.status = .completed
+                    state.isPlaying = false
+                    state.showLiveMap = false
+                }
                 let shouldSubscribe = state.isSaved && !state.course.isEnded
                 return .merge(
                     .run { [wishlistRepository] send in
                         let all = (try? await wishlistRepository.fetchAll(userId: userId)) ?? []
                         await send(.bookmarksLoaded(all))
                     },
+                    shouldAutoComplete ? .run { send in
+                        await send(.endDateResponse(Result {
+                            try await courseRepository.endCourse(id: courseId)
+                        }))
+                    } : .none,
                     shouldSubscribe ? .run { [courseRepository] send in
                         for await _ in courseRepository.observeIsEnded(courseId: courseId) {
                             await send(.courseEndedRemotely)
@@ -698,23 +723,6 @@ public struct CourseResultFeature {
                     } message: {
                         TextState("고정한 장소를 유지한 채 다시 추천하지 못했어요. 잠시 후 다시 시도해주세요.")
                     }
-                }
-                return .none
-
-            case .swapNextPlace:
-                let sortedPlaces = state.course.places.sorted { $0.order < $1.order }
-                guard let next = sortedPlaces.first(where: { !state.visitedOrders.contains($0.order) }),
-                      !state.course.candidates.isEmpty,
-                      let placeIdx = state.course.places.firstIndex(where: { $0.order == next.order })
-                else { return .none }
-                var newPlace = state.course.candidates[0]
-                newPlace.order = next.order
-                let displaced = state.course.places[placeIdx]
-                state.course.places[placeIdx] = newPlace
-                state.course.candidates.removeFirst()
-                state.course.candidates.append(displaced)
-                state.course.candidates = state.course.candidates.enumerated().map { i, p in
-                    var updated = p; updated.order = i + 1; return updated
                 }
                 return .none
 
