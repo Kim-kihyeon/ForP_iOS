@@ -62,7 +62,6 @@ public struct CourseResultView: View {
                     onVisit: { store.send(.placeVisited($0)) },
                     onDismiss: { store.send(.liveMapDismissed) },
                     onStop: { store.send(.stopPlayTapped) },
-                    onSwap: store.course.candidates.isEmpty ? nil : { store.send(.swapNextPlace) },
                     onOpenPlace: { openKakaoMap(place: $0) }
                 )
                 .ignoresSafeArea()
@@ -1075,49 +1074,149 @@ public struct CourseResultView: View {
     // MARK: - Completion Sheet
 
     private var completionSheet: some View {
-        NavigationStack {
-            VStack(spacing: Spacing.xl) {
-                VStack(spacing: Spacing.sm) {
-                    Text("🎉").font(.system(size: 56))
-                    Text("데이트 완료!").font(.system(size: 24, weight: .bold))
-                    Text("오늘 데이트는 어떠셨나요?")
-                        .font(Typography.body).foregroundStyle(.secondary)
-                }
-                .padding(.top, Spacing.xl)
+        ZStack {
+            Color(.systemGroupedBackground).ignoresSafeArea()
 
-                VStack(spacing: Spacing.md) {
-                    HStack(spacing: 12) {
-                        ForEach(1...5, id: \.self) { star in
-                            Image(systemName: star <= store.completionRating ? "star.fill" : "star")
-                                .font(.system(size: 36))
-                                .foregroundStyle(star <= store.completionRating ? .yellow : Color(.systemFill))
-                                .scaleEffect(star <= store.completionRating ? 1.1 : 1.0)
-                                .animation(.spring(response: 0.2), value: store.completionRating)
-                                .onTapGesture { store.send(.binding(.set(\.completionRating, star))) }
-                        }
+            VStack(spacing: 0) {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 22) {
+                        completionHero
+                        completionRatingCard
                     }
-                    TextField("한 줄 후기 (선택)", text: $store.completionReview)
-                        .font(Typography.body)
-                        .padding(Spacing.md)
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, Spacing.md)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.top, 18)
+                    .padding(.bottom, 24)
                 }
-                Spacer()
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("건너뛰기") { store.send(.skipReviewTapped) }.foregroundStyle(.secondary)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("저장") { store.send(.saveReviewTapped) }
-                        .font(Typography.body.weight(.semibold))
-                        .disabled(store.completionRating == 0)
-                }
+
+                completionActions
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.height(560), .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var completionHero: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Brand.softPink)
+                    .frame(width: 72, height: 72)
+
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 34, weight: .bold))
+                    .foregroundStyle(Brand.pink)
+            }
+
+            VStack(spacing: 6) {
+                Text("데이트 완료")
+                    .font(.system(size: 28, weight: .black, design: .rounded))
+                    .foregroundStyle(.primary)
+
+                Text("\(store.course.places.count)곳, 오늘 코스 깔끔하게 마쳤어요")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+    }
+
+    private var completionRatingCard: some View {
+        VStack(spacing: 22) {
+            VStack(spacing: 6) {
+                Text("오늘 코스, 어땠나요?")
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+
+                Text(store.completionRating == 0 ? "별점은 나중에 남겨도 괜찮아요" : completionRatingText)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                ForEach(1...5, id: \.self) { star in
+                    completionStarButton(star)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("짧은 메모")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.secondary)
+
+                TextField("기억해둘 한 줄을 남겨보세요", text: $store.completionReview, axis: .vertical)
+                    .font(Typography.body)
+                    .lineLimit(1...3)
+                    .padding(14)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+        }
+        .padding(18)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .shadow(color: .black.opacity(0.06), radius: 16, x: 0, y: 6)
+    }
+
+    private var completionRatingText: String {
+        switch store.completionRating {
+        case 1: return "아쉬운 점은 다음 추천에서 피할게요"
+        case 2: return "다음 코스는 더 잘 맞춰볼게요"
+        case 3: return "무난했던 코스로 저장할게요"
+        case 4: return "좋았던 코스로 기억할게요"
+        case 5: return "이런 코스는 다음에도 눈여겨볼게요"
+        default: return "별점은 나중에 남겨도 괜찮아요"
+        }
+    }
+
+    private func completionStarButton(_ star: Int) -> some View {
+        let isSelected = star <= store.completionRating
+        return Button {
+            Haptics.selection()
+            store.send(.binding(.set(\.completionRating, star)))
+        } label: {
+            Image(systemName: "star.fill")
+                .font(.system(size: 26, weight: .black))
+                .foregroundStyle(isSelected ? Color.yellow : Color(.tertiaryLabel))
+                .frame(width: 52, height: 58)
+                .background(isSelected ? Color.yellow.opacity(0.16) : Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .scaleEffect(store.completionRating == star ? 1.06 : 1)
+        }
+        .buttonStyle(.plain)
+        .animation(.spring(response: 0.22, dampingFraction: 0.75), value: store.completionRating)
+    }
+
+    private var completionActions: some View {
+        VStack(spacing: 10) {
+            Button {
+                Haptics.notification(.success)
+                store.send(.saveReviewTapped)
+            } label: {
+                Text(store.completionRating == 0 ? "평점 없이 완료" : "저장하고 마치기")
+                    .font(Typography.body.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+                    .background(Brand.pink)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+
+            Button {
+                store.send(.skipReviewTapped)
+            } label: {
+                Text("나중에 남기기")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.top, 12)
+        .padding(.bottom, 14)
+        .background(.regularMaterial)
     }
 
     // MARK: - Map Helpers
