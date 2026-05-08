@@ -46,14 +46,35 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
     }
 
     private static let excludedCategoryCodes: Set<String> = [
-        "SW8", "PK6", "SC4", "OL7", "BK9", "PO3", "CS2",
-        "HP8", "PM9", "PS3", "AC5", "AG2", "MT1",
+        "SW8",  // 지하철역
+        "PK6",  // 주차장
+        "SC4",  // 학교
+        "OL7",  // 주유소
+        "BK9",  // 은행
+        "PO3",  // 공공기관
+        "CS2",  // 편의점
+        "HP8",  // 병원
+        "PM9",  // 약국
+        "PS3",  // 어린이집/유치원
+        "AC5",  // 학원
+        "AG2",  // 부동산
+        "MT1",  // 대형마트
+        "AD5",  // 숙박 — 호텔 루프탑은 이름 기반으로 별도 허용이 어려우나 숙박 자체는 제외
     ]
 
     private static let excludedNameKeywords: [String] = [
         "아파트", "빌라", "오피스텔", "주차장", "지하철역", "고속버스터미널",
         "버스터미널", "기차역", "주유소", "편의점",
         "병원", "약국", "장례식장", "동사무소", "주민센터", "구청", "세무서",
+        "부동산", "공인중개사", "법무사", "세탁소", "미용실", "이발소",
+        "PC방", "인터넷카페", "코인노래방",
+    ]
+
+    private static let genericPlaceNames: Set<String> = [
+        "맛집", "한식맛집", "중식맛집", "일식맛집", "양식맛집", "고기맛집",
+        "카페맛집", "데이트맛집", "브런치맛집", "디저트맛집", "술집맛집",
+        "맛집추천", "한식", "중식", "일식", "양식", "분식", "음식점",
+        "카페", "브런치", "디저트", "술집", "밥집",
     ]
 
     private static let excludedChainKeywords: [String] = [
@@ -88,16 +109,11 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
             guard !seen.contains(doc.id) else { return false }
             guard !excludedCategoryCodes.contains(doc.categoryGroupCode) else { return false }
             guard !excludedNameKeywords.contains(where: { doc.placeName.contains($0) || doc.categoryName.contains($0) }) else { return false }
+            guard !isGenericSearchLikePlaceName(doc.placeName) else { return false }
             seen.insert(doc.id)
             return true
         }
-        let localFirst = eligible.filter { doc in
-            !excludedChainKeywords.contains { doc.placeName.localizedCaseInsensitiveContains($0) }
-        }
-        let chains = eligible.filter { doc in
-            excludedChainKeywords.contains { doc.placeName.localizedCaseInsensitiveContains($0) }
-        }
-        return (localFirst + chains).map { doc in
+        return eligible.map { doc in
             toPlace(doc, keyword: keyword)
         }
     }
@@ -128,6 +144,25 @@ public struct PlaceRepository: PlaceRepositoryProtocol {
                 case .failure:
                     continuation.resume(returning: false)
                 }
+            }
+        }
+    }
+
+    private static func isGenericSearchLikePlaceName(_ name: String) -> Bool {
+        let normalized = name
+            .folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .joined()
+            .lowercased()
+
+        guard !normalized.isEmpty else { return true }
+        if genericPlaceNames.contains(normalized) { return true }
+
+        let genericSuffixes = ["맛집", "추천", "데이트"]
+        let foodPrefixes = ["한식", "중식", "일식", "양식", "고기", "카페", "브런치", "디저트", "술집", "밥집"]
+        return foodPrefixes.contains { prefix in
+            genericSuffixes.contains { suffix in
+                normalized == "\(prefix)\(suffix)"
             }
         }
     }
