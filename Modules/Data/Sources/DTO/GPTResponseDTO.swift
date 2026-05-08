@@ -26,6 +26,7 @@ struct GPTResponseDTO: Decodable {
         let keyword: String
         let reason: String
         let menu: String?
+        let foodType: String?
         let isSelected: Bool
     }
 }
@@ -50,10 +51,10 @@ extension GPTAPIResponse {
             throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "courses가 비어있습니다."))
         }
         let selected = dto.courses.filter { $0.isSelected }.map {
-            CoursePlace(order: $0.order, category: $0.category, keyword: $0.keyword, reason: $0.reason, menu: $0.menu)
+            CoursePlace(order: $0.order, category: $0.category, keyword: $0.keyword, reason: $0.reason, menu: $0.menu, foodType: $0.foodType)
         }
         let candidates = dto.courses.filter { !$0.isSelected }.map {
-            CoursePlace(order: $0.order, category: $0.category, keyword: $0.keyword, reason: $0.reason, menu: $0.menu)
+            CoursePlace(order: $0.order, category: $0.category, keyword: $0.keyword, reason: $0.reason, menu: $0.menu, foodType: $0.foodType)
         }
         return CoursePlan(places: selected, candidates: candidates, outfitSuggestion: dto.outfit, courseReason: dto.courseReason)
     }

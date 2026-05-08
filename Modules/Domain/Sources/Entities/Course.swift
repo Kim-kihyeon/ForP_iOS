@@ -18,6 +18,7 @@ public struct CoursePlace: Codable, Equatable {
     public var keyword: String
     public var reason: String
     public var menu: String?
+    public var foodType: String?
     public var placeName: String?
     public var address: String?
     public var latitude: Double?
@@ -32,6 +33,7 @@ public struct CoursePlace: Codable, Equatable {
         keyword: String,
         reason: String,
         menu: String? = nil,
+        foodType: String? = nil,
         placeName: String? = nil,
         address: String? = nil,
         latitude: Double? = nil,
@@ -45,6 +47,7 @@ public struct CoursePlace: Codable, Equatable {
         self.keyword = keyword
         self.reason = reason
         self.menu = menu
+        self.foodType = foodType
         self.placeName = placeName
         self.address = address
         self.latitude = latitude
