@@ -388,6 +388,7 @@ public struct HomeFeature {
                     let results = (try? await placeRepository.searchPlaces(keyword: query)) ?? []
                     await send(.quickLocationSuggestionsLoaded(results))
                 }
+                .cancellable(id: "quickLocationSearch", cancelInFlight: true)
 
             case .quickLocationSuggestionsLoaded(let places):
                 state.isSearchingQuickLocation = false

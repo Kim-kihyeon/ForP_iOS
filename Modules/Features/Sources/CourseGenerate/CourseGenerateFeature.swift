@@ -95,6 +95,7 @@ public struct CourseGenerateFeature {
                     let results = (try? await placeRepository.searchPlaces(keyword: query)) ?? []
                     await send(.locationSuggestionsLoaded(results))
                 }
+                .cancellable(id: "locationSearch", cancelInFlight: true)
 
             case .locationSuggestionsLoaded(let places):
                 state.isSearchingLocation = false
@@ -258,6 +259,7 @@ public struct CourseGenerateFeature {
 
             case .cancelGenerationTapped:
                 state.isGenerating = false
+                state.errorMessage = nil
                 return .cancel(id: "courseGeneration")
 
             case .delegate:

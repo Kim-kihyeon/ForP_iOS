@@ -89,7 +89,7 @@ public struct CourseGenerateView: View {
         }
         .alert("코스 생성 실패", isPresented: Binding(
             get: { store.errorMessage != nil },
-            set: { if !$0 { store.send(.cancelGenerationTapped) } }
+            set: { _ in }
         )) {
             Button("다시 시도") { store.send(.retryTapped) }
             Button("취소", role: .cancel) { store.send(.cancelGenerationTapped) }
@@ -523,9 +523,21 @@ public struct CourseGenerateView: View {
                     Text("요청사항")
                         .font(Typography.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
-                    TextField("예: 술집은 빼줘, 비 와서 실내 위주로, 너무 비싼 곳은 싫어", text: $store.memo, axis: .vertical)
-                        .font(Typography.body)
-                        .lineLimit(2...4)
+                    ZStack(alignment: .topLeading) {
+                        if store.memo.isEmpty {
+                            Text("예: 술집은 빼줘, 비 와서 실내 위주로, 너무 비싼 곳은 싫어")
+                                .font(Typography.body)
+                                .foregroundStyle(Color(.placeholderText))
+                                .padding(.top, 8)
+                                .padding(.leading, 5)
+                                .allowsHitTesting(false)
+                        }
+                        TextEditor(text: $store.memo)
+                            .font(Typography.body)
+                            .frame(minHeight: 60, maxHeight: 120)
+                            .scrollContentBackground(.hidden)
+                            .background(.clear)
+                    }
                 }
             }
         }
