@@ -17,6 +17,77 @@ public struct CourseGenerateView: View {
         !store.selectedLocations.isEmpty
     }
 
+    private var loadingMessages: [String] {
+        if store.isRandom {
+            return [
+                "취향은 잠깐 내려놓고 새 조합을 찾고 있어요",
+                "예상 밖이어도 말 되는 동선을 맞춰보고 있어요",
+                "식사·카페·활동이 한쪽으로 쏠리지 않게 보고 있어요",
+                "너무 뻔한 후보는 살짝 빼는 중이에요",
+                "오늘 바로 가도 어색하지 않은 코스로 다듬고 있어요",
+            ]
+        }
+
+        let themes = store.selectedThemes
+        if themes.contains(where: { $0.contains("맛집") || $0.contains("음식") }) {
+            return [
+                "맛있는 곳만 몰아넣지 않게 균형을 보고 있어요",
+                "식사 후 쉬어갈 카페나 가벼운 장소도 같이 맞춰봐요",
+                "기준점에서 너무 먼 맛집은 덜어내고 있어요",
+                "후보 장소까지 넉넉하게 검증하는 중이에요",
+                "배부른데 또 식당 가는 코스는 피하고 있어요",
+            ]
+        }
+        if themes.contains(where: { $0.contains("카페") || $0.contains("디저트") || $0.contains("감성") }) {
+            return [
+                "카페만 이어지지 않게 코스 흐름을 보고 있어요",
+                "대화하기 좋은 곳과 움직일 곳을 같이 맞춰봐요",
+                "체인보다 분위기 있는 후보를 먼저 살피는 중이에요",
+                "사진보다 실제 동선이 괜찮은지 확인하고 있어요",
+                "달달함 과다 복용은 살짝 조절하고 있어요",
+            ]
+        }
+        if themes.contains(where: { $0.contains("술") || $0.contains("밤") || $0.contains("야경") }) {
+            return [
+                "저녁 흐름에 맞게 식사와 마무리 장소를 맞춰요",
+                "한 잔하기 전후 동선이 어색하지 않은지 보고 있어요",
+                "너무 멀리 이동하는 밤 코스는 빼고 있어요",
+                "분위기와 안전한 이동 거리를 같이 확인해요",
+                "끝나고 집 가기 싫어지는 정도까지만 다듬고 있어요",
+            ]
+        }
+        if !store.memo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return [
+                "요청사항을 먼저 반영하고 있어요",
+                "싫다고 한 조건은 조용히 피하는 중이에요",
+                "원하는 분위기와 실제 장소가 맞는지 보고 있어요",
+                "후보까지 넉넉하게 비교하고 있어요",
+                "말한 건 최대한 기억하는 척이 아니라 진짜 반영 중이에요",
+            ]
+        }
+        return [
+            "식사·카페·활동이 자연스럽게 섞이는지 보고 있어요",
+            "기준점에서 너무 먼 곳은 덜어내고 있어요",
+            "너무 뻔한 곳은 살짝 빼고 있어요",
+            "괜찮은 후보만 남겨보고 있어요",
+            "마지막 조합을 다듬고 있어요",
+        ]
+    }
+
+    private var loadingSubtitle: String {
+        let locations = store.selectedLocations.map { $0.placeName ?? $0.keyword }.joined(separator: ", ")
+        if store.isRandom {
+            return "\(locations) 근처에서 뜻밖이지만 말 되는 코스를 찾는 중"
+        }
+        if !store.selectedThemes.isEmpty {
+            return "\(store.selectedThemes.joined(separator: "·")) 분위기에 맞춰 고르고 있어요"
+        }
+        if !store.memo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "요청사항과 실제 장소 정보를 같이 맞춰보고 있어요"
+        }
+        return "\(locations) 근처에서 데이트 흐름을 맞추고 있어요"
+    }
+
     public var body: some View {
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
@@ -51,7 +122,10 @@ public struct CourseGenerateView: View {
             }
 
             if store.isGenerating {
-                CourseLoadingView()
+                CourseLoadingView(
+                    messages: loadingMessages,
+                    subtitle: loadingSubtitle
+                )
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         Button {
                             Haptics.impact(.light)

@@ -21,15 +21,22 @@ public struct CourseLoadingView: View {
     @State private var ring3: CGFloat = 1.0
     @State private var iconOffset: CGFloat = 0
 
-    private let messages = [
-        "너무 뻔한 곳은 살짝 빼고 있어요",
-        "동선이 꼬이지 않게 맞춰보고 있어요",
-        "오늘 분위기에 맞는 곳만 고르는 중이에요",
-        "괜찮은 후보만 남겨보고 있어요",
-        "마지막 조합을 다듬고 있어요",
-    ]
+    private let messages: [String]
+    private let subtitle: String
 
-    public init() {}
+    public init(
+        messages: [String] = [
+            "너무 뻔한 곳은 살짝 빼고 있어요",
+            "동선이 꼬이지 않게 맞춰보고 있어요",
+            "오늘 분위기에 맞는 곳만 고르는 중이에요",
+            "괜찮은 후보만 남겨보고 있어요",
+            "마지막 조합을 다듬고 있어요",
+        ],
+        subtitle: String = "조건에 맞는 장소를 차분히 고르고 있어요"
+    ) {
+        self.messages = messages.isEmpty ? ["코스를 다듬고 있어요"] : messages
+        self.subtitle = subtitle
+    }
 
     public var body: some View {
         ZStack {
@@ -85,15 +92,15 @@ public struct CourseLoadingView: View {
                             removal: .opacity.combined(with: .offset(y: -10))
                         ))
 
-                    Text("조건에 맞는 장소를 차분히 고르고 있어요")
+                    Text(subtitle)
                         .font(.system(size: 13))
                         .foregroundStyle(.white.opacity(0.75))
 
                     HStack(spacing: 7) {
-                        ForEach(0..<5, id: \.self) { i in
+                        ForEach(0..<messages.count, id: \.self) { i in
                             Capsule()
-                                .fill(i == messageIndex % 5 ? Color.white : Color.white.opacity(0.3))
-                                .frame(width: i == messageIndex % 5 ? 22 : 6, height: 6)
+                                .fill(i == messageIndex % messages.count ? Color.white : Color.white.opacity(0.3))
+                                .frame(width: i == messageIndex % messages.count ? 22 : 6, height: 6)
                                 .animation(.spring(response: 0.4, dampingFraction: 0.7), value: messageIndex)
                         }
                     }
