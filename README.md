@@ -44,7 +44,6 @@
 | 로컬 저장 | SwiftData, UserDefaults, Keychain |
 | 푸시/모니터링 | Firebase Cloud Messaging, Firebase Crashlytics |
 | 배포 | GitHub Actions, fastlane, fastlane match, TestFlight |
-| 협업 도구 | Claude Code, Codex |
 
 <br>
 
