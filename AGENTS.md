@@ -73,6 +73,8 @@ CoreSharedUI
 | CoreNetwork | `Modules/Core/Network/Sources/` | Shared network helpers |
 | CoreSharedUI | `Modules/Core/SharedUI/Sources/` | Design tokens and shared UI |
 
+For a fuller human-readable map of feature flows, risky files, and stability checklists, see `docs/app-architecture-guide.md`.
+
 ## Codex Workflow
 
 ### Before editing
