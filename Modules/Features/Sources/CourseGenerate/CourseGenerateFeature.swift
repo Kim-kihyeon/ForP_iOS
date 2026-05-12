@@ -22,11 +22,21 @@ public struct CourseGenerateFeature {
         public var wishlistPlaces: [WishlistPlace] = []
         public var selectedWishlistIds: Set<UUID> = []
         public var learnedPreferences: LearnedPreferences? = nil
+        public var savedRecentPlaces: [CoursePlace] = []
+        public var recentlyGeneratedPlaces: [CoursePlace] = []
 
-        public init(user: User, partner: Partner? = nil, learnedPreferences: LearnedPreferences? = nil) {
+        public init(
+            user: User,
+            partner: Partner? = nil,
+            learnedPreferences: LearnedPreferences? = nil,
+            savedRecentPlaces: [CoursePlace] = [],
+            recentlyGeneratedPlaces: [CoursePlace] = []
+        ) {
             self.user = user
             self.partner = partner
             self.learnedPreferences = learnedPreferences
+            self.savedRecentPlaces = savedRecentPlaces
+            self.recentlyGeneratedPlaces = recentlyGeneratedPlaces
             let savedLocation = user.location.trimmingCharacters(in: .whitespacesAndNewlines)
             if !savedLocation.isEmpty {
                 self.selectedLocations = [
@@ -170,6 +180,10 @@ public struct CourseGenerateFeature {
                 }
 
             case .generateTapped:
+                guard !state.selectedLocations.isEmpty else {
+                    state.errorMessage = "검색 결과에서 코스를 만들 동네를 먼저 선택해주세요."
+                    return .none
+                }
                 state.isGenerating = true
                 state.locationSuggestions = []
                 let locationStr = state.selectedLocations.map { $0.placeName ?? $0.keyword }.joined(separator: ", ")
@@ -201,6 +215,8 @@ public struct CourseGenerateFeature {
                     baseLatitude: baseLat,
                     baseLongitude: baseLon,
                     searchRadius: searchRadius,
+                    savedRecentPlaces: state.savedRecentPlaces,
+                    recentlyGeneratedPlaces: state.recentlyGeneratedPlaces,
                     isRandom: state.isRandom,
                     learnedPreferences: state.learnedPreferences
                 )
@@ -239,6 +255,8 @@ public struct CourseGenerateFeature {
                     baseLatitude: baseLat,
                     baseLongitude: baseLon,
                     searchRadius: searchRadius,
+                    savedRecentPlaces: state.savedRecentPlaces,
+                    recentlyGeneratedPlaces: state.recentlyGeneratedPlaces,
                     isRandom: state.isRandom,
                     learnedPreferences: state.learnedPreferences
                 )

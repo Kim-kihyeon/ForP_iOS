@@ -45,7 +45,7 @@ public struct GPTAIService: AIServiceProtocol {
         5. 카페·브런치·식당은 로컬 매장, 감성 공간, 대화하기 좋은 분위기, 디저트/메뉴 개성이 있는 곳을 우선 추천하세요.
         6. 브런치·감성·트렌디·오붓한 대화 장소가 필요한 경우 대형 프랜차이즈/저가 체인 카페를 추천하지 마세요. 단순 커피, 잠깐 쉬기, 가성비 목적일 때만 낮은 우선순위로 고려할 수 있습니다.
         7. keyword는 반드시 2~3단어 이내로 짧게 작성하세요. (예: "강남역 카페" O, "강남역 분위기 좋은 루프탑 카페" X)
-        8. placeCount의 2배 장소를 생성하되, 가장 좋은 placeCount개에만 "isSelected": true를 표시하세요.
+        8. placeCount의 3배 장소를 생성하되, 가장 좋은 placeCount개에만 "isSelected": true를 표시하세요.
         9. courseReason: 이 코스를 추천하는 이유를 2-3문장으로 설명하세요.
         10. 동선은 반드시 지리적으로 인접한 장소끼리 이동하도록 order를 배치하세요. 불필요하게 먼 곳을 오가는 동선은 절대 만들지 마세요.
         11. 고정 장소가 주어진 경우 같은 장소를 새 장소로 다시 추천하지 말고, 고정 장소와 잘 이어지는 대체 장소만 추천하세요.
@@ -53,6 +53,7 @@ public struct GPTAIService: AIServiceProtocol {
         13. 고정 장소와 같은 세부 음식/활동 유형을 반복하지 마세요. 예: 고정 장소가 훠궈집이면 다른 훠궈집을 추천하지 말고, 이자카야·파스타·전시·카페처럼 성격이 다른 장소로 바꾸세요.
         14. "맛집", "한식맛집", "데이트맛집", "카페맛집", "맛집추천"처럼 검색어 자체가 상호명처럼 보이는 장소는 절대 추천하지 마세요. 실제 브랜드/매장명으로 검색될 가능성이 높은 키워드만 사용하세요.
         15. 요청사항에 '~만 추천', '~만', '~집만' 같은 표현이 있으면 selected·candidates 포함 코스의 모든 장소를 해당 유형으로만 채우세요. 카페, 전시, 다른 음식 등 어떤 예외도 허용하지 않습니다. 예: "막창집만 추천" → 모든 장소가 막창집, "카페만" → 모든 장소가 카페.
+        16. 단, '~만' 요청이 없는 일반 코스는 역할을 섞으세요. 3곳 이상 코스에서 식당만, 카페/디저트만, 술집만 반복하지 마세요. 식사·카페/디저트·활동/산책·바 중 최소 2가지 역할을 섞어 데이트 흐름을 만드세요.
         """
     }
 
@@ -78,7 +79,7 @@ public struct GPTAIService: AIServiceProtocol {
         지역: \(options.location) (이 지역 장소만 추천)
         날짜: \(dateString)
         날씨: \(options.weatherDescription ?? "정보 없음")
-        장소 수: 총 \(options.placeCount * 2)개 생성, 그 중 \(options.placeCount)개 선택 (isSelected: true)
+        장소 수: 총 \(options.placeCount * 3)개 생성, 그 중 \(options.placeCount)개 선택 (isSelected: true)
         """
         // 절대 제외 항목은 랜덤 여부와 무관하게 항상 적용
         if !user.foodBlacklist.isEmpty {
@@ -153,6 +154,7 @@ public struct GPTAIService: AIServiceProtocol {
         - keyword: '\(options.location)'으로 시작하는 카카오맵 검색어 (예: "\(options.location) 감성 카페")
         - 카페/브런치/음식점 keyword는 프랜차이즈명보다 지역+분위기/카테고리 조합을 우선 사용 (예: "\(options.location) 로스터리", "\(options.location) 디저트 카페")
         - 맛집탐방/음식점 코스에서도 "한식맛집", "맛집", "데이트맛집" 같은 일반명 검색어는 금지
+        - '~만' 요청이 없다면 최종 selected 코스는 같은 역할만 반복하지 말고 식사/카페·디저트/활동/바를 섞기
         - menu: 실제 매장의 대표메뉴를 확인할 수 없으므로 항상 null
         - foodType: 장소의 세부 음식/음료 유형을 짧게 (예: "막창", "초밥", "갈비", "삼겹살", "카페", "브런치", "디저트"). 전시·공원·쇼핑 등 비음식 장소는 null
         - outfit: 날씨·코스 분위기에 맞는 옷차림 제안 1-2문장

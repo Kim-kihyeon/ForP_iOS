@@ -158,6 +158,8 @@ public struct CourseOptions: Equatable {
     public var searchRadius: Int
     public var lockedPlaces: [CoursePlace]
     public var excludedPlaces: [CoursePlace]
+    public var savedRecentPlaces: [CoursePlace]
+    public var recentlyGeneratedPlaces: [CoursePlace]
     public var isRandom: Bool
 
     public var learnedPreferences: LearnedPreferences?
@@ -175,6 +177,8 @@ public struct CourseOptions: Equatable {
         searchRadius: Int = 2000,
         lockedPlaces: [CoursePlace] = [],
         excludedPlaces: [CoursePlace] = [],
+        savedRecentPlaces: [CoursePlace] = [],
+        recentlyGeneratedPlaces: [CoursePlace] = [],
         isRandom: Bool = false,
         learnedPreferences: LearnedPreferences? = nil
     ) {
@@ -190,6 +194,8 @@ public struct CourseOptions: Equatable {
         self.searchRadius = searchRadius
         self.lockedPlaces = lockedPlaces
         self.excludedPlaces = excludedPlaces
+        self.savedRecentPlaces = savedRecentPlaces
+        self.recentlyGeneratedPlaces = recentlyGeneratedPlaces
         self.isRandom = isRandom
         self.learnedPreferences = learnedPreferences
     }

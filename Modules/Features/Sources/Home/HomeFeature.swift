@@ -42,6 +42,8 @@ public struct HomeFeature {
         public var showCalendar = false
         public var isQuickGenerating = false
         public var pendingQuickGenerateThemes: [String] = []
+        public var pendingQuickGenerateOptions: CourseOptions? = nil
+        public var sessionGeneratedPlaces: [CoursePlace] = []
         public var isEditingQuickLocation = false
         public var quickLocationQuery = ""
         public var quickLocationSuggestions: [CoursePlace] = []
@@ -288,7 +290,9 @@ public struct HomeFeature {
                 state.path.append(.courseGenerate(CourseGenerateFeature.State(
                     user: state.user,
                     partner: state.partner,
-                    learnedPreferences: learned.isEmpty ? nil : learned
+                    learnedPreferences: learned.isEmpty ? nil : learned,
+                    savedRecentPlaces: recentSavedPlaces(from: state.recentCourses),
+                    recentlyGeneratedPlaces: state.sessionGeneratedPlaces
                 )))
                 return .none
 
@@ -313,8 +317,11 @@ public struct HomeFeature {
                     mode: .ordered,
                     baseLatitude: overridePlace?.latitude,
                     baseLongitude: overridePlace?.longitude,
+                    savedRecentPlaces: recentSavedPlaces(from: state.recentCourses),
+                    recentlyGeneratedPlaces: state.sessionGeneratedPlaces,
                     learnedPreferences: learned.isEmpty ? nil : learned
                 )
+                state.pendingQuickGenerateOptions = options
                 return .run { [user = state.user, partner = state.partner] send in
                     await send(.quickGenerateResponse(
                         Result { try await generateCourseUseCase.execute(user: user, partner: partner, options: options) }
@@ -326,8 +333,14 @@ public struct HomeFeature {
                 state.isQuickGenerating = false
                 let userId = state.user.id
                 let existingPartnerId = state.partner?.userId
-                let themes = state.pendingQuickGenerateThemes
-                let location = state.user.location
+                let options = state.pendingQuickGenerateOptions ?? CourseOptions(
+                    location: state.user.location,
+                    themes: state.pendingQuickGenerateThemes,
+                    placeCount: 3,
+                    mode: .ordered
+                )
+                let themes = options.themes
+                let location = options.location
                 return .run { send in
                     let partnerId: UUID?
                     if let existing = existingPartnerId {
@@ -348,7 +361,6 @@ public struct HomeFeature {
                         outfitSuggestion: plan.outfitSuggestion,
                         courseReason: plan.courseReason
                     )
-                    let options = CourseOptions(location: location, themes: themes, placeCount: 3, mode: .ordered)
                     await send(.quickCourseReadyToShow(course, options))
                 }
 
@@ -360,6 +372,7 @@ public struct HomeFeature {
             case .cancelQuickGenerate:
                 state.isQuickGenerating = false
                 state.pendingQuickGenerateThemes = []
+                state.pendingQuickGenerateOptions = nil
                 return .cancel(id: "quickCourseGeneration")
 
             case .quickLocationEditTapped:
@@ -414,6 +427,10 @@ public struct HomeFeature {
 
             case .quickCourseReadyToShow(let course, let options):
                 state.pendingQuickGenerateThemes = []
+                state.pendingQuickGenerateOptions = nil
+                state.sessionGeneratedPlaces = cappedSessionGeneratedPlaces(
+                    state.sessionGeneratedPlaces + generatedPlaces(from: course)
+                )
                 var resultState = CourseResultFeature.State(
                     course: course,
                     user: state.user,
@@ -468,6 +485,9 @@ public struct HomeFeature {
 
             case .courseReadyToShow(let course, let note, let options):
                 state.path.removeLast()
+                state.sessionGeneratedPlaces = cappedSessionGeneratedPlaces(
+                    state.sessionGeneratedPlaces + generatedPlaces(from: course)
+                )
                 var resultState = CourseResultFeature.State(
                     course: course,
                     user: state.user,
@@ -608,6 +628,43 @@ public struct HomeFeature {
         .forEach(\.path, action: \.path)
         .ifLet(\.$alert, action: \.alert)
     }
+}
+
+private func recentSavedPlaces(from courses: [Course]) -> [CoursePlace] {
+    Array(courses.prefix(12).flatMap(\.places).prefix(80))
+}
+
+private func generatedPlaces(from course: Course) -> [CoursePlace] {
+    course.places + course.candidates
+}
+
+private func cappedSessionGeneratedPlaces(_ places: [CoursePlace]) -> [CoursePlace] {
+    var seen = Set<String>()
+    var latestUnique: [CoursePlace] = []
+
+    for place in places.reversed() {
+        let key = homePlaceIdentityKey(place)
+        guard seen.insert(key).inserted else { continue }
+        latestUnique.append(place)
+        if latestUnique.count == 80 { break }
+    }
+
+    return latestUnique.reversed()
+}
+
+private func homePlaceIdentityKey(_ place: CoursePlace) -> String {
+    if let id = place.kakaoPlaceId, !id.isEmpty {
+        return "id:\(id)"
+    }
+    let name = (place.placeName ?? place.keyword)
+        .folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+        .components(separatedBy: .whitespacesAndNewlines)
+        .joined()
+    let address = (place.address ?? "")
+        .folding(options: [.caseInsensitive, .widthInsensitive], locale: .current)
+        .components(separatedBy: .whitespacesAndNewlines)
+        .joined()
+    return "text:\(name)|\(address)"
 }
 
 extension HomeFeature.Path.State: Equatable {}
