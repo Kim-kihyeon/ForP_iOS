@@ -88,10 +88,12 @@ public struct CourseResultFeature {
         case liveMapDismissed
         case showLiveMapTapped
         case placeVisited(Int)
+        case updateVisitedOrdersResponse(Result<Void, Error>)
         case saveReviewTapped
         case skipReviewTapped
         case updateRatingResponse(Result<Void, Error>)
         case endDateResponse(Result<Void, Error>)
+        case persistCourseResponse(Result<Void, Error>)
         case redateTapped
         case leaveReviewTapped
         case courseEndedRemotely
@@ -113,7 +115,7 @@ public struct CourseResultFeature {
         case cancelPartialRegenerationTapped
         case partialRegenerateResponse(Result<CoursePlan, Error>)
 
-        public enum Alert: Equatable { case confirmDelete, retrySave, confirmEndDate, confirmReplaceInProgress, openConflictCourse }
+        public enum Alert: Equatable { case confirmDelete, retrySave, retryEndDate, confirmEndDate, confirmReplaceInProgress, openConflictCourse }
         public enum Delegate: Equatable {
             case dismiss
             case deleted
@@ -234,6 +236,14 @@ public struct CourseResultFeature {
                     ))
                 }
 
+            case .alert(.presented(.retryEndDate)):
+                let id = state.course.id
+                return .run { send in
+                    await send(.endDateResponse(Result {
+                        try await courseRepository.endCourse(id: id)
+                    }))
+                }
+
             case .alert:
                 return .none
 
@@ -344,11 +354,11 @@ public struct CourseResultFeature {
                 let id = state.course.id
                 let userId = state.user?.id
                 return .run { send in
-                    if let previousId {
-                        try? await courseRepository.cancelCourse(id: previousId)
-                    }
-                    guard let userId else { return }
                     await send(.startCourseResponse(Result {
+                        if let previousId {
+                            try await courseRepository.cancelCourse(id: previousId)
+                        }
+                        guard let userId else { return }
                         try await courseRepository.startCourse(id: id, userId: userId, visitedOrders: [])
                     }))
                 }
@@ -437,13 +447,29 @@ public struct CourseResultFeature {
                 let shouldComplete = state.course.status == .completed && state.course.isEnded
                 guard state.isSaved else { return .none }
                 return .run { send in
-                    try? await courseRepository.updateVisitedOrders(id: id, visitedOrders: visited)
-                    if shouldComplete {
-                        await send(.endDateResponse(Result {
-                            try await courseRepository.endCourse(id: id)
-                        }))
+                    do {
+                        try await courseRepository.updateVisitedOrders(id: id, visitedOrders: visited)
+                        await send(.updateVisitedOrdersResponse(.success(())))
+                        if shouldComplete {
+                            await send(.endDateResponse(Result {
+                                try await courseRepository.endCourse(id: id)
+                            }))
+                        }
+                    } catch {
+                        await send(.updateVisitedOrdersResponse(.failure(error)))
                     }
                 }
+
+            case .updateVisitedOrdersResponse(.success):
+                return .none
+
+            case .updateVisitedOrdersResponse(.failure(let error)):
+                state.alert = AlertState { TextState("방문 기록 저장 실패") } actions: {
+                    ButtonState(role: .cancel) { TextState("확인") }
+                } message: {
+                    TextState(error.localizedDescription)
+                }
+                return .none
 
             case .saveReviewTapped:
                 state.showCompletion = false
@@ -467,11 +493,13 @@ public struct CourseResultFeature {
                 state.course.status = .completed
                 return .run { send in
                     if rating > 0 || !review.isEmpty {
-                        if isCreator {
-                            try? await courseRepository.updateRating(id: id, rating: rating > 0 ? rating : nil, review: review)
-                        } else {
-                            try? await courseRepository.updatePartnerRating(id: id, rating: rating > 0 ? rating : nil, review: review)
-                        }
+                        await send(.updateRatingResponse(Result {
+                            if isCreator {
+                                try await courseRepository.updateRating(id: id, rating: rating > 0 ? rating : nil, review: review)
+                            } else {
+                                try await courseRepository.updatePartnerRating(id: id, rating: rating > 0 ? rating : nil, review: review)
+                            }
+                        }))
                     }
                     await send(.endDateResponse(Result {
                         try await courseRepository.endCourse(id: id)
@@ -494,10 +522,27 @@ public struct CourseResultFeature {
                     }))
                 }
 
-            case .updateRatingResponse:
+            case .updateRatingResponse(.success):
                 return .none
 
-            case .endDateResponse:
+            case .updateRatingResponse(.failure(let error)):
+                state.alert = AlertState { TextState("후기 저장 실패") } actions: {
+                    ButtonState(role: .cancel) { TextState("확인") }
+                } message: {
+                    TextState(error.localizedDescription)
+                }
+                return .none
+
+            case .endDateResponse(.success):
+                return .none
+
+            case .endDateResponse(.failure(let error)):
+                state.alert = AlertState { TextState("완료 저장 실패") } actions: {
+                    ButtonState(action: .retryEndDate) { TextState("다시 시도") }
+                    ButtonState(role: .cancel) { TextState("확인") }
+                } message: {
+                    TextState(error.localizedDescription)
+                }
                 return .none
 
             case .redateTapped:
@@ -519,7 +564,15 @@ public struct CourseResultFeature {
                     }))
                 }
 
-            case .updateTitleResponse:
+            case .updateTitleResponse(.success):
+                return .none
+
+            case .updateTitleResponse(.failure(let error)):
+                state.alert = AlertState { TextState("제목 저장 실패") } actions: {
+                    ButtonState(role: .cancel) { TextState("확인") }
+                } message: {
+                    TextState(error.localizedDescription)
+                }
                 return .none
 
             case .reorderPlaces(let source, let destination):
@@ -527,7 +580,13 @@ public struct CourseResultFeature {
                 state.course.places = state.course.places.enumerated().map { index, place in
                     var p = place; p.order = index + 1; return p
                 }
-                return .none
+                guard state.isSaved else { return .none }
+                let course = state.course
+                return .run { send in
+                    await send(.persistCourseResponse(Result {
+                        try await saveCourseUseCase.execute(course)
+                    }))
+                }
 
             case .resetPlaces(let places):
                 state.course.places = places
@@ -538,15 +597,39 @@ public struct CourseResultFeature {
                 state.course.places = state.course.places.enumerated().map { index, place in
                     var p = place; p.order = index + 1; return p
                 }
-                return .none
+                guard state.isSaved else { return .none }
+                let course = state.course
+                return .run { send in
+                    await send(.persistCourseResponse(Result {
+                        try await saveCourseUseCase.execute(course)
+                    }))
+                }
 
             case .addCandidate(let place):
                 var newPlace = place
                 newPlace.order = state.course.places.count + 1
                 state.course.places.append(newPlace)
-                state.course.candidates.removeAll { $0.keyword == place.keyword }
+                let addedKey = placeIdentityKey(place)
+                state.course.candidates.removeAll { placeIdentityKey($0) == addedKey }
                 state.course.candidates = state.course.candidates.enumerated().map { index, p in
                     var updated = p; updated.order = index + 1; return updated
+                }
+                guard state.isSaved else { return .none }
+                let course = state.course
+                return .run { send in
+                    await send(.persistCourseResponse(Result {
+                        try await saveCourseUseCase.execute(course)
+                    }))
+                }
+
+            case .persistCourseResponse(.success):
+                return .none
+
+            case .persistCourseResponse(.failure(let error)):
+                state.alert = AlertState { TextState("변경 저장 실패") } actions: {
+                    ButtonState(role: .cancel) { TextState("확인") }
+                } message: {
+                    TextState(error.localizedDescription)
                 }
                 return .none
 
@@ -644,8 +727,10 @@ public struct CourseResultFeature {
             case .placeMemoCommitted:
                 guard state.isSaved else { return .none }
                 let course = state.course
-                return .run { _ in
-                    try? await saveCourseUseCase.execute(course)
+                return .run { send in
+                    await send(.persistCourseResponse(Result {
+                        try await saveCourseUseCase.execute(course)
+                    }))
                 }
 
             case .partialRegenerateTapped:
@@ -705,8 +790,10 @@ public struct CourseResultFeature {
                 }
                 guard state.isSaved else { return .none }
                 let course = state.course
-                return .run { _ in
-                    try? await saveCourseUseCase.execute(course)
+                return .run { send in
+                    await send(.persistCourseResponse(Result {
+                        try await saveCourseUseCase.execute(course)
+                    }))
                 }
 
             case .partialRegenerateResponse(.failure(let error)):
